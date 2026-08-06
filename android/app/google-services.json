@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "273991677038",
+    "project_id": "ngoum-cf658",
+    "storage_bucket": "ngoum-cf658.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:273991677038:android:f1db26a3e98a9fe323a27f",
+        "android_client_info": {
+          "package_name": "com.liveChat.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDh9ayCGep3CzL9euNCGnHzaRx3cS_UUDg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

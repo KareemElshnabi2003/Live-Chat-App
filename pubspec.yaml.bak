@@ -1,0 +1,89 @@
+name: live_chat
+description: "A new Flutter project."
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.3 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  image_picker: 
+  cached_network_image: 
+  path: 
+  url_launcher: 
+  get: 
+  google_fonts: 
+  flutter_otp_text_field: 
+  jiffy: 
+  device_preview: 
+  http: 
+  jwt_decoder: 
+  flutter_offline: 
+  shared_preferences: 
+  dartz: 
+  dotted_border: 
+  webview_flutter: 
+  screen_go:
+  carousel_slider: 
+  font_awesome_flutter: 
+  iconsax_plus: 
+  iconsax: 
+  lucide_icons_flutter: 
+  flutter_svg: 
+  audioplayers: 
+  reaction_askany:
+  just_audio:
+  flutter_localizations:
+    sdk: flutter
+  intl: 
+  share_plus: 
+  pusher_channels_flutter: ^2.5.0
+  firebase_core: 
+  firebase_messaging: 
+  change_app_package_name: ^1.5.0
+  lottie:
+  flutter_image_compress: ^2.4.0
+  animate_do:
+  path_provider: ^2.1.5
+  flutter_sound:
+  permission_handler:
+  audio_waveforms:
+  agora_rtc_engine: ^6.5.2
+  flutter_html: ^3.0.0
+  flutter_packages_remover: ^0.0.2
+  
+
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons:
+  
+flutter_intl:
+  enabled: true
+  class_name: S
+  main_locale: ar
+  arb_dir: lib/l10n
+  output_dir: lib/generated
+ 
+flutter:
+  uses-material-design: true
+  generate: true
+
+  assets:
+    - lib/Images/
+    - assets/past_live.mp3
+
+
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "lib/Images/play_store_512.png"
+ 

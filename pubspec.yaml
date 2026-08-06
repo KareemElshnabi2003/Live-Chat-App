@@ -1,0 +1,81 @@
+name: live_chat
+description: "A new Flutter project."
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.3 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  image_picker: 
+  cached_network_image: 
+  path: 
+  url_launcher: ^6.3.2 
+  get: 
+  google_fonts:
+  flutter_otp_text_field: 
+  device_preview: 
+  http: 
+  shared_preferences: 
+  dartz: 
+  dotted_border: ^2.1.0
+  webview_flutter: 
+  screen_go:
+  carousel_slider: 
+  iconsax_plus: 
+  lucide_icons_flutter:
+#  audioplayers:
+  just_audio:
+  flutter_localizations:
+    sdk: flutter
+  intl: 
+  share_plus: 
+  pusher_channels_flutter: ^2.5.0
+  firebase_core: 
+  firebase_messaging: 
+  flutter_image_compress: ^2.4.0
+  path_provider: ^2.1.5
+  flutter_sound:
+  permission_handler:
+  agora_rtc_engine: ^6.5.2
+  flutter_html: ^3.0.0
+  lottie: 
+  dio: ^5.9.0
+  device_info_plus: ^13.2.0
+  uuid: ^4.6.0
+  connectivity_plus: ^7.3.1
+  
+
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons:
+  
+flutter_intl:
+  enabled: true
+  class_name: S
+  main_locale: ar
+  arb_dir: lib/l10n
+  output_dir: lib/generated
+ 
+flutter:
+  uses-material-design: true
+  generate: true
+
+  assets:
+    - lib/Images/
+    - assets/past_live.mp3
+
+
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "lib/Images/play_store_512.png"
+ 

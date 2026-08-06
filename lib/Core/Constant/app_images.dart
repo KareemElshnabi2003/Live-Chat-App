@@ -1,0 +1,29 @@
+class AppImages {
+  static const String loginImg = "lib/Images/login.png";
+  static const String registerImg = "lib/Images/register.png";
+  static const String testChatImg = "lib/Images/testChat.png";
+  static const String iconLoginImg = "lib/Images/iconLogin.png";
+  static const String imageprofile = "lib/Images/Frame.png";
+  static const String noChatImg = "lib/Images/noChat.png";
+  static const String pin1Img = "lib/Images/pin1.png";
+  static const String pin2Img = "lib/Images/pin2.png";
+  static const String pin3Img = "lib/Images/pin3.png";
+  static const String cardImg = "lib/Images/card.png";
+  static const String successPaymentImg = "lib/Images/successPayment.png";
+  static const String musdicPart1Img = "lib/Images/musicPart1.png";
+  static const String musicPart2Img = "lib/Images/musicPart2.png";
+  static const String personImg = "lib/Images/person.png";
+  static const String personColorImg = "lib/Images/personColor.png";
+  static const String marketImg = "lib/Images/market.png";
+  static const String starImg = "lib/Images/star.png";
+  static const String starFillImg = "lib/Images/starFill.png";
+  static const String profileimage = "lib/Images/Header Icon (2).png";
+  static const String backgroundChat1 = "lib/Images/back1.jpg";
+  static const String backgroundChat2 = "lib/Images/back2.jpg";
+  static const String backgroundChat3 = "lib/Images/back3.jpg";
+  static const String backgroundChat4 = "lib/Images/back4.jpg";
+  static const String backgroundChat5 = "lib/Images/back5.jpg";
+  static const String backgroundChat6 = "lib/Images/back6.jpg";
+  static const String backgroundChat7 = "lib/Images/back7.jpg";
+  static const String errorImg = "lib/Images/errorImg.png";
+}
