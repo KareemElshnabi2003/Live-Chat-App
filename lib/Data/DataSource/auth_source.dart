@@ -103,7 +103,7 @@ class AuthRemoteData {
   }
 
   logOut({required token}) async {
-    var response = await api.getData(AppApi.logoutUrl);
+    var response = await api.postData(AppApi.logoutUrl, {});
     return response.fold((l) => l, (r) => r);
   }
 

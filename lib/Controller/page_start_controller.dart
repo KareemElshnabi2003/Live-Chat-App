@@ -14,6 +14,7 @@ import 'package:live_chat/Core/class/status_request.dart';
 import 'package:live_chat/Core/function/handling_data.dart';
 import 'package:live_chat/Data/DataSource/auth_source.dart';
 import 'package:live_chat/Data/DataSource/chats_source.dart';
+import 'package:live_chat/Data/Model/pin_chat_model.dart';
 import 'package:live_chat/Data/Model/user_chat_model.dart';
 import 'package:live_chat/View/Screens/Home/home_view.dart';
 import 'package:live_chat/View/Screens/create%20chat/chat_view.dart';
@@ -203,8 +204,10 @@ class PageStartController extends GetxController {
     statuesRequest = handlingData(response);
 
     if (statuesRequest == StatuesRequest.success) {
-    }else{          showUserFriendlyError(statuesRequest);
-}update();
+    } else {
+      showUserFriendlyError(statuesRequest);
+    }
+    update();
   }
 
   onPressPinChat(
@@ -388,8 +391,10 @@ class PageStartController extends GetxController {
         log("safdfce error ");
 
         snackBarError(message: S.of(Get.context!).emailError);
-      } else {          showUserFriendlyError(statuesRequest);
-}}
+      } else {
+        showUserFriendlyError(statuesRequest);
+      }
+    }
     update();
   }
 
@@ -405,8 +410,10 @@ class PageStartController extends GetxController {
       userNameController.text != ""
           ? updateSheet('verifyRegister')
           : updateSheet('verifyLogin');
-    } else{          showUserFriendlyError(statuesRequest);
-}update();
+    } else {
+      showUserFriendlyError(statuesRequest);
+    }
+    update();
   }
 
   reSendOTP() async {
@@ -420,10 +427,10 @@ class PageStartController extends GetxController {
 
     if (statuesRequest == StatuesRequest.success) {
       snackBarSuccess(message: S.of(Get.context!).successResend);
-    } else{
-                showUserFriendlyError(statuesRequest);
-
-    }update();
+    } else {
+      showUserFriendlyError(statuesRequest);
+    }
+    update();
   }
 
   register() async {
@@ -445,8 +452,10 @@ class PageStartController extends GetxController {
         updateSheet('verifyRegister');
       } else if (statuesRequest == StatuesRequest.unprocessableException) {
         snackBarError(message: S.of(Get.context!).registerError);
-      } else{          showUserFriendlyError(statuesRequest);
-} }
+      } else {
+        showUserFriendlyError(statuesRequest);
+      }
+    }
     update();
   }
 
@@ -496,8 +505,10 @@ class PageStartController extends GetxController {
         }
       } else if (statuesRequest == StatuesRequest.unprocessableException) {
         snackBarError(message: S.of(Get.context!).otpError);
-      } else {          showUserFriendlyError(statuesRequest);
-}}
+      } else {
+        showUserFriendlyError(statuesRequest);
+      }
+    }
     update();
   }
 
@@ -539,8 +550,10 @@ class PageStartController extends GetxController {
             curve: Curves.easeOut,
           );
         }
-      } else {          showUserFriendlyError(statuesRequest);
-} }
+      } else {
+        showUserFriendlyError(statuesRequest);
+      }
+    }
     update();
   }
 
@@ -549,7 +562,7 @@ class PageStartController extends GetxController {
   StatuesRequest statuesRequestGetData = StatuesRequest.none;
   final ChatsRemoteData _chatsRemoteData =
       ChatsRemoteData(api: Get.find<Api>());
-  UserChatModel? userChatModel;
+  PinChatModel? pinChatModel;
   List<UserChatModel> recentChats = [];
   List<UserChatModel> systemChats = [];
 
@@ -566,34 +579,14 @@ class PageStartController extends GetxController {
       try {
         final responseBody = response['data'];
 
-        if (responseBody is List) {
-          List<UserChatModel> chatsList =
-              responseBody.map((e) => UserChatModel.fromJson(e)).toList();
-          print("✅ الداتا اتحولت بنجاح! عدد المحادثات: ${chatsList.length}");
-        } else if (responseBody != null) {
-          userChatModel = UserChatModel.fromJson(responseBody);
-          print("✅ الداتا اتحولت بنجاح كـ Object!");
-        }
+        pinChatModel = PinChatModel.fromJson(responseBody[0]);
+        print("✅ الداتا اتحولت بنجاح كـ Object!");
       } catch (e, stacktrace) {
         print("❌ كارثة في تحويل الداتا (Parsing Error): $e");
         print("🔍 تفاصيل الخطأ: $stacktrace");
       }
-    } else if (statuesRequestGetData == StatuesRequest.unprocessableException) {
-      log("Unprocessable exception in getPinChat");
-    } else if (statuesRequestGetData == StatuesRequest.socketException) {
-      log("Socket exception in getPinChat");
-    } else if (statuesRequestGetData == StatuesRequest.serverException) {
-      log("Server exception in getPinChat");
-    } else if (statuesRequestGetData == StatuesRequest.unExpectedException) {
-      log("Unexpected exception in getPinChat");
-    } else if (statuesRequestGetData == StatuesRequest.defaultException) {
-      log("Default exception in getPinChat");
-    } else if (statuesRequestGetData == StatuesRequest.serverError) {
-      log("Server error in getPinChat");
-    } else if (statuesRequestGetData == StatuesRequest.timeoutException) {
-      log("Timeout exception in getPinChat");
-    } else if (statuesRequestGetData == StatuesRequest.unauthorizedException) {
-      log("Unauthorized exception in getPinChat");
+    } else {
+      showUserFriendlyError(statuesRequest);
     }
 
     update();
@@ -616,22 +609,8 @@ class PageStartController extends GetxController {
         (e) => UserChatModel.fromJson(e),
       ));
       log("Recent chats loaded: ${recentChats.length} items");
-    } else if (statuesRequestGetData == StatuesRequest.unprocessableException) {
-      log("Unprocessable exception in getRecentChats");
-    } else if (statuesRequestGetData == StatuesRequest.socketException) {
-      log("Socket exception in getRecentChats");
-    } else if (statuesRequestGetData == StatuesRequest.serverException) {
-      log("Server exception in getRecentChats");
-    } else if (statuesRequestGetData == StatuesRequest.unExpectedException) {
-      log("Unexpected exception in getRecentChats");
-    } else if (statuesRequestGetData == StatuesRequest.defaultException) {
-      log("Default exception in getRecentChats");
-    } else if (statuesRequestGetData == StatuesRequest.serverError) {
-      log("Server error in getRecentChats");
-    } else if (statuesRequestGetData == StatuesRequest.timeoutException) {
-      log("Timeout exception in getRecentChats");
-    } else if (statuesRequestGetData == StatuesRequest.unauthorizedException) {
-      log("Unauthorized exception in getRecentChats");
+    } else {
+      showUserFriendlyError(statuesRequest);
     }
     update();
   }
@@ -653,22 +632,8 @@ class PageStartController extends GetxController {
         (e) => UserChatModel.fromJson(e),
       ));
       log("System chats loaded: ${systemChats.length} items");
-    } else if (statuesRequestGetData == StatuesRequest.unprocessableException) {
-      log("Unprocessable exception in getSystemChats");
-    } else if (statuesRequestGetData == StatuesRequest.socketException) {
-      log("Socket exception in getSystemChats");
-    } else if (statuesRequestGetData == StatuesRequest.serverException) {
-      log("Server exception in getSystemChats");
-    } else if (statuesRequestGetData == StatuesRequest.unExpectedException) {
-      log("Unexpected exception in getSystemChats");
-    } else if (statuesRequestGetData == StatuesRequest.defaultException) {
-      log("Default exception in getSystemChats");
-    } else if (statuesRequestGetData == StatuesRequest.serverError) {
-      log("Server error in getSystemChats");
-    } else if (statuesRequestGetData == StatuesRequest.timeoutException) {
-      log("Timeout exception in getSystemChats");
-    } else if (statuesRequestGetData == StatuesRequest.unauthorizedException) {
-      log("Unauthorized exception in getSystemChats");
+    } else {
+      showUserFriendlyError(statuesRequest);
     }
     update();
   }
@@ -678,7 +643,7 @@ class PageStartController extends GetxController {
     await getToken();
     mainController.getAds();
 
-    // getPinChat();
+    getPinChat();
     getRecentChats();
     getSystemChats();
     super.onInit();

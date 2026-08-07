@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:live_chat/Core/Class/api.dart';
 import 'package:live_chat/Core/class/status_request.dart';
-// ⚠️ تأكد من مسار ملف الـ Api عندك
 
-// 🌟 [جديد] متغيرات لمنع تكرار الرسايل المزعجة (Spam Prevention)
 StatuesRequest? _lastErrorStatus;
 DateTime? _lastErrorTime;
 
 void showUserFriendlyError(StatuesRequest status, {String? customMessage}) {
   
-  // 🌟 [جديد] جدار الحماية: لو نفس الخطأ حصل في آخر 4 ثواني، تجاهله تماماً
   final now = DateTime.now();
   if (_lastErrorStatus == status && 
       _lastErrorTime != null && 

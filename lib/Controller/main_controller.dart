@@ -22,14 +22,13 @@ class MainController extends GetxController {
     if (statuesRequest == StatuesRequest.success) {
       List responseBody = response['data'];
       adsAdmin.addAll(responseBody.map(
-            (e) => AdsModel.fromJson(e),
+        (e) => AdsModel.fromJson(e),
       ));
-      log(adsAdmin.length.toString());
+      log("ads  >>>> ${adsAdmin.length.toString()}");
     } else {
       log(response.toString());
       log("erroooorrr ads");
-                showUserFriendlyError(statuesRequest);
-
+      showUserFriendlyError(statuesRequest);
     }
 
     update();

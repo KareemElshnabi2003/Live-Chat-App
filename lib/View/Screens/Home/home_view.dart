@@ -397,53 +397,54 @@ class HomeView extends StatelessWidget {
           SizedBox(height: 2.h),
           _buildPositiveChatHeader(),
           SizedBox(height: 2.h),
-          controller.userChatModel != null
+          controller.pinChatModel != null
               ? chatCardWidget(
                   power: null,
                   imageUrl:
-                      controller.userChatModel!.image.toString() == "image" ||
-                              controller.userChatModel!.image.toString() ==
+                      controller.pinChatModel!.conversation!.image.toString() == "image" ||
+                              controller.pinChatModel!.conversation!.image.toString() ==
                                   "null" ||
-                              controller.userChatModel!.image == ""
+                              controller.pinChatModel!.conversation!.image == ""||controller.pinChatModel!.conversation!.image ==
+                            null
                           ? false
                           : true,
                   numOfMessage: 0,
                   onPressImg: () {
                     dialogImgWidget(
-                      title: controller.userChatModel!.name!,
-                      userChatModel: controller.userChatModel!,
+                      title: controller.pinChatModel!.conversation!.name!,
+                      userChatModel: controller.pinChatModel!.conversation!,
                       img: null,
                       onPressChat: () {
                         controller.onPressPinChat(
-                          chatModel: controller.userChatModel!,
-                          id: controller.userChatModel!.id,
+                          chatModel: controller.pinChatModel!.conversation!,
+                          id: controller.pinChatModel!.conversation!.id,
                           isGust: false,
                         );
                       },
                     );
                   },
-                  private: controller.userChatModel!.status == "Private"
+                  private: controller.pinChatModel!.conversation!.status == "Private"
                       ? true
                       : false,
-                  img: controller.userChatModel!.image == null
+                  img: controller.pinChatModel!.conversation!.image == null
                       ? const AssetImage(AppImages.noChatImg)
                       : CachedNetworkImageProvider(
-                          controller.userChatModel!.image!),
+                          controller.pinChatModel!.conversation!.image!),
                   body:
-                      "${controller.userChatModel!.membersCount} ${S.of(Get.context!).engaged_people}",
-                  ttitle: controller.userChatModel!.name ?? "..",
+                      "${controller.pinChatModel!.conversation!.membersCount} ${S.of(Get.context!).engaged_people}",
+                  ttitle: controller.pinChatModel!.conversation!.name!,
                   onPressJoin: () {
                     controller.onPressPinChat(
-                      chatModel: controller.userChatModel!,
-                      id: controller.userChatModel!.id,
+                      chatModel: controller.pinChatModel!.conversation!,
+                      id: controller.pinChatModel!.id,
                       isGust: false,
                     );
                   },
                   action: S.of(Get.context!).joinNow,
                   ontap: () {
                     controller.onPressPinChat(
-                      chatModel: controller.userChatModel!,
-                      id: controller.userChatModel!.id,
+                      chatModel: controller.pinChatModel!.conversation!,
+                      id: controller.pinChatModel!.conversation!.id,
                       isGust: false,
                     );
                   },

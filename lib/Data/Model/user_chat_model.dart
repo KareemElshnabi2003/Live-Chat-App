@@ -1,4 +1,5 @@
-import 'package:live_chat/Data/Model/pin_chat_model.dart';
+
+import 'package:live_chat/Data/Model/message_model.dart';
 
 class UserChatModel {
   int? id;
@@ -19,7 +20,7 @@ class UserChatModel {
   String? adLink;
   String? adTitle;
   String? adImage; // Added ad_image field
-  List<Messages>? messages;
+  List<MessageModel>? messages;
   LastMessage? lastMessage;
   int? unreadCount;
   String? isBlocked;

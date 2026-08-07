@@ -12,6 +12,7 @@ import 'package:live_chat/Core/function/handling_data.dart';
 import 'package:live_chat/Data/DataSource/auth_source.dart';
 import 'package:live_chat/Data/DataSource/chats_source.dart';
 import 'package:live_chat/Data/Model/friend_suggest_model.dart';
+import 'package:live_chat/Data/Model/pin_chat_model.dart';
 import 'package:live_chat/Data/Model/user_chat_model.dart';
 import 'package:live_chat/View/Screens/create%20chat/chat_view.dart';
 import 'package:live_chat/View/Screens/friends/requests.dart';
@@ -25,7 +26,6 @@ import 'package:live_chat/View/Screens/settings/my_account_view.dart';
 import 'package:live_chat/View/Screens/settings/night_mode.dart';
 import 'package:live_chat/View/Screens/settings/notification_view.dart';
 import 'package:live_chat/View/Screens/settings/privacy.dart';
-import 'package:live_chat/View/Screens/splash/splash_screen.dart';
 import 'package:live_chat/View/Screens/start%20page/another_chats.dart';
 import 'package:live_chat/View/Screens/start%20page/page_start.dart';
 import 'package:live_chat/View/Screens/start%20page/updated_chats.dart';
@@ -44,7 +44,7 @@ class HomeNavigationController extends GetxController {
       ChatsRemoteData(api: Get.find<Api>());
   final AuthRemoteData _authRemoteData = AuthRemoteData(api: Get.find<Api>());
 
-  UserChatModel? userChatModel;
+  PinChatModel? pinChatModel;
   UserChatModel? userMyChatModel;
   List<SuggestFreindModel> friends = [];
   List<SuggestFreindModel> friendsSuggestion = [];
@@ -74,15 +74,14 @@ class HomeNavigationController extends GetxController {
     log("pin chatttt :::: $response");
 
     if (statuesRequest == StatuesRequest.success) {
-      final responseBody = response;
+      final responseBody = response['data'][0];
 
       log("pin chatttt :::: $responseBody");
       if (responseBody != null) {
-        userChatModel = UserChatModel.fromJson(responseBody);
+        pinChatModel = PinChatModel.fromJson(responseBody);
       }
-    }  else{
-                showUserFriendlyError(statuesRequest);
-
+    } else {
+      showUserFriendlyError(statuesRequest);
     }
     update();
   }
@@ -104,9 +103,8 @@ class HomeNavigationController extends GetxController {
         duration: const Duration(milliseconds: 800),
         curve: Curves.easeOut,
       );
-    }  else {
-                showUserFriendlyError(statuesRequest);
-
+    } else {
+      showUserFriendlyError(statuesRequest);
     }
     update();
   }
@@ -144,8 +142,7 @@ class HomeNavigationController extends GetxController {
         userMyChatModel = null;
       }
     } else {
-                showUserFriendlyError(statuesRequest);
-
+      showUserFriendlyError(statuesRequest);
     }
     update();
   }
@@ -165,10 +162,10 @@ class HomeNavigationController extends GetxController {
           .addAll(responseBody.map((e) => SuggestFreindModel.fromJson(e)).where(
                 (element) => element.requestStatus == "friends",
               ));
-    } else{
-                showUserFriendlyError(statuesRequest);
-
-    }update();
+    } else {
+      showUserFriendlyError(statuesRequest);
+    }
+    update();
   }
 
   joinToChat({required chatId, required memberId}) async {
@@ -181,8 +178,9 @@ class HomeNavigationController extends GetxController {
     statuesRequest = handlingData(response);
 
     if (statuesRequest == StatuesRequest.success) {
-    }  else {          showUserFriendlyError(statuesRequest);
-}
+    } else {
+      showUserFriendlyError(statuesRequest);
+    }
     update();
   }
 
@@ -198,10 +196,8 @@ class HomeNavigationController extends GetxController {
       List responseBody = response['data'] ?? [];
       friendsSuggestion
           .addAll(responseBody.map((e) => SuggestFreindModel.fromJson(e)));
-    } 
-    else{
-                showUserFriendlyError(statuesRequest);
-
+    } else {
+      showUserFriendlyError(statuesRequest);
     }
     // else if (statuesRequest == StatuesRequest.unauthorizedException) {
     //   messageErrorWithButton(
@@ -226,9 +222,8 @@ class HomeNavigationController extends GetxController {
     if (statuesRequest == StatuesRequest.success) {
       List responseBody = response['data'] ?? [];
       systemChats.addAll(responseBody.map((e) => UserChatModel.fromJson(e)));
-    }else{
-                showUserFriendlyError(statuesRequest);
-
+    } else {
+      showUserFriendlyError(statuesRequest);
     }
     return systemChats;
   }
@@ -250,10 +245,10 @@ class HomeNavigationController extends GetxController {
               : "none");
       log("Addddddddddddddddddd");
       update();
-    } else{
-                showUserFriendlyError(statuesRequest);
-
-    } update();
+    } else {
+      showUserFriendlyError(statuesRequest);
+    }
+    update();
   }
 
   acceptOrRejectFriend({required friendID, required status}) async {
@@ -266,8 +261,9 @@ class HomeNavigationController extends GetxController {
     statuesRequest = handlingData(response);
 
     if (statuesRequest == StatuesRequest.success) {
-    }  else {          showUserFriendlyError(statuesRequest);
-}
+    } else {
+      showUserFriendlyError(statuesRequest);
+    }
     update();
   }
 
@@ -283,9 +279,8 @@ class HomeNavigationController extends GetxController {
       if (responseBody != null) {
         navigateToChats(userchat: UserChatModel.fromJson(responseBody));
       }
-    }  else {
-                showUserFriendlyError(statuesRequest);
-
+    } else {
+      showUserFriendlyError(statuesRequest);
     }
     update();
   }
