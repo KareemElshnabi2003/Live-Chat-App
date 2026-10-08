@@ -314,8 +314,10 @@ class CreateChat extends StatelessWidget {
       ),
     );
   }
-
   Widget _buildThemeItem(dynamic theme, CreateChatController controller) {
+    // 🌟 الفحص السحري للرابط عشان ميضربش إيرور
+    bool hasValidThemeImage = theme.theme != null && theme.theme.toString().trim().isNotEmpty && theme.theme.toString() != "null";
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 1.w),
       child: GestureDetector(
@@ -332,8 +334,8 @@ class CreateChat extends StatelessWidget {
             border: Border.all(
               color: controller.themeId == theme.id.toString()
                   ? pref!
-                      ? AppColors.whiteColor
-                      : AppColors.blackTextColor
+                  ? AppColors.whiteColor
+                  : AppColors.blackTextColor
                   : AppColors.inActiveColor,
               width: controller.themeId == theme.id.toString() ? 2 : 1,
             ),
@@ -341,7 +343,8 @@ class CreateChat extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: CachedNetworkImage(
+            child: hasValidThemeImage
+                ? CachedNetworkImage(
               imageUrl: "${theme.theme}",
               width: 20.w,
               height: 10.h,
@@ -352,13 +355,18 @@ class CreateChat extends StatelessWidget {
                 color: Colors.grey[300],
                 child: Icon(Icons.error, color: Colors.red, size: 4.w),
               ),
+            )
+                : Container(
+              width: 20.w,
+              height: 10.h,
+              color: Colors.grey[300],
+              child: Icon(Icons.image_not_supported, color: AppColors.inActiveColor, size: 4.w),
             ),
           ),
         ),
       ),
     );
   }
-
   Widget _buildCustomThemeItem(String path, CreateChatController controller) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 1.w),

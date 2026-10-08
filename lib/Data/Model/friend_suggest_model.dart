@@ -20,7 +20,9 @@ class SuggestFreindModel {
     id = json['id'];
     name = json['name'];
     username = json['username'];
+    
     image = json['image'];
+
     requestStatus = json['request_status'];
     power = json['power'] != null ? PowerModel.fromJson(json['power']) : null;
   }

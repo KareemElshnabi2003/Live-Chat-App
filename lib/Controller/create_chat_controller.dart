@@ -23,7 +23,6 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class CreateChatController extends GetxController {
   StatuesRequest statuesRequest = StatuesRequest.none;
-  // التعديل هنا: استخدام Get.find بدلاً من Get.put للحفاظ على الـ Singleton API
   final ChatsRemoteData _chatsRemoteData =
       ChatsRemoteData(api: Get.find<Api>());
 
@@ -59,8 +58,12 @@ class CreateChatController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    getThemes();
-    loadCustomThemes();
+    print(">>>>>>>>>😍 ${sharedPreferences!.getString("deviceToken")}");
+   if(sharedPreferences!.getString("token")!="null"&&sharedPreferences!.getString("token")!=null){
+     getThemes();
+     loadCustomThemes();
+   }
+
   }
 
   chooseTheme(id) {
@@ -235,7 +238,7 @@ class CreateChatController extends GetxController {
     statuesRequest = StatuesRequest.loading;
     update();
     var response = await _chatsRemoteData.getThems(
-        token: sharedPreferences!.getString("token"));
+     );
     log("response ??? $response");
 
     statuesRequest = handlingData(response);
@@ -289,7 +292,7 @@ class CreateChatController extends GetxController {
         status: selectedPrivacy == S.of(Get.context!).public ? 1 : 0,
         them: hasCustomTheme ? fileImgBgChat : null,
         themeID: themeId == null ? "null" : int.parse(themeId!),
-        token: sharedPreferences!.getString("token"));
+       );
 
     log("response ??? $response");
 
@@ -347,7 +350,7 @@ class CreateChatController extends GetxController {
 
     var response = await _chatsRemoteData.deleteChat(
         chatId: userChatModel!.id,
-        token: sharedPreferences!.getString("token"));
+     );
 
     log("response ??? $response");
 

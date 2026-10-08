@@ -455,17 +455,19 @@ class _SettingsState extends State<Settings> {
             : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        leading: Stack(
-          children: [
-            CircleAvatar(
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          leading: Stack(
+            children: [
+              CircleAvatar(
               radius: 22,
-              backgroundImage: member.image != null
+              backgroundImage: (member.image != null && member.image.toString().trim().isNotEmpty && member.image.toString() != "null")
                   ? CachedNetworkImageProvider("${member.image}")
                   : null,
               backgroundColor: AppColors.primaryColor.withOpacity(0.1),
-              child: member.image == null
+              child: (member.image == null || member.image.toString().trim().isEmpty || member.image.toString() == "null")
                   ? Text(
                       member.username![0].toUpperCase(),
                       style: const TextStyle(
@@ -570,7 +572,7 @@ class _SettingsState extends State<Settings> {
               ),
         onTap: () => !isOwner ? controller.toggleAdminSelection(member) : null,
       ),
-    );
+    ));
   }
 
   Widget _buildFormatImageSelector(bool isRtl) {
@@ -679,18 +681,25 @@ class _SettingsState extends State<Settings> {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: CachedNetworkImage(
-              imageUrl: "${theme.theme}",
-              width: 20.w,
-              height: 10.h,
-              fit: BoxFit.cover,
-              errorWidget: (context, url, error) => Container(
-                width: 20.w,
-                height: 10.h,
-                color: Colors.grey[300],
-                child: Icon(Icons.error, color: Colors.red, size: 4.w),
-              ),
-            ),
+            child: (theme.theme != null && theme.theme.toString().trim().isNotEmpty && theme.theme.toString() != "null")
+                ? CachedNetworkImage(
+                    imageUrl: "${theme.theme}",
+                    width: 20.w,
+                    height: 10.h,
+                    fit: BoxFit.cover,
+                    errorWidget: (context, url, error) => Container(
+                      width: 20.w,
+                      height: 10.h,
+                      color: Colors.grey[300],
+                      child: Icon(Icons.error, color: Colors.red, size: 4.w),
+                    ),
+                  )
+                : Container(
+                    width: 20.w,
+                    height: 10.h,
+                    color: Colors.grey[300],
+                    child: Icon(Icons.image_not_supported, color: AppColors.inActiveColor, size: 4.w),
+                  ),
           ),
         ),
       );

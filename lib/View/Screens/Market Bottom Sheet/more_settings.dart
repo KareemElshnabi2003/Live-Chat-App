@@ -3,9 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:live_chat/Controller/bottm_sheet__controller.dart';
+import 'package:live_chat/Controller/capabilities_controller.dart';
 import 'package:live_chat/Controller/market_controller.dart';
 import 'package:live_chat/Core/Constant/app_color.dart';
-import 'package:live_chat/View/Screens/settings/capapiltes.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_click_widget.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
 import 'package:live_chat/main.dart';

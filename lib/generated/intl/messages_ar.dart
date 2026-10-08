@@ -520,6 +520,8 @@ class MessageLookup extends MessageLookupByLibrary {
     "style_6": MessageLookupByLibrary.simpleMessage("النمط 6"),
     "style_7": MessageLookupByLibrary.simpleMessage("النمط 7"),
     "success": MessageLookupByLibrary.simpleMessage("نجاح"),
+    "msgUnblockedSuccessfully":
+        MessageLookupByLibrary.simpleMessage("تم فك الحظر بنجاح"),
     "successResend": MessageLookupByLibrary.simpleMessage(
       "تم ارسال الكود بنجاح",
     ),

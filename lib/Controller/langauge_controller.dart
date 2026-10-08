@@ -60,7 +60,7 @@ class AppSettingsController extends GetxController {
     statuesRequest = StatuesRequest.loading;
     update();
     var response = await _authRemoteData.getUserProfile(
-        token: sharedPreferences!.getString("token")!);
+       );
 
     statuesRequest = handlingData(response);
 

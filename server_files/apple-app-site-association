@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "PUT_YOUR_APPLE_TEAM_ID_HERE.com.liveChat.app",
+        "paths": [
+          "/chat",
+          "/chat/*"
+        ]
+      }
+    ]
+  }
+}

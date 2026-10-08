@@ -9,6 +9,7 @@ import 'package:live_chat/Core/Class/error_handler.dart';
 import 'package:live_chat/Core/class/status_request.dart';
 import 'package:live_chat/Core/function/handling_data.dart';
 import 'package:live_chat/Data/DataSource/chats_source.dart';
+import 'package:live_chat/Controller/chat_controller.dart';
 import 'package:live_chat/generated/l10n.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -131,6 +132,10 @@ userNamesMap: ${userNamesMap.toString()}
 
   // Add this method to fetch conversation users
   Future<void> fetchConversationUsers() async {
+    if (chatId.isEmpty) {
+      log('⚠️ Cannot fetch conversation users: chatId is empty');
+      return;
+    }
     try {
       log('🔄 Fetching conversation users for chat: $chatId');
 
@@ -629,6 +634,10 @@ userNamesMap: ${userNamesMap.toString()}
   StatuesRequest statuesRequest = StatuesRequest.none;
 
   Future<void> endCallApi() async {
+    if (chatId.isEmpty) {
+      log('⚠️ Cannot end call: chatId is empty');
+      return;
+    }
     log('🔚 Calling endCallApi - I am the last participant');
     _safeUpdate(() => statuesRequest = StatuesRequest.loading);
 
@@ -640,6 +649,14 @@ userNamesMap: ${userNamesMap.toString()}
         statuesRequest = handlingData(response);
         if (statuesRequest == StatuesRequest.success) {
           log('✅ End call successful >>> ${response['data']} <<<');
+          if (Get.isRegistered<ChatController>()) {
+            Get.find<ChatController>().sendSystemMessage(isGroupCall.value ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||");
+          } else {
+            _chatsRemoteData.sendMessages(
+                chatId: chatId, 
+                message: isGroupCall.value ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||"
+            );
+          }
           final responseBody = response['data'];
           if (responseBody != null) {
             log('📊 End call data >>> ${response['data']} <<<');

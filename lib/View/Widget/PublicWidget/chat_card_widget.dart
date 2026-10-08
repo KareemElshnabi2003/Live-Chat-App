@@ -24,16 +24,15 @@ Widget chatCardWidget({
   required VoidCallback ontap,
   required bool imageUrl,
   bool market = false,
+ required bool needsAcceptance,
 }) {
   final isRtl = Directionality.of(Get.context!) == TextDirection.rtl;
 
   return SizedBox(
-    // height: 11.h,
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       children: [
-        // ✅ Expanded لحماية النصوص من overflow
         Expanded(
           child: Row(
             children: [
@@ -49,25 +48,25 @@ Widget chatCardWidget({
                         color: imageUrl
                             ? null
                             : (pref!
-                                ? AppColors.darkcolor
-                                : AppColors.black2TextColor),
+                            ? AppColors.darkcolor
+                            : AppColors.black2TextColor),
                         image: imageUrl
                             ? DecorationImage(
-                                image: img,
-                                fit: BoxFit.fill,
-                              )
+                          image: img,
+                          fit: BoxFit.fill,
+                        )
                             : null,
                         borderRadius:
-                            BorderRadius.circular(isFriendsSection ? 80 : 20),
+                        BorderRadius.circular(isFriendsSection ? 80 : 20),
                       ),
                       alignment: Alignment.center,
                       child: !imageUrl
                           ? textNormal(
-                              ttitle[0],
-                              AppColors.whiteColor,
-                              7.w,
-                              FontWeight.bold,
-                            )
+                        ttitle[0],
+                        AppColors.whiteColor,
+                        7.w,
+                        FontWeight.bold,
+                      )
                           : null,
                     ),
                   ),
@@ -85,19 +84,21 @@ Widget chatCardWidget({
               ),
               SizedBox(width: 3.w),
 
-              // ✅ Flexible لتجنب تجاوز النص حدود الصف
               Flexible(
                 child: InkWell(
                   onTap: onPressJoin,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      power != null && isFriendsSection
-                          ? PowerTextWidget(
+                      Row(
+                        children: [
+                          Flexible(
+                            child: power != null && isFriendsSection
+                                ? PowerTextWidget(
                               powerModel: power,
                               displyText: ttitle,
                             )
-                          : textNormal(
+                                : textNormal(
                               ttitle,
                               pref!
                                   ? AppColors.whiteColor
@@ -107,6 +108,17 @@ Widget chatCardWidget({
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
+                          ),
+                          if (needsAcceptance) ...[
+                            SizedBox(width: 1.5.w),
+                            Icon(
+                              Icons.lock_outline_rounded,
+                              size: 4.w,
+                              color: AppColors.inActiveColor,
+                            ),
+                          ],
+                        ],
+                      ),
                       const SizedBox(
                         height: 10,
                       ),
@@ -116,11 +128,11 @@ Widget chatCardWidget({
                           body,
                           isFriendsSection
                               ? isFriend
-                                  ? AppColors.primaryColor
-                                  : AppColors.secondaryColor
+                              ? AppColors.primaryColor
+                              : AppColors.secondaryColor
                               : pref!
-                                  ? AppColors.inActiveColor
-                                  : AppColors.inActiveColor,
+                              ? AppColors.inActiveColor
+                              : AppColors.inActiveColor,
                           3.w,
                           FontWeight.w500,
                           maxLines: 1,
@@ -137,8 +149,8 @@ Widget chatCardWidget({
                         !isFriend
                             ? AppColors.redColor
                             : pref!
-                                ? AppColors.secondaryColor
-                                : AppColors.primaryColor,
+                            ? AppColors.secondaryColor
+                            : AppColors.primaryColor,
                         3.w,
                       ),
                     ],
@@ -149,7 +161,6 @@ Widget chatCardWidget({
           ),
         ),
 
-        // ✅ الأيقونة الجانبية
         Container(
           padding: EdgeInsets.symmetric(horizontal: 4.w),
           height: 19.w,
@@ -158,13 +169,13 @@ Widget chatCardWidget({
             color: pref! ? AppColors.blackColor : AppColors.bgColor,
             borderRadius: BorderRadius.only(
               topLeft:
-                  isRtl ? const Radius.circular(0) : const Radius.circular(20),
+              isRtl ? const Radius.circular(0) : const Radius.circular(20),
               bottomLeft:
-                  isRtl ? const Radius.circular(0) : const Radius.circular(20),
+              isRtl ? const Radius.circular(0) : const Radius.circular(20),
               topRight:
-                  isRtl ? const Radius.circular(20) : const Radius.circular(0),
+              isRtl ? const Radius.circular(20) : const Radius.circular(0),
               bottomRight:
-                  isRtl ? const Radius.circular(20) : const Radius.circular(0),
+              isRtl ? const Radius.circular(20) : const Radius.circular(0),
             ),
           ),
           child: GestureDetector(
@@ -172,10 +183,10 @@ Widget chatCardWidget({
             child: Icon(
               isFriend
                   ? (market
-                      ? LucideIcons.moveUp300
-                      : (isRtl
-                          ? LucideIcons.moveLeft300
-                          : LucideIcons.moveRight300))
+                  ? LucideIcons.moveUp300
+                  : (isRtl
+                  ? LucideIcons.moveLeft300
+                  : LucideIcons.moveRight300))
                   : Icons.close,
               color: pref! ? AppColors.whiteColor : AppColors.blackColor,
               size: 5.w,

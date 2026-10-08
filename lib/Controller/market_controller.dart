@@ -195,19 +195,18 @@ class MarketController extends GetxController {
 
   StatuesRequest statuesRequest = StatuesRequest.none;
 
-  // التعديل هنا: استخدام Get.find بدلاً من Get.put
   final MarketRemoteData _marketRemoteData =
       MarketRemoteData(api: Get.find<Api>());
 
   closePower({required powerId, required status}) async {
-    // التوكن اتشال من الـ Params
     var response = await _marketRemoteData.closePower(
         powerId: powerId,
-        status: status.toString()); // اتأكد إن الـ status بتبعتها String
-
+        status: status.toString());
     statuesRequest = handlingData(response);
     // ... باقي اللوجيك
-    log(response.toString());
+    log(" token >>>> ${sharedPreferences!.getString("token")}");
+    log(" token >>>> ${sharedPreferences!.getString("deviceId")}");
+    log(" power >>>> ${response.toString()}");
 
     if (statuesRequest == StatuesRequest.success) {
       print(response);

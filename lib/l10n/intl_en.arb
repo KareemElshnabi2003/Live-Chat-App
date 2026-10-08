@@ -135,6 +135,7 @@
   "error": "Error",
   "fillAllFields": "Please fill all fields",
   "success": "Success",
+  "msgUnblockedSuccessfully": "Unblocked successfully",
   "linkCopied": "Link copied",
   "httpFaraena": "Http/faraena.com",
   "male": "Male",
@@ -371,6 +372,19 @@
 "tapToUploadReceipt": "Tap to upload receipt",
 "finish": "Finish",
 "orderUnderReview": "Your order is under review",
-"ok": "OK"
+"ok": "OK",
+"ad": "Ad",
+"clickHereToVisit": "Click Here To Visit",
+"adsWithUs": "Ads With Us",
+"general_chat":"General Chat,
+"underReview":"Under Review,
+
+"msgYouBlocked": "Our strategy is that you cannot postpone with this 7 user until now.",
+"msgIBlocked":"You have previously blocked this user. Would you like to unblock him for contacting him?",
+"msgNotHasPermission":"غير مصرح لك بإجراء هذه العملية حالياً.",
+"cancelBlock":"UnBlock",
+"youSendRequest":"Friend request sent"
+
+
 
 }

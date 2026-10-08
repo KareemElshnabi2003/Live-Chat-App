@@ -6,27 +6,28 @@ import 'package:live_chat/main.dart';
 class ChatsRemoteData {
   final Api api; // إضافة final
   ChatsRemoteData({required this.api});
+  final String deviceId=sharedPreferences!.getString("deviceId")??"";
 
   getConversationUsers({required int chatId}) async {
     var response =
-        await api.getData("${AppApi.baseUrl}/get-conversation-users/$chatId");
+        await api.getData("${AppApi.baseUrl}/get-conversation-users/$chatId?device_id=$deviceId");
     return response.fold((l) => l, (r) => r);
   }
 
-  getPinChatGust({required String deviceToken}) async {
+  getPinChatGust() async {
     var response = await api.getData(
-      "${AppApi.getPinedChat}?device_id=$deviceToken",
+      "${AppApi.getPinedChat}?device_id=$deviceId",
     );
     return response.fold((l) => l, (r) => r);
   }
 
   checkCall({required id}) async {
-    var response = await api.getData("${AppApi.checkCallUrl}/$id");
+    var response = await api.getData("${AppApi.checkCallUrl}/$id?device_id=$deviceId");
     return response.fold((l) => l, (r) => r);
   }
 
   endCall({required id}) async {
-    var response = await api.postData("${AppApi.endCallUrl}/$id", {});
+    var response = await api.postData("${AppApi.endCallUrl}/$id?device_id=$deviceId", {});
     return response.fold((l) => l, (r) => r);
   }
 
@@ -49,76 +50,76 @@ class ChatsRemoteData {
             "call_type": callType,
             "is_group": isGroub,
           };
-    var response = await api.postData(AppApi.getTokenCallUrl, data);
+    var response = await api.postData("${AppApi.getTokenCallUrl}?device_id=$deviceId", data);
     return response.fold((l) => l, (r) => r);
   }
 
-  getRecentChatGust({perPage, page, required deviceToken}) async {
+  getRecentChatGust({perPage, page}) async {
     var response = await api.getData(
-        "${AppApi.getRecentChatsUrl}?device_id=$deviceToken&per_page=$perPage&page=$page");
+        "${AppApi.getRecentChatsUrl}?device_id=$deviceId&per_page=$perPage&page=$page");
     return response.fold((l) => l, (r) => r);
   }
 
-  getSystemChatsGust({perPage, page, required deviceToken}) async {
+  getSystemChatsGust({perPage, page}) async {
     var response = await api.getData(
-        "${AppApi.getSystemChatUrl}?per_page=$perPage&page=$page&device_id=$deviceToken");
+        "${AppApi.getSystemChatUrl}?per_page=$perPage&page=$page&device_id=$deviceId");
     return response.fold((l) => l, (r) => r);
   }
 
   getMemberOfChat(
       {required chatId,
-      required token,
+
       required perPage,
       required page}) async {
     var response = await api.getData(
-        "${AppApi.getMemberChatUrl}/$chatId?per_page=$perPage&page=$page");
+        "${AppApi.getMemberChatUrl}/$chatId?device_id=$deviceId&per_page=$perPage&page=$page");
     return response.fold((l) => l, (r) => r);
   }
 
-  getuserChats({required token, required perPage, required page}) async {
+  getuserChats({ required perPage, required page}) async {
     var response = await api
-        .getData("${AppApi.getUsersChatUrl}?per_page=$perPage&page=$page");
+        .getData("${AppApi.getUsersChatUrl}?device_id=$deviceId&per_page=$perPage&page=$page");
     return response.fold((l) => l, (r) => r);
   }
 
   getFriendeRecommendation(
-      {required perPage, required token, required page}) async {
+      {required perPage,  required page}) async {
     var response = await api.getData(
-        "${AppApi.getSuggerstFriendesUrl}?per_page=$perPage&page=$page");
+        "${AppApi.getSuggerstFriendesUrl}?device_id=$deviceId&per_page=$perPage&page=$page");
     return response.fold((l) => l, (r) => r);
   }
 
-  getFriende({required perPage, required token, required page}) async {
+  getFriende({required perPage,  required page}) async {
     var response = await api
-        .getData("${AppApi.getFriendesUrl}?per_page=$perPage&page=$page");
+        .getData("${AppApi.getFriendesUrl}?device_id=$deviceId&per_page=$perPage&page=$page");
     return response.fold((l) => l, (r) => r);
   }
 
   getMessages(
-      {required token, required idChat, page, required tokenDevice}) async {
+      { required idChat, page}) async {
     var response = await api.getData(
-        "${AppApi.getMessagesChatUrl}?conversation_id=$idChat&page=$page&per_page=20&device_id=$tokenDevice");
+        "${AppApi.getMessagesChatUrl}?conversation_id=$idChat&page=$page&per_page=20&device_id=$deviceId");
     return response.fold((l) => l, (r) => r);
   }
 
   sendMessagesWithFile(
-      {required token,
+      {
       required chatId,
       required File? audio,
-      required File? image,
-      required tokenDevice}) async {
+      required File? image
+     }) async {
     var response = await api.postDataWithRecordAndImage(
         AppApi.sendMessagesUrl,
         image == null
             ? {
                 "conversation_id": chatId,
                 "message_type": "voice",
-                "device_id": tokenDevice
+                "device_id": deviceId
               }
             : {
                 "conversation_id": chatId,
                 "message_type": "image",
-                "device_id": tokenDevice
+                "device_id": deviceId
               },
         image,
         audio);
@@ -126,60 +127,61 @@ class ChatsRemoteData {
   }
 
   sendMessages(
-      {required token,
+      {
       required chatId,
-      required message,
-      required tokenDevice}) async {
+      required message
+      }) async {
+    print("tokenDevice >>>$deviceId");
     var response = await api.postData(AppApi.sendMessagesUrl, {
       "conversation_id": chatId,
       "message": message,
       "message_type": "text",
-      "device_id": tokenDevice
+      "device_id": deviceId
     });
     return response.fold((l) => l, (r) => r);
   }
 
   sendReactMessages(
-      {required token,
+      {
       required messageId,
-      required react,
-      required tokenDevice}) async {
+      required react
+    }) async {
     var response = await api.postData(AppApi.reactToMessageUrl,
-        {"message_id": messageId, "react": react, "device_id": tokenDevice});
+        {"message_id": messageId, "react": react, "device_id": deviceId});
     return response.fold((l) => l, (r) => r);
   }
 
-  sendFriendRequest({required token, required friendId}) async {
+  sendFriendRequest({ required friendId}) async {
     var response =
-        await api.getData("${AppApi.sendFriendRequestUrl}/$friendId");
+        await api.getData("${AppApi.sendFriendRequestUrl}/$friendId?device_id=$deviceId");
     return response.fold((l) => l, (r) => r);
   }
 
-  removeFriend({required token, required friendId}) async {
-    var response = await api.getData("${AppApi.removeFriendUrl}/$friendId");
+  removeFriend({ required friendId}) async {
+    var response = await api.getData("${AppApi.removeFriendUrl}/$friendId?device_id=$deviceId");
     return response.fold((l) => l, (r) => r);
   }
 
   acceptOrRejectRequestFriend(
-      {required token, required status, required friendId}) async {
+      { required status, required friendId}) async {
     var response = await api
-        .getData("${AppApi.acceptOrRejectFriendUrl}/$friendId?status=$status");
+        .getData("${AppApi.acceptOrRejectFriendUrl}/$friendId?status=$status&device_id=$deviceId");
     return response.fold((l) => l, (r) => r);
   }
 
-  createChatFriend({required token, required friendId}) async {
+  createChatFriend({required friendId}) async {
     var response =
-        await api.postData(AppApi.createChatFriendUrl, {"member": friendId});
+        await api.postData("${AppApi.createChatFriendUrl}?device_id=$deviceId", {"member": friendId});
     return response.fold((l) => l, (r) => r);
   }
 
-  deleteChat({required token, required chatId}) async {
-    var response = await api.deleteData("${AppApi.deleteChatUrl}/$chatId");
+  deleteChat({ required chatId}) async {
+    var response = await api.deleteData("${AppApi.deleteChatUrl}/$chatId?device_id=$deviceId");
     return response.fold((l) => l, (r) => r);
   }
 
   createGeneralChat({
-    required token,
+
     required imgChat,
     required them,
     required name,
@@ -200,12 +202,12 @@ class ChatsRemoteData {
             "accept": accept.toString()
           };
     var response = await api.postRequestwithfile(
-        AppApi.createChatUrl, data, imgChat, them);
+       "${AppApi.createChatUrl}?device_id=$deviceId", data, imgChat, them);
     return response.fold((l) => l, (r) => r);
   }
 
   updateGeneralChat(
-      {required token,
+      {
       required imgChat,
       required them,
       required name,
@@ -232,42 +234,50 @@ class ChatsRemoteData {
     }
 
     var response = await api.updateRequestwithfile(
-        "${AppApi.createChatUrl}/$chatID", requestData, imgChat, them);
+        "${AppApi.createChatUrl}/$chatID?device_id=$deviceId", requestData, imgChat, them);
     return response.fold((l) => l, (r) => r);
   }
 
-  acceptMemberToChat({required token, required chatID, required idUSer}) async {
-    var response = await api.postData(AppApi.acceptMemberToChat, {
+  acceptMemberToChat({ required chatID, required idUSer}) async {
+    var response = await api.postData("${AppApi.acceptMemberToChat}?device_id=$deviceId", {
       "conversation_id": chatID,
-      "user_ids": [idUSer]
+      "user_id": idUSer
     });
     return response.fold((l) => l, (r) => r);
   }
 
-  getThems({required token}) async {
-    var response = await api.getData(AppApi.getThemsUrl);
+  getThems() async {
+    var response = await api.getData("${AppApi.getThemsUrl}?device_id=$deviceId");
     return response.fold((l) => l, (r) => r);
   }
 
-  blockOrUnBlock({required token, required bool status, required id}) async {
+  blockOrUnBlock({ required int status, required id}) async {
     var response =
-        await api.postData("${AppApi.blockUrl}/$id/block", {"block": status});
+        await api.postData("${AppApi.blockUrl}/$id/block?device_id=$deviceId", {"block": status});
     return response.fold((l) => l, (r) => r);
   }
 
-  Future<dynamic> getSystemConversations({required String token}) async {
+  Future<dynamic> getSystemConversations() async {
     try {
       var response = await api
-          .getData(AppApi.getSystemChatUrl);
+          .getData("${AppApi.getSystemChatUrl}?device_id=$deviceId");
+      return response.fold((l) => l, (r) => r);
+    } catch (e) {
+      rethrow;
+    }
+  }  Future<dynamic> getGeneralChat() async {
+    try {
+      var response = await api
+          .getData("${AppApi.getGeneralChatsUrl}?device_id=$deviceId");
       return response.fold((l) => l, (r) => r);
     } catch (e) {
       rethrow;
     }
   }
 
-  joinToCgat({required token, required chatId, required memberId}) async {
-    var response = await api.getData(
-        "${AppApi.baseUrl}/join-to-conversation/$chatId?membr=$memberId");
+  joinToCgat({ required chatId}) async {
+    var response = await api.postData(
+        "${AppApi.baseUrl}/join-to-conversation/$chatId?device_id=$deviceId",{});
     return response.fold((l) => l, (r) => r);
   }
 }

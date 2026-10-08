@@ -1,12 +1,11 @@
 class AppApi {
   static const String baseUrl = "https://api.mayo.live/api/v1";
-  //static const String baseUrl = "https://intense-able-antelope.ngrok-free.app/api/v1";
-  // static const String baseImgUrl = "https://ngoum.atonads.me/public/storage";
-  //static const String baseImgUrl = "https://intense-able-antelope.ngrok-free.app/public/storage";
+
 
   static const String getAds = "$baseUrl/admin_ads";
   static const String privacyPolicy = "$baseUrl/pages/privacy-policy";
-  static const String terms = "$baseUrl/pages/terms-and-conditions";
+  static const String terms = "$baseUrl/pages/terms-conditions";
+  static const String adsWithUs = "$baseUrl/pages/admin-ads";
   static const String pinChat = "$baseUrl/pinned-conversations";
   static const String checkCallUrl = "$baseUrl/status";
   static const String endCallUrl = "$baseUrl/end";
@@ -59,7 +58,7 @@ class AppApi {
       "$baseUrl/conversations"; //3==>delete 3 id chatt
   static const String getUsersChatUrl = "$baseUrl/get-user-conversations";
   static const String joinChatUrl =
-      "$baseUrl/join-to-conversation/{2}"; //2 ==> chat you want gto join
+      "$baseUrl/join-to-conversation"; //2 ==> chat you want gto join
   static const String getChatBySlugUrl =
       "$baseUrl/conversations/{islamwalied96-at-gmailc-1}"; //by slug
   static const String getMessagesChatUrl =

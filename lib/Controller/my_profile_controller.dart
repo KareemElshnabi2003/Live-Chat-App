@@ -141,7 +141,7 @@ class MyAccountController extends GetxController {
     String power = jsonEncode(userData['user_power']);
     sharedPreferences!.setString("powermodel", power);
     if (userData['image'] != null && userData['image'].toString().isNotEmpty) {
-      await prefs.setString('user_image', userData['image']);
+      await prefs.setString('img', userData['image']);
     }
 
     if (profileImagePath.isNotEmpty) {

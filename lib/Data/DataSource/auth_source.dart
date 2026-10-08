@@ -8,6 +8,10 @@ class AuthRemoteData {
   final Api api; // إضافة final
   AuthRemoteData({required this.api});
 
+
+
+
+  final String deviceId=sharedPreferences!.getString("deviceId")??"";
   String _getMobileTheme() {
     return (sharedPreferences?.getBool("isDarkMode") ?? false)
         ? "dark"
@@ -15,7 +19,7 @@ class AuthRemoteData {
   }
 
   login({required email}) async {
-    var response = await api.postData(AppApi.loginUrl, {
+    var response = await api.postData("${AppApi.loginUrl}?device_id=$deviceId", {
       "email": email,
       "remember": 1,
     });
@@ -23,13 +27,13 @@ class AuthRemoteData {
   }
 
   register({required name, required userName, required email}) async {
-    var response = await api.postData(AppApi.registerUrl,
+    var response = await api.postData("${AppApi.registerUrl}?device_id=$deviceId",
         {"email": email, "name": name, "username": userName});
     return response.fold((l) => l, (r) => r);
   }
 
   changeTheme() async {
-    var response = await api.postData(AppApi.changeThemeUrl, {
+    var response = await api.postData("${AppApi.changeThemeUrl}?device_id=$deviceId", {
       "mobile_theme": _getMobileTheme(),
     });
     return response.fold((l) => l, (r) => r);
@@ -37,7 +41,7 @@ class AuthRemoteData {
 
   checkOTP({required otp, required email, required fcmToken}) async {
     log(email);
-    var response = await api.postData(AppApi.checkOTPUrl, {
+    var response = await api.postData("${AppApi.checkOTPUrl}?device_id=$deviceId", {
       "email": email,
       "token": otp,
       "fcm_token": fcmToken,
@@ -47,23 +51,23 @@ class AuthRemoteData {
   }
 
   sendOTP({required email}) async {
-    var response = await api.postData(AppApi.sendOTPUrl, {"email": email});
+    var response = await api.postData("${AppApi.sendOTPUrl}?device_id=$deviceId", {"email": email});
     return response.fold((l) => l, (r) => r);
   }
 
   resendOTP({required email}) async {
-    var response = await api.postData(AppApi.resendOTPUrl, {"email": email});
+    var response = await api.postData("${AppApi.resendOTPUrl}?device_id=$deviceId", {"email": email});
     return response.fold((l) => l, (r) => r);
   }
 
-  verifyGust({required deviceToken}) async {
+  verifyGust() async {
     var response =
-        await api.postData(AppApi.gustUrl, {"device_id": deviceToken});
+        await api.postData(AppApi.gustUrl, {"device_id": deviceId});
     return response.fold((l) => l, (r) => r);
   }
 
   updateProfile({
-    required String token,
+
     required String name,
     required String username,
     required String email,
@@ -84,11 +88,12 @@ class AuthRemoteData {
       if (phone != null && phone.isNotEmpty) data['phone'] = phone;
       if (age != null && age.isNotEmpty) data['age'] = age;
       if (gender != null && gender.isNotEmpty) data['gender'] = gender;
-      if (countryId != null && countryId.isNotEmpty)
+      if (countryId != null && countryId.isNotEmpty) {
         data['country_id'] = countryId;
+      }
 
       var response = await api.postRequestwithfile(
-          AppApi.updateProfileUrl, data, image, null);
+          "${AppApi.updateProfileUrl}?device_id=$deviceId", data, image, null);
       log(response.toString());
       return response.fold(
           (l) => throw Exception('Failed to update profile: $l'), (r) => r);
@@ -97,23 +102,23 @@ class AuthRemoteData {
     }
   }
 
-  getUserProfile({required String token}) async {
-    var response = await api.getData(AppApi.getProfileUrl);
+  getUserProfile() async {
+    var response = await api.getData("${AppApi.getProfileUrl}?device_id=$deviceId");
     return response.fold((l) => l, (r) => r);
   }
 
-  logOut({required token}) async {
-    var response = await api.postData(AppApi.logoutUrl, {});
+  logOut() async {
+    var response = await api.postData("${AppApi.logoutUrl}?device_id=$deviceId", {});
     return response.fold((l) => l, (r) => r);
   }
 
-  deleteAccount({required String token}) async {
-    var response = await api.deleteData(AppApi.deleteAccUrl);
+  deleteAccount() async {
+    var response = await api.deleteData("${AppApi.deleteAccUrl}?device_id=$deviceId");
     return response.fold((l) => l, (r) => r);
   }
 
-  getUserPowers({required String token}) async {
-    var response = await api.getData(AppApi.getUserPower);
+  getUserPowers() async {
+    var response = await api.getData("${AppApi.getUserPower}?device_id=$deviceId");
     return response.fold((l) => l, (r) => r);
   }
 }

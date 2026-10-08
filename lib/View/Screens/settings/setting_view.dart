@@ -1,11 +1,9 @@
-import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 import 'package:live_chat/Controller/Home_navigator_controller.dart';
 import 'package:live_chat/Core/Constant/app_color.dart';
-import 'package:live_chat/View/Screens/start%20page/page_start.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_click_widget.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
 import 'package:live_chat/View/Widget/settings/row.dart';
@@ -13,8 +11,6 @@ import 'package:live_chat/main.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
 import 'package:live_chat/generated/l10n.dart';
-import 'package:live_chat/Data/DataSource/auth_source.dart';
-import 'package:live_chat/Core/Class/api.dart';
 
 class SettingView extends StatelessWidget {
   const SettingView({super.key});
@@ -91,6 +87,12 @@ class SettingView extends StatelessWidget {
                   icon: IconsaxPlusLinear.security,
                   name: S.of(context).privacy,
                   onTap: controller.navigateToprivacy,
+                ),
+                SizedBox(height: 2.h),
+                _buildRowOption(
+                  icon: IconsaxPlusLinear.volume_high,
+                  name: "اعلن معنا",
+                  onTap: controller.navigateToAdsWithUs,
                 ),
                 SizedBox(height: 2.5.h),
                 _buildDivider(),
@@ -377,30 +379,9 @@ class SettingView extends StatelessWidget {
   Widget _buildDeleteConfirmButton() {
     return InkWell(
       onTap: () async {
-        final authRemoteData = AuthRemoteData(api: Get.put(Api()));
-        final token = sharedPreferences!.getString("token") ?? "";
-        final response = await authRemoteData.deleteAccount(token: token);
-        if (response['status'] == 'success') {
-          await sharedPreferences!.clear();
-          Get.offAll(
-            () => const PageStart(),
-            transition: Transition.leftToRight,
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.easeOut,
-          );
-          log("delete Accouut");
-        } else {
-          Get.snackbar(
-            S.of(Get.context!).error,
-            response['message'] ?? 'deleteAccountError',
-            backgroundColor: AppColors.redColor,
-            padding: const EdgeInsets.all(10),
-            borderRadius: 30,
-            colorText: AppColors.blackTextColor,
-            snackPosition: SnackPosition.BOTTOM,
-            snackStyle: SnackStyle.GROUNDED,
-          );
-        }
+        final hController = Get.put(HomeNavigationController());
+        hController.deleteAcc();
+        hController.changePage(0);
       },
       child: Container(
         width: double.infinity,

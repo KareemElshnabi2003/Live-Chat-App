@@ -14,7 +14,7 @@ class MainController extends GetxController {
   final MainRemoteData _mainRemoteData = MainRemoteData(api: Get.find<Api>());
 
   List<AdsModel> adsAdmin = [];
-  getAds() async {
+  Future<void> getAds() async {
     var response = await _mainRemoteData.getAds();
 
     statuesRequest = handlingData(response);

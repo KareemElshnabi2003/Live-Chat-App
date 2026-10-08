@@ -1,11 +1,12 @@
+// ignore_for_file: avoid_print
+
 import 'dart:convert';
 import 'dart:developer';
-import 'dart:io';
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:live_chat/Controller/chats_controllers.dart';
 import 'package:live_chat/Controller/main_controller.dart';
 import 'package:live_chat/Core/Class/api.dart';
 import 'package:live_chat/Core/Class/error_handler.dart';
@@ -20,8 +21,6 @@ import 'package:live_chat/View/Screens/Home/home_view.dart';
 import 'package:live_chat/View/Screens/create%20chat/chat_view.dart';
 import 'package:live_chat/View/Screens/create%20chat/create_chat.dart';
 import 'package:live_chat/View/Screens/friends/friends.dart';
-import 'package:live_chat/View/Screens/friends/requests.dart';
-import 'package:live_chat/View/Screens/private%20chats/private_chats.dart';
 import 'package:live_chat/View/Screens/settings/capapiltes.dart';
 import 'package:live_chat/View/Screens/settings/language_view.dart';
 import 'package:live_chat/View/Screens/settings/my_account_view.dart';
@@ -29,10 +28,10 @@ import 'package:live_chat/View/Screens/settings/night_mode.dart';
 import 'package:live_chat/View/Screens/settings/notification_view.dart';
 import 'package:live_chat/View/Screens/settings/privacy.dart';
 import 'package:live_chat/View/Screens/settings/term_condation.dart';
-import 'package:live_chat/View/Screens/start%20page/another_chats.dart';
-import 'package:live_chat/View/Screens/start%20page/updated_chats.dart';
+
 import 'package:live_chat/View/Screens/suggession%20friends/suggession%20friends.dart';
 import 'package:live_chat/View/Widget/PublicWidget/show_bottom_sheet.dart';
+import 'package:live_chat/View/Widget/shared_chats_screen.dart';
 import 'package:live_chat/generated/l10n.dart';
 import 'package:live_chat/main.dart';
 import 'package:uuid/uuid.dart';
@@ -44,13 +43,13 @@ class PageStartController extends GetxController {
   TextEditingController nameController = TextEditingController();
   TextEditingController userNameController = TextEditingController();
 
-  // Add this method to your PageStartController class
   void navigateToPrivateChats() {
+    Get.put(PrivateChatsController());
     Get.to(
-      () => PrivateChats(),
+      () => SharedChatsScreen<PrivateChatsController>(
+          title: S.of(Get.context!).yourPrivateChats),
       transition: Transition.leftToRight,
       duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
     );
   }
 
@@ -150,29 +149,24 @@ class PageStartController extends GetxController {
   }
 
   void navigateToUpdatedChat() {
+    Get.put(UpdatedChatsController());
     Get.to(
-      () => UpdatedChats(),
+      () => SharedChatsScreen<UpdatedChatsController>(
+        title: S.of(Get.context!).updated_chats,
+      ),
       transition: Transition.leftToRight,
       duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
     );
   }
 
   void navigateToAnotherChats() {
+    Get.put(AnotherChatsController());
     Get.to(
-      () => AnotherChats(),
+      () => SharedChatsScreen<AnotherChatsController>(
+        title: S.of(Get.context!).another_chats,
+      ),
       transition: Transition.leftToRight,
       duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  void navigateToRequests() {
-    Get.off(
-      () => Requests(),
-      transition: Transition.leftToRight,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
     );
   }
 
@@ -194,27 +188,58 @@ class PageStartController extends GetxController {
     );
   }
 
-  joinToChat({required chatId, required memberId}) async {
+  Future<bool> joinToChat({required chatId}) async {
     statuesRequest = StatuesRequest.loading;
     update();
+
     var response = await _chatsRemoteData.joinToCgat(
-        chatId: chatId,
-        memberId: memberId,
-        token: sharedPreferences!.getString("token"));
+      chatId: chatId,
+    );
+
     statuesRequest = handlingData(response);
+    log("response join to chhat  :: $response");
 
     if (statuesRequest == StatuesRequest.success) {
+      update();
+      return true;
+    } else if (statuesRequest == StatuesRequest.forbiddenException) {
+      Get.snackbar(
+        S.of(Get.context!).underReview,
+        S.of(Get.context!).waitForAccept,
+        backgroundColor: Colors.orange.shade600,
+        colorText: Colors.white,
+        icon: const Icon(
+          Icons.access_time_rounded,
+          color: Colors.white,
+          size: 28,
+        ),
+        margin: const EdgeInsets.all(12),
+        borderRadius: 12,
+        duration: const Duration(seconds: 4),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      update();
+      return false;
     } else {
       showUserFriendlyError(statuesRequest);
+      update();
+      return false;
     }
-    update();
   }
 
   onPressPinChat(
-      {required UserChatModel chatModel, required bool isGust, required id}) {
+      {required UserChatModel chatModel,
+      required bool isGust,
+      required id}) async {
     if (chatModel.status == "Public" || chatModel.status == "Private") {
-      joinToChat(chatId: id, memberId: sharedPreferences!.getString("id"));
+      bool canEnter = await joinToChat(
+        chatId: id,
+      );
+
+      if (!canEnter) return;
     }
+
+    print("id >>$id");
     Get.to(
       () => ChatView(
         userChatModel: chatModel,
@@ -229,10 +254,17 @@ class PageStartController extends GetxController {
   }
 
   onPressGroubChat(
-      {required UserChatModel chatModel, required bool isGust, required id}) {
+      {required UserChatModel chatModel,
+      required bool isGust,
+      required id}) async {
     if (chatModel.status == "Public" || chatModel.status == "Private") {
-      joinToChat(chatId: id, memberId: sharedPreferences!.getString("id"));
+      bool canEnter = await joinToChat(
+        chatId: id,
+      );
+
+      if (!canEnter) return;
     }
+
     Get.to(
       () => ChatView(
         userChatModel: chatModel,
@@ -248,23 +280,18 @@ class PageStartController extends GetxController {
 
   Future<void> refreshData() async {
     try {
-      // Set loading state
       statuesRequestGetData = StatuesRequest.loading;
       update();
       mainController.getAds();
 
-      getPinChat();
-      getRecentChats();
-      getSystemChats();
-      // Update the UI
+      await getPinChat();
+      await getRecentChats();
+      await getSystemChats();
       statuesRequestGetData = StatuesRequest.success;
       update();
     } catch (error) {
-      // Handle error
       statuesRequestGetData = StatuesRequest.serverException;
       update();
-
-      // You might want to show an error message
     }
   }
 
@@ -272,23 +299,18 @@ class PageStartController extends GetxController {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
     String? tokenDevice = await messaging.getToken();
     sharedPreferences!.setString("deviceToken", tokenDevice!);
-    log("   deviceToken: ${sharedPreferences!.getString("deviceToken")}");
+    log("   👌👌👌deviceToken: ${sharedPreferences!.getString("deviceToken")}");
     try {
-      // 1. بنحاول نجيب الـ deviceId لو متخزن قبل كده
       String? deviceId = sharedPreferences!.getString("deviceId");
 
-      // 2. لو بيساوي null (يعني التطبيق لسه بيفتح لأول مرة)
       if (deviceId == null || deviceId.isEmpty) {
-        // بنولد UUID جديد بصيغة v4
         const uuid = Uuid();
         deviceId = uuid.v4();
 
-        // بنخزنه في الـ SharedPreferences
         await sharedPreferences!.setString("deviceId", deviceId);
 
         log("✅ تم إنشاء وحفظ UUID جديد: ${sharedPreferences!.getString("deviceId")}");
       } else {
-        // لو موجود أصلاً، هنطبعه بس عشان نتأكد
         log("⚡ الـ UUID موجود بالفعل: $deviceId");
       }
     } catch (e) {
@@ -371,7 +393,6 @@ class PageStartController extends GetxController {
   }
 
   StatuesRequest statuesRequest = StatuesRequest.none;
-  // التعديل هنا: Get.find بدلاً من Get.put
   final AuthRemoteData _authRemoteData = AuthRemoteData(api: Get.find<Api>());
 
   login() async {
@@ -385,11 +406,9 @@ class PageStartController extends GetxController {
       statuesRequest = handlingData(response);
 
       if (statuesRequest == StatuesRequest.success) {
-        // await sendOTP();
         updateSheet('verifyLogin');
       } else if (statuesRequest == StatuesRequest.unprocessableException) {
         log("safdfce error ");
-
         snackBarError(message: S.of(Get.context!).emailError);
       } else {
         showUserFriendlyError(statuesRequest);
@@ -461,7 +480,7 @@ class PageStartController extends GetxController {
 
   verifyLogin() async {
     if (verifyCode.length == 6) {
-      log("email ::${emailController.text}");
+      print("email >>>>>>>>>  ::${emailController.text}");
       statuesRequest = StatuesRequest.loading;
       update();
       var response = await _authRemoteData.checkOTP(
@@ -475,7 +494,26 @@ class PageStartController extends GetxController {
         if (response['code'] == "404") {
           snackBarError(message: S.of(Get.context!).otpError);
         } else {
+          sharedPreferences!.remove("deviceId");
+           try {
+      String? deviceId = sharedPreferences!.getString("deviceId");
+
+      if (deviceId == null || deviceId.isEmpty) {
+        const uuid = Uuid();
+        deviceId = uuid.v4();
+
+        await sharedPreferences!.setString("deviceId", deviceId);
+
+        log("✅ تم إنشاء وحفظ UUID جديد: ${sharedPreferences!.getString("deviceId")}");
+      } else {
+        log("⚡ الـ UUID موجود بالفعل: $deviceId");
+      }
+    } catch (e) {
+      log("❌ Error generating/saving UUID: $e");
+    }
           Map<String, dynamic> responseBody = response;
+          log("loginnn >> $responseBody");
+
           sharedPreferences!.setString("name", responseBody['data']['name']);
           sharedPreferences!
               .setString("bio", responseBody['data']['bio'] ?? "");
@@ -494,6 +532,11 @@ class PageStartController extends GetxController {
           log("power?>>>>>>>>> ${responseBody['data']['user_power']}");
           log("power?>>>>>>>>> ${sharedPreferences!.getString("powermodel")!}");
           sharedPreferences!.setString("page", "Home");
+          
+          // Clear Guest Session Data upon successful login
+          sharedPreferences!.remove("idGust");
+          sharedPreferences!.remove("usernameGust");
+          
           sheetName = "Login";
 
           Get.offAll(
@@ -530,7 +573,11 @@ class PageStartController extends GetxController {
           Map<String, dynamic> responseBody = response;
           sharedPreferences!
               .setString("bio", responseBody['data']['bio'] ?? "");
+          sharedPreferences!
+              .setString("id", responseBody['data']['id'].toString());
           sharedPreferences!.setString("name", responseBody['data']['name']);
+          sharedPreferences!
+              .setString("img", responseBody['data']['image'] ?? "");
           sharedPreferences!
               .setString("username", responseBody['data']['username']);
           sharedPreferences!.setString("email", responseBody['data']['email']);
@@ -557,36 +604,80 @@ class PageStartController extends GetxController {
     update();
   }
 
-//get chats
-
   StatuesRequest statuesRequestGetData = StatuesRequest.none;
   final ChatsRemoteData _chatsRemoteData =
       ChatsRemoteData(api: Get.find<Api>());
+
   PinChatModel? pinChatModel;
   List<UserChatModel> recentChats = [];
   List<UserChatModel> systemChats = [];
 
+// 🌟 الدالة المعدلة للـ Pin Chat للفلترة بالوقت والتاريخ (ساعة كاملة لكل فترة)
   getPinChat() async {
     statuesRequestGetData = StatuesRequest.loading;
     update();
-    String dToken = sharedPreferences!.getString("deviceId") ?? "";
 
-    var response = await _chatsRemoteData.getPinChatGust(deviceToken: dToken);
+    var response = await _chatsRemoteData.getPinChatGust();
 
     statuesRequestGetData = handlingData(response);
 
     if (statuesRequestGetData == StatuesRequest.success) {
       try {
-        final responseBody = response['data'];
+        final List responseBody = response['data'];
 
-        pinChatModel = PinChatModel.fromJson(responseBody[0]);
-        print("✅ الداتا اتحولت بنجاح كـ Object!");
+        DateTime now = DateTime.now();
+        String todayString =
+            "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+        int currentHour12 =
+            now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour);
+        String currentPeriod = now.hour >= 12 ? "PM" : "AM";
+
+        var validPin = responseBody.firstWhere(
+          (element) {
+            if (element['conversation'] == null) return false;
+
+            DateTime parsedDate =
+                DateTime.parse(element['pin_date'].toString()).toLocal();
+            String pinDate =
+                "${parsedDate.year}-${parsedDate.month.toString().padLeft(2, '0')}-${parsedDate.day.toString().padLeft(2, '0')}";
+            List pinHours = [];
+            if (element['pin_hours'] != null) {
+              if (element['pin_hours'] is String) {
+                try {
+                  pinHours = jsonDecode(element['pin_hours']);
+                } catch (e) {
+                  log("❌ Error decoding pin_hours string: $e");
+                }
+              } else if (element['pin_hours'] is List) {
+                pinHours = element['pin_hours'];
+              }
+            }
+            bool isTimeValid = pinHours.any((hourObj) {
+              int h = int.parse(hourObj['hour'].toString());
+              String p = hourObj['period'].toString().toUpperCase();
+
+              return h == currentHour12 && p == currentPeriod;
+            });
+
+            return pinDate == todayString && isTimeValid;
+          },
+          orElse: () => null,
+        );
+
+        if (validPin != null) {
+          pinChatModel = PinChatModel.fromJson(validPin);
+          log("✅ Pinned Chat is active NOW (Hour: $currentHour12 $currentPeriod). Parsed successfully.");
+        } else {
+          pinChatModel = null;
+          log("⚠️ No pinned chats active at this specific hour ($currentHour12 $currentPeriod).");
+        }
       } catch (e, stacktrace) {
-        print("❌ كارثة في تحويل الداتا (Parsing Error): $e");
-        print("🔍 تفاصيل الخطأ: $stacktrace");
+        log("❌ Pinned Chat Parsing Error: $e");
+        log("🔍 $stacktrace");
       }
     } else {
-      showUserFriendlyError(statuesRequest);
+      showUserFriendlyError(statuesRequestGetData);
     }
 
     update();
@@ -596,8 +687,7 @@ class PageStartController extends GetxController {
     recentChats.clear();
     statuesRequestGetData = StatuesRequest.loading;
     update();
-    var response = await _chatsRemoteData.getRecentChatGust(
-        perPage: 2, deviceToken: sharedPreferences!.getString("deviceId"));
+    var response = await _chatsRemoteData.getRecentChatGust(perPage: 2);
 
     log("Recent chats response: $response");
     statuesRequestGetData = handlingData(response);
@@ -610,7 +700,7 @@ class PageStartController extends GetxController {
       ));
       log("Recent chats loaded: ${recentChats.length} items");
     } else {
-      showUserFriendlyError(statuesRequest);
+      showUserFriendlyError(statuesRequestGetData);
     }
     update();
   }
@@ -619,8 +709,7 @@ class PageStartController extends GetxController {
     systemChats.clear();
     statuesRequestGetData = StatuesRequest.loading;
     update();
-    var response = await _chatsRemoteData.getSystemChatsGust(
-        perPage: 5, deviceToken: sharedPreferences!.getString("deviceId"));
+    var response = await _chatsRemoteData.getSystemChatsGust(perPage: 5);
 
     log("System chats response: $response");
     statuesRequestGetData = handlingData(response);
@@ -633,7 +722,7 @@ class PageStartController extends GetxController {
       ));
       log("System chats loaded: ${systemChats.length} items");
     } else {
-      showUserFriendlyError(statuesRequest);
+      showUserFriendlyError(statuesRequestGetData);
     }
     update();
   }

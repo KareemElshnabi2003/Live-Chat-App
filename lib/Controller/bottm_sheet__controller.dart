@@ -95,9 +95,9 @@ class BottomSheetController extends GetxController {
       statuesRequestChats = StatuesRequest.loading;
       update();
 
-      String? token = sharedPreferences!.getString("token");
+      sharedPreferences!.getString("token");
       var response = await _chatsRemoteData.getuserChats(
-          page: currentPage, perPage: perPage, token: token ?? "");
+          page: currentPage, perPage: perPage);
 
       statuesRequestChats = handlingData(response);
 
@@ -337,7 +337,7 @@ class BottomSheetController extends GetxController {
       log("Response status: ${response.statusCode}");
       log("Response body: ${response.body}");
 
-      var result;
+      dynamic result;
       try {
         result = jsonDecode(response.body);
       } catch (e) {

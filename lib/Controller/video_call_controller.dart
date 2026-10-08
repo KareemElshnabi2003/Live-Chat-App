@@ -7,6 +7,7 @@ import 'package:live_chat/Core/Class/error_handler.dart';
 import 'package:live_chat/Core/class/status_request.dart';
 import 'package:live_chat/Core/function/handling_data.dart';
 import 'package:live_chat/Data/DataSource/chats_source.dart';
+import 'package:live_chat/Controller/chat_controller.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 // Agora Configuration Class
@@ -487,6 +488,14 @@ class VideoCallController extends GetxController {
 
       if (statuesRequest == StatuesRequest.success) {
         log("✅ Call ended successfully: ${response['data']}");
+        if (Get.isRegistered<ChatController>()) {
+          Get.find<ChatController>().sendSystemMessage(isGroubCall ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||");
+        } else {
+          _chatsRemoteData.sendMessages(
+              chatId: chatId, 
+              message: isGroubCall ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||"
+          );
+        }
         final responseBody = response['data'];
         if (responseBody != null) {
           log("   - Response data: ${response['data']}");

@@ -531,42 +531,47 @@ class AudioCallPage extends StatelessWidget {
       left: 0,
       right: 0,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildControlButton(
-              context: context,
-              icon: controller.isMuted.value ? Icons.mic_off : Icons.mic,
-              backgroundColor:
-                  controller.isMuted.value ? Colors.red : Colors.grey[700]!,
-              onPressed: controller.toggleMute,
-              tooltip: controller.isMuted.value
-                  ? S.of(context).unmute
-                  : S.of(context).mute,
-            ),
-            _buildControlButton(
-              context: context,
-              icon: controller.speakerEnabled.value
-                  ? Icons.volume_up
-                  : Icons.volume_down,
-              backgroundColor: controller.speakerEnabled.value
-                  ? Colors.blue
-                  : Colors.grey[700]!,
-              onPressed: controller.toggleSpeaker,
-              tooltip: controller.speakerEnabled.value
-                  ? S.of(context).useEarpiece
-                  : S.of(context).useSpeaker,
-            ),
-            _buildControlButton(
-              context: context,
-              icon: Icons.call_end,
-              backgroundColor: Colors.red,
-              onPressed: controller.endCall,
-              tooltip: S.of(context).endCall,
-              size: 60,
-            ),
-          ],
+        padding: EdgeInsets.symmetric(horizontal: 4.w),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildControlButton(
+                context: context,
+                icon: controller.isMuted.value ? Icons.mic_off : Icons.mic,
+                backgroundColor:
+                    controller.isMuted.value ? Colors.red : Colors.grey[700]!,
+                onPressed: controller.toggleMute,
+                tooltip: controller.isMuted.value
+                    ? S.of(context).unmute
+                    : S.of(context).mute,
+              ),
+              SizedBox(width: 4.w), // added spacing since FittedBox removes flex spacing benefits somewhat if tight
+              _buildControlButton(
+                context: context,
+                icon: controller.speakerEnabled.value
+                    ? Icons.volume_up
+                    : Icons.volume_down,
+                backgroundColor: controller.speakerEnabled.value
+                    ? Colors.blue
+                    : Colors.grey[700]!,
+                onPressed: controller.toggleSpeaker,
+                tooltip: controller.speakerEnabled.value
+                    ? S.of(context).useEarpiece
+                    : S.of(context).useSpeaker,
+              ),
+              SizedBox(width: 4.w),
+              _buildControlButton(
+                context: context,
+                icon: Icons.call_end,
+                backgroundColor: Colors.red,
+                onPressed: controller.endCall,
+                tooltip: S.of(context).endCall,
+                size: 60,
+              ),
+            ],
+          ),
         ),
       ),
     );

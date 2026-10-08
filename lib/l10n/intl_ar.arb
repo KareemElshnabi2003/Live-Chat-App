@@ -135,6 +135,7 @@
   "error": "خطأ",
   "fillAllFields": "يرجى ملء جميع الحقول",
   "success": "نجاح",
+  "msgUnblockedSuccessfully": "تم فك الحظر بنجاح",
   "linkCopied": "تم نسخ الرابط",
   "httpFaraena": "Http/faraena.com",
   "male": "ذكر",
@@ -377,7 +378,21 @@
 "tapToUploadReceipt": "انقر لرفع الإيصال",
 "finish": "إنهاء",
 "orderUnderReview": "طلبك قيد المراجعة",
-"ok": "موافق"
+"ok": "موافق",
+"ad": "اعلان"
+"clickHereToVisit": "اضغط هنا للزيارة",
+"adsWithUs": "إعلانات معنا",
+"general_chat":"الدردشة العامة,
+"underReview":"قيد المراجعة",
+"msgYouBlocked":"عذراً، لا يمكنك التواصل مع هذا المستخدم حالياً.",
+"msgIBlocked":"لقد قمت بحظر هذا المستخدم مسبقاً. هل ترغب في إلغاء الحظر للتواصل معه؟",
+
+"msgNotHasPermission":"غير مصرح لك بإجراء هذه العملية حالياً.",
+"cancelBlock":"الغاء الحظر",
+"youSendRequest":"تم إرسال طلب الصداقة"
+
+
+
 }
 
 

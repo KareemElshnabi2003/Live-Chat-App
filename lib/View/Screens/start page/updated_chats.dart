@@ -86,7 +86,6 @@ class UpdatedChatsController extends GetxController {
     update();
 
     var response = await _chatsRemoteData.getRecentChatGust(
-      deviceToken: sharedPreferences!.getString("tokenDevice"),
       perPage: perPage,
       page: currentPage,
     );
@@ -118,7 +117,6 @@ class UpdatedChatsController extends GetxController {
     update();
 
     var response = await _chatsRemoteData.getRecentChatGust(
-      deviceToken: sharedPreferences!.getString("tokenDevice"),
       perPage: perPage,
       page: currentPage,
     );
@@ -317,7 +315,9 @@ class UpdatedChats extends StatelessWidget {
                       chatModel: controller.recentChats[index],
                       isGust: true,
                       id: controller.recentChats[index].id);
-                });
+                },
+                needsAcceptance: controller.recentChats[index].accept == '1',
+            );
           }
           // Show loading indicator at the bottom when loading more
           else {

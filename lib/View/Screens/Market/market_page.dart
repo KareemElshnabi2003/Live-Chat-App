@@ -262,6 +262,7 @@ class _MarketPageState extends State<MarketPage> {
             height: 1.5.h,
           ),
           chatCardWidget(
+            needsAcceptance: false,
             power: null,
             imageUrl: true,
             numOfMessage: 0,
@@ -302,11 +303,16 @@ class _MarketPageState extends State<MarketPage> {
     return Row(
       textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       children: [
-        CircleAvatar(
-          radius: 4.w,
-          backgroundImage: CachedNetworkImageProvider(
-              "${sharedPreferences!.getString("img")}"),
-        ),
+        (sharedPreferences!.getString("img") != null && sharedPreferences!.getString("img").toString().trim().isNotEmpty && sharedPreferences!.getString("img").toString() != "null")
+          ? CircleAvatar(
+              radius: 4.w,
+              backgroundImage: CachedNetworkImageProvider(
+                  "${sharedPreferences!.getString("img")}"),
+            )
+          : CircleAvatar(
+              radius: 4.w,
+              backgroundColor: Colors.grey,
+            ),
         SizedBox(width: 2.w),
         Row(
           children: [

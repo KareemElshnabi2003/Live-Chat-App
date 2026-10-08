@@ -87,7 +87,6 @@ class AnotherChatsController extends GetxController {
 
     var response = await _chatsRemoteData.getSystemChatsGust(
       perPage: perPage,
-      deviceToken: sharedPreferences!.getString("tokenDevice"),
       page: currentPage,
     );
     print("response recent ??? $response");
@@ -118,7 +117,6 @@ class AnotherChatsController extends GetxController {
     update();
 
     var response = await _chatsRemoteData.getSystemChatsGust(
-      deviceToken: sharedPreferences!.getString("tokenDevice"),
       perPage: perPage,
       page: currentPage,
     );
@@ -311,7 +309,9 @@ class AnotherChats extends StatelessWidget {
                         chatModel: controller.systemChats[index],
                         isGust: true,
                         id: controller.systemChats[index].id);
-                  });
+                  },
+                  needsAcceptance: controller.systemChats[index].accept == '1',
+              );
             }
             // Show loading indicator at the bottom when loading more
             else {

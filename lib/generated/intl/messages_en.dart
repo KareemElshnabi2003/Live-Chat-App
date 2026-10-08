@@ -442,6 +442,8 @@ class MessageLookup extends MessageLookupByLibrary {
         "style_6": MessageLookupByLibrary.simpleMessage("Style 6"),
         "style_7": MessageLookupByLibrary.simpleMessage("Style 7"),
         "success": MessageLookupByLibrary.simpleMessage("Success"),
+        "msgUnblockedSuccessfully":
+            MessageLookupByLibrary.simpleMessage("Unblocked successfully"),
         "successResend":
             MessageLookupByLibrary.simpleMessage("Success resend OTP"),
         "succsesPin":

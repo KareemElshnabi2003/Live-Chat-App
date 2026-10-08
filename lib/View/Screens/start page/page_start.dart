@@ -20,9 +20,12 @@ import 'package:live_chat/generated/l10n.dart';
 class PageStart extends StatelessWidget {
   const PageStart({super.key});
 
+  bool _isValidImage(String? url) {
+    return url != null && url.trim().isNotEmpty && url.trim() != "null" && url.trim() != "image";
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 🚨 التعديل هنا: التأكد من تسجيل الـ Controller مرة واحدة
     if (!Get.isRegistered<PageStartController>()) {
       Get.put(PageStartController());
     }
@@ -35,20 +38,18 @@ class PageStart extends StatelessWidget {
         builder: (controller) => RefreshIndicator(
           onRefresh: () async {
             print("refresh");
-            // شيلنا الـ controller.refreshData() من الـ initState عشان ميحصلش تعارض
             await controller.refreshData();
           },
-          color:
-              AppColors.secondaryColor, // Customize the refresh indicator color
+          color: AppColors.secondaryColor,
           backgroundColor: pref! ? AppColors.darkcolor : AppColors.whiteColor,
           child: SingleChildScrollView(
-            physics:
-                const AlwaysScrollableScrollPhysics(), // Important for pull-to-refresh
-
+            physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Container
+                // ==============================
+                // 1. حاوية الهيدر وتسجيل الدخول والدردشة المثبتة
+                // ==============================
                 Container(
                   padding: EdgeInsets.only(
                     left: isRtl ? 0 : 4.w,
@@ -63,30 +64,17 @@ class PageStart extends StatelessWidget {
                       bottomRight: Radius.circular(12),
                     ),
                   ),
-                  //height: 30.h,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       InkWell(
                         onTap: () => controller.onPressLogin(context),
                         child: Row(
-                          textDirection:
-                              isRtl ? TextDirection.rtl : TextDirection.ltr,
+                          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
                           children: [
-                            Image.asset(
-                              AppImages.iconLoginImg,
-                              width: 5.w,
-                              height: 5.w,
-                            ),
+                            Image.asset(AppImages.iconLoginImg, width: 5.w, height: 5.w),
                             SizedBox(width: 2.w),
-                            textNormal(
-                              S.of(context).log_in,
-                              pref!
-                                  ? AppColors.whiteColor
-                                  : AppColors.blackColor,
-                              4.w,
-                              FontWeight.w400,
-                            ),
+                            textNormal(S.of(context).log_in, pref! ? AppColors.whiteColor : AppColors.blackColor, 4.w, FontWeight.w400),
                           ],
                         ),
                       ),
@@ -95,164 +83,80 @@ class PageStart extends StatelessWidget {
                         children: [
                           CircleAvatar(
                             radius: 5.w,
-                            backgroundColor: pref!
-                                ? AppColors.secondaryColor
-                                : AppColors.primaryColor,
-                            child: CircleAvatar(
-                              backgroundImage: const AssetImage(
-                                  "lib/Images/play_store_512.png"),
-                              radius: 4.w,
-                            ),
-                          ),
-                          SizedBox(
-                            width: 2.w,
-                          ),
-                          textNormal(
-                            S.of(Get.context!).mayolivechat,
-                            pref!
-                                ? AppColors.secondaryColor
-                                : AppColors.primaryColor,
-                            3.5.w,
-                            FontWeight.bold,
-                          ),
-                        ],
-                      ),
-                      SizedBox(
-                        height: 1.5.h,
-                      ),
-                      Row(
-                        textDirection:
-                            isRtl ? TextDirection.rtl : TextDirection.ltr,
-                        children: [
-                          textNormal(
-                            S.of(context).positive_chat,
-                            pref! ? AppColors.whiteColor : AppColors.blackColor,
-                            4.w,
-                            FontWeight.w400,
+                            backgroundColor: pref! ? AppColors.secondaryColor : AppColors.primaryColor,
+                            child: CircleAvatar(backgroundImage: const AssetImage("lib/Images/play_store_512.png"), radius: 4.w),
                           ),
                           SizedBox(width: 2.w),
-                          Icon(
-                            LucideIcons.pin300,
-                            size: 5.w,
-                            color: pref!
-                                ? AppColors.whiteColor
-                                : AppColors.blackColor,
-                          ),
+                          textNormal(S.of(Get.context!).mayolivechat, pref! ? AppColors.secondaryColor : AppColors.primaryColor, 3.5.w, FontWeight.bold),
                         ],
                       ),
                       SizedBox(height: 3.h),
-                      controller.statuesRequestGetData == StatuesRequest.loading
-                          ? loading(10.h)
-                          : controller.pinChatModel == null
-                              ? Center(
-                                  child: noData(S.of(context).noChat),
-                                )
-                              : chatCardWidget(
-                                  power: null,
-                                  imageUrl: controller.pinChatModel!
-                                                  .conversation!.image
-                                                  .toString() ==
-                                              "null" ||
-                                          controller.pinChatModel!.conversation!
-                                                  .image ==
-                                              "" ||
-                                          controller.pinChatModel!.conversation!
-                                                  .image
-                                                  .toString() ==
-                                              "image"
-                                      ? false
-                                      : true,
-                                  numOfMessage: 0,
-                                  onPressImg: () {
-                                    dialogImgWidget(
-                                        title: controller
-                                            .pinChatModel!.conversation!.name!,
-                                        img: null,
-                                        onPressChat: () {
-                                          controller.onPressPinChat(
-                                            chatModel: controller
-                                                .pinChatModel!.conversation!,
-                                            id: controller
-                                                .pinChatModel!.conversation!.id,
-                                            isGust: true,
-                                          );
-                                        },
-                                        userChatModel: controller
-                                            .pinChatModel!.conversation!);
-                                  },
-                                  private: controller.pinChatModel!
-                                              .conversation!.status ==
-                                          "Private"
-                                      ? true
-                                      : false,
-                                  img:
-                                      controller.pinChatModel!.conversation!
-                                                      .image ==
-                                                  "image" ||
-                                              controller.pinChatModel!
-                                                      .conversation!.image ==
-                                                  null ||
-                                              controller.pinChatModel!
-                                                      .conversation!.image ==
-                                                  "null"
-                                          ? const AssetImage(
-                                              AppImages.noChatImg)
-                                          : CachedNetworkImageProvider(
-                                              controller.pinChatModel!
-                                                  .conversation!.image!),
-                                  body:
-                                      "${controller.pinChatModel!.conversation!.membersCount} ${S.of(context).engaged_people}",
-                                  ttitle: controller
-                                      .pinChatModel!.conversation!.name!,
-                                  action: S.of(context).join_now,
-                                  onPressJoin: () {
-                                    print(
-                                        '''${sharedPreferences!.getString("tokenDevice")}
-          ${sharedPreferences!.getString("token")}''');
-                                    controller.onPressPinChat(
-                                      chatModel: controller
-                                          .pinChatModel!.conversation!,
-                                      id: controller
-                                          .pinChatModel!.conversation!.id,
-                                      isGust: true,
-                                    );
-                                  },
-                                  ontap: () {
-                                    controller.onPressPinChat(
-                                      id: controller
-                                          .pinChatModel!.conversation!.id,
-                                      chatModel: controller
-                                          .pinChatModel!.conversation!,
-                                      isGust: true,
-                                    );
-                                  },
-                                )
+
+                      // ==============================
+                      // 2. Pinned Chat Section (يظهر فقط إذا كان هناك محادثة وميعادها شغال)
+                      // ==============================
+                      if (controller.statuesRequestGetData == StatuesRequest.loading)
+                        loading(10.h)
+                      else if (controller.pinChatModel != null && controller.pinChatModel!.conversation != null) ...[
+                        Row(
+                          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+                          children: [
+                            textNormal(S.of(context).positive_chat, pref! ? AppColors.whiteColor : AppColors.blackColor, 4.w, FontWeight.w400),
+                            SizedBox(width: 2.w),
+                            Icon(LucideIcons.pin300, size: 5.w, color: pref! ? AppColors.whiteColor : AppColors.blackColor),
+                          ],
+                        ),
+                        SizedBox(height: 2.h),
+                        Builder(
+                          builder: (context) {
+                            final pinChat = controller.pinChatModel!.conversation!;
+                            final hasValidImage = _isValidImage(pinChat.image);
+
+                            return chatCardWidget(
+                              needsAcceptance: pinChat.accept=="1"?true:false,
+
+                              power: null,
+                              imageUrl: hasValidImage,
+                              numOfMessage: 0,
+                              onPressImg: () {
+                                dialogImgWidget(
+                                  title: pinChat.name!,
+                                  img: null,
+                                  userChatModel: pinChat,
+                                  onPressChat: () => controller.onPressPinChat(chatModel: pinChat, id: pinChat.id, isGust: true),
+                                );
+                              },
+                              private: pinChat.status == "Private",
+                              img: hasValidImage
+                                  ? CachedNetworkImageProvider(pinChat.image!.trim())
+                                  : const AssetImage(AppImages.noChatImg),
+                              body: "${pinChat.membersCount} ${S.of(context).engaged_people}",
+                              ttitle: pinChat.name!,
+                              action: S.of(context).join_now,
+                              onPressJoin: () => controller.onPressPinChat(chatModel: pinChat, id: pinChat.id, isGust: true),
+                              ontap: () => controller.onPressPinChat(id: pinChat.id, chatModel: pinChat, isGust: true),
+                            );
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),
                 SizedBox(height: 3.h),
+
+                // ==============================
+                // 3. Latest Chats Section
+                // ==============================
                 InkWell(
                   onTap: controller.navigateToUpdatedChat,
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4.w),
                     child: Row(
-                      textDirection:
-                          isRtl ? TextDirection.rtl : TextDirection.ltr,
+                      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
                       children: [
-                        textNormal(
-                          S.of(context).latest_chats,
-                          pref! ? AppColors.whiteColor : AppColors.blackColor,
-                          4.w,
-                          FontWeight.w400,
-                        ),
+                        textNormal(S.of(context).latest_chats, pref! ? AppColors.whiteColor : AppColors.blackColor, 4.w, FontWeight.w400),
                         SizedBox(width: 2.w),
-                        Icon(
-                          isRtl
-                              ? LucideIcons.moveLeft300
-                              : LucideIcons.moveRight300,
-                          color: AppColors.secondaryColor,
-                          size: 7.w,
-                        ),
+                        Icon(isRtl ? LucideIcons.moveLeft300 : LucideIcons.moveRight300, color: AppColors.secondaryColor, size: 7.w),
                       ],
                     ),
                   ),
@@ -261,101 +165,63 @@ class PageStart extends StatelessWidget {
                 controller.statuesRequestGetData == StatuesRequest.loading
                     ? loading(10.h)
                     : controller.recentChats.isEmpty
-                        ? Center(
-                            child: noData(S.of(context).noChat),
-                          )
-                        : SizedBox(
-                            // height: 42.w,
-                            width: 100.w,
-                            child: ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              padding: EdgeInsets.only(
-                                left: isRtl ? 0 : 4.w,
-                                right: isRtl ? 4.w : 0,
-                              ),
-                              itemBuilder: (context, index) => chatCardWidget(
-                                power: null,
-                                imageUrl: controller.recentChats[index].image
-                                                .toString() ==
-                                            "null" ||
-                                        controller.recentChats[index].image ==
-                                            ""
-                                    ? false
-                                    : true,
-                                numOfMessage: 0,
-                                onPressImg: () {
-                                  dialogImgWidget(
-                                      title:
-                                          controller.recentChats[index].name!,
-                                      userChatModel:
-                                          controller.recentChats[index],
-                                      img: null,
-                                      onPressChat: () {
-                                        controller.onPressGroubChat(
-                                            chatModel:
-                                                controller.recentChats[index],
-                                            isGust: true,
-                                            id: controller
-                                                .recentChats[index].id);
-                                      });
-                                },
-                                private: controller.recentChats[index].status ==
-                                        "Private"
-                                    ? true
-                                    : false,
-                                img: controller.recentChats[index].image
-                                            .toString() ==
-                                        "null"
-                                    ? const AssetImage(AppImages.noChatImg)
-                                    : CachedNetworkImageProvider(
-                                        "${controller.recentChats[index].image}"),
-                                body:
-                                    "${controller.recentChats[index].membersCount} ${S.of(context).engaged_people}",
-                                ttitle: controller.recentChats[index].name!,
-                                action: S.of(context).join_now,
-                                onPressJoin: () {
-                                  controller.onPressGroubChat(
-                                      chatModel: controller.recentChats[index],
-                                      isGust: true,
-                                      id: controller.recentChats[index].id);
-                                },
-                                ontap: () {
-                                  controller.onPressGroubChat(
-                                      chatModel: controller.recentChats[index],
-                                      isGust: true,
-                                      id: controller.recentChats[index].id);
-                                },
-                              ),
-                              separatorBuilder: (context, index) =>
-                                  SizedBox(height: 2.h),
-                              itemCount: controller.recentChats.length,
-                            ),
-                          ),
+                    ? Center(child: noData(S.of(context).noChat))
+                    : SizedBox(
+                  width: 100.w,
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.only(left: isRtl ? 0 : 4.w, right: isRtl ? 4.w : 0),
+                    separatorBuilder: (context, index) => SizedBox(height: 2.h),
+                    itemCount: controller.recentChats.length,
+                    itemBuilder: (context, index) {
+                      final chat = controller.recentChats[index];
+                      final hasValidImage = _isValidImage(chat.image);
+
+                      return chatCardWidget(
+
+                        needsAcceptance: chat.accept=="1"?true:false,
+
+                        power: null,
+                        imageUrl: hasValidImage,
+                        numOfMessage: 0,
+                        onPressImg: () {
+                          dialogImgWidget(
+                            title: chat.name!,
+                            userChatModel: chat,
+                            img: null,
+                            onPressChat: () => controller.onPressGroubChat(chatModel: chat, isGust: true, id: chat.id),
+                          );
+                        },
+                        private: chat.status == "Private",
+                        img: hasValidImage
+                            ? CachedNetworkImageProvider(chat.image!.trim())
+                            : const AssetImage(AppImages.noChatImg),
+                        body: "${chat.membersCount} ${S.of(context).engaged_people}",
+                        ttitle: chat.name!,
+                        action: S.of(context).join_now,
+                        onPressJoin: () => controller.onPressGroubChat(chatModel: chat, isGust: true, id: chat.id),
+                        ontap: () => controller.onPressGroubChat(chatModel: chat, isGust: true, id: chat.id),
+                      );
+                    },
+                  ),
+                ),
 
                 SizedBox(height: 3.h),
+
+                // ==============================
+                // 4. Other Chats Section
+                // ==============================
                 InkWell(
                   onTap: controller.navigateToAnotherChats,
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4.w),
                     child: Row(
-                      textDirection:
-                          isRtl ? TextDirection.rtl : TextDirection.ltr,
+                      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
                       children: [
-                        textNormal(
-                          S.of(context).other_chats,
-                          pref! ? AppColors.whiteColor : AppColors.blackColor,
-                          4.5.w,
-                          FontWeight.w400,
-                        ),
+                        textNormal(S.of(context).other_chats, pref! ? AppColors.whiteColor : AppColors.blackColor, 4.5.w, FontWeight.w400),
                         SizedBox(width: 2.w),
-                        Icon(
-                          isRtl
-                              ? LucideIcons.moveLeft300
-                              : LucideIcons.moveRight300,
-                          color: AppColors.secondaryColor,
-                          size: 7.w,
-                        ),
+                        Icon(isRtl ? LucideIcons.moveLeft300 : LucideIcons.moveRight300, color: AppColors.secondaryColor, size: 7.w),
                       ],
                     ),
                   ),
@@ -364,78 +230,47 @@ class PageStart extends StatelessWidget {
                 controller.statuesRequestGetData == StatuesRequest.loading
                     ? loading(10.h)
                     : controller.systemChats.isEmpty
-                        ? Center(
-                            child: noData(S.of(context).noChat),
-                          )
-                        : SizedBox(
-                            width: 100.w,
-                            child: ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              padding: EdgeInsets.only(
-                                left: isRtl ? 0 : 4.w,
-                                right: isRtl ? 4.w : 0,
-                              ),
-                              itemBuilder: (context, index) => chatCardWidget(
-                                power: null,
-                                imageUrl: controller.systemChats[index].image
-                                                .toString() ==
-                                            "null" ||
-                                        controller.systemChats[index].image ==
-                                            ""
-                                    ? false
-                                    : true,
-                                numOfMessage: 0,
-                                onPressImg: () {
-                                  dialogImgWidget(
-                                    title: controller.systemChats[index].name!,
-                                    userChatModel:
-                                        controller.systemChats[index],
-                                    img: null,
-                                    onPressChat: () {
-                                      controller.onPressGroubChat(
-                                          chatModel:
-                                              controller.systemChats[index],
-                                          isGust: true,
-                                          id: controller.systemChats[index].id);
-                                    },
-                                  );
-                                },
-                                private: controller.systemChats[index].status ==
-                                        "Private"
-                                    ? true
-                                    : false,
-                                img: controller.systemChats[index].image
-                                            .toString() ==
-                                        "null"
-                                    ? const AssetImage(AppImages.noChatImg)
-                                    : CachedNetworkImageProvider(
-                                        controller.systemChats[index].image!),
-                                body:
-                                    "${controller.systemChats[index].membersCount} ${S.of(context).engaged_people}",
-                                ttitle: controller.systemChats[index].name!,
-                                action: S.of(context).join_now,
-                                onPressJoin: () {
-                                  controller.onPressGroubChat(
-                                      chatModel: controller.systemChats[index],
-                                      isGust: true,
-                                      id: controller.systemChats[index].id);
-                                },
-                                ontap: () {
-                                  controller.onPressGroubChat(
-                                      chatModel: controller.systemChats[index],
-                                      isGust: true,
-                                      id: controller.systemChats[index].id);
-                                },
-                              ),
-                              separatorBuilder: (context, index) =>
-                                  SizedBox(height: 2.h),
-                              itemCount: controller.systemChats.length,
-                            ),
-                          ),
-                const SizedBox(
-                  height: 20,
-                )
+                    ? Center(child: noData(S.of(context).noChat))
+                    : SizedBox(
+                  width: 100.w,
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.only(left: isRtl ? 0 : 4.w, right: isRtl ? 4.w : 0),
+                    separatorBuilder: (context, index) => SizedBox(height: 2.h),
+                    itemCount: controller.systemChats.length,
+                    itemBuilder: (context, index) {
+                      final chat = controller.systemChats[index];
+                      final hasValidImage = _isValidImage(chat.image);
+
+                      return chatCardWidget(
+                        needsAcceptance: chat.accept=="1"?true:false,
+
+                        power: null,
+                        imageUrl: hasValidImage,
+                        numOfMessage: 0,
+                        onPressImg: () {
+                          dialogImgWidget(
+                            title: chat.name!,
+                            userChatModel: chat,
+                            img: null,
+                            onPressChat: () => controller.onPressGroubChat(chatModel: chat, isGust: true, id: chat.id),
+                          );
+                        },
+                        private: chat.status == "Private",
+                        img: hasValidImage
+                            ? CachedNetworkImageProvider(chat.image!.trim())
+                            : const AssetImage(AppImages.noChatImg),
+                        body: "${chat.membersCount} ${S.of(context).engaged_people}",
+                        ttitle: chat.name!,
+                        action: S.of(context).join_now,
+                        onPressJoin: () => controller.onPressGroubChat(chatModel: chat, isGust: true, id: chat.id),
+                        ontap: () => controller.onPressGroubChat(chatModel: chat, isGust: true, id: chat.id),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 20),
               ],
             ),
           ),

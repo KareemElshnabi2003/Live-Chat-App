@@ -2,15 +2,17 @@ import 'dart:async';
 import 'package:live_chat/Core/Class/api.dart';
 import 'package:live_chat/Core/Constant/app_api.dart';
 import 'package:live_chat/Data/Model/radio_model.dart';
+import 'package:live_chat/main.dart';
 
 class RadioRemoteData {
   final Api api;
 
   RadioRemoteData({required this.api});
+  final String deviceId=sharedPreferences!.getString("deviceId")??"";
 
   Future<List<RadioModel>> getRadios() async {
     try {
-      var response = await api.getData(AppApi.getRadiosUrl);
+      var response = await api.getData("${AppApi.getRadiosUrl}?device_id=$deviceId");
 
       return response.fold(
               (l) => throw Exception('Error fetching radios: $l'),

@@ -202,6 +202,7 @@ class OtherChats extends StatelessWidget {
                     isFriendsSection: false,
                     action: S.of(context).createNow,
                     ontap: controller.onPressChat,
+                    needsAcceptance: false,
                   );
                 }
                 final chat = snapshot.data![index - 1];
@@ -245,6 +246,7 @@ class OtherChats extends StatelessWidget {
                       id: chat.id,
                     );
                   },
+                  needsAcceptance: chat.accept == '1',
                 );
               },
               separatorBuilder: (context, index) => SizedBox(height: 2.h),

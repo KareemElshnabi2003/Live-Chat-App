@@ -37,7 +37,7 @@ class Api extends GetxService {
       "Content-Type": "application/json; charset=UTF-8",
       "Lang": sharedPreferences!.getString("local") == "en" ? "en" : "ar",
     };
-
+    //
     if (token != null && token.isNotEmpty && token != "null") {
       headers["Authorization"] = "Bearer $token";
     }
@@ -68,12 +68,17 @@ class Api extends GetxService {
       final data = jsonDecode(response.body);
       return right(data);
     }
+    
+    if (response.statusCode == 204) {
+      log('204 No Content (Success): ${response.body}');
+      return right({"status": "success"}); // إرجاع نجاح بدون محاولة فك تشفير JSON لأن البودي فاضي
+    }
 
-    // استخراج الرسالة لو الـ status code بيدل على خطأ في البيانات
-    if ([400, 403, 404, 409, 422].contains(response.statusCode)) {
+    if ([400, 402, 403, 404, 409, 422].contains(response.statusCode)) {
       _extractServerMessage(response.body);
     }
 
+   
     switch (response.statusCode) {
       case 400:
         log('400 Bad Request: ${response.body}');
@@ -112,12 +117,12 @@ class Api extends GetxService {
   }
 
   void _handleUnauthorized() {
-    if (!_isDialogShowing) {
+    if(sharedPreferences!.getString("page")!=null){  if (!_isDialogShowing) {
       _isDialogShowing = true;
       Get.defaultDialog(
         title: "تسجيل الدخول مطلوب",
         middleText:
-            "عفواً، يجب عليك تسجيل الدخول أو إنشاء حساب لتتمكن من عرض هذا المحتوى. هل تود تسجيل الدخول الآن؟",
+        "عفواً، يجب عليك تسجيل الدخول أو إنشاء حساب لتتمكن من عرض هذا المحتوى. هل تود تسجيل الدخول الآن؟",
         textConfirm: "موافق",
         textCancel: "إلغاء",
         confirmTextColor: Colors.white,
@@ -134,7 +139,8 @@ class Api extends GetxService {
           Get.back();
         },
       );
-    }
+    }}
+
   }
 
   Future<Either<StatuesRequest, dynamic>> getData(String linkUrl,
@@ -160,6 +166,7 @@ class Api extends GetxService {
           .post(Uri.parse(linkUrl),
               headers: _getHeaders(headers), body: dataPost)
           .timeout(_requestTimeout);
+
       return _handleResponse(response);
     } catch (e) {
       return _handleError(e);

@@ -388,7 +388,7 @@ Widget _buildPaginatedMemberList({
         onPressChat: () => controller.createChatFriend(friendID: member.id),
         onPressAdd: () => controller.sendFriendRequest(friendID: member.id),
         onPressRemove: () => controller.sendFriendRequest(friendID: member.id),
-        onPressAccept: () => controller.acceptNeedTochat(membeerId: member.id),
+        onPressAccept: () => controller.acceptNeedTochat(membeerId: member.id!),
       );
     },
   );

@@ -68,7 +68,7 @@ class SettingChatController extends GetxController {
 
   sendFriendRequest({required friendID}) async {
     var response = await _chatsRemoteData.sendFriendRequest(
-        friendId: friendID, token: sharedPreferences!.getString("token"));
+        friendId: friendID);
 
     statuesRequest = handlingData(response);
 
@@ -251,7 +251,7 @@ class SettingChatController extends GetxController {
     statuesRequest = StatuesRequest.loading;
     update();
     var response = await _chatsRemoteData.getThems(
-        token: sharedPreferences!.getString("token"));
+ );
     log("response ??? $response");
 
     statuesRequest = handlingData(response);
@@ -306,7 +306,7 @@ class SettingChatController extends GetxController {
             : 0,
         them: hasCustomTheme ? fileImgBgChat : null,
         themeID: themeId == null ? "null" : int.parse(themeId!),
-        token: sharedPreferences!.getString("token"));
+        );
     log("response ??? $response");
 
     statuesRequest = handlingData(response);
@@ -340,7 +340,7 @@ class SettingChatController extends GetxController {
 
     var response = await _chatsRemoteData.deleteChat(
         chatId: userChatModel!.id,
-        token: sharedPreferences!.getString("token"));
+      );
 
     log("response ??? $response");
 
@@ -371,7 +371,7 @@ class SettingChatController extends GetxController {
     _initializeAdminIds();
     getMembers();
     nameController.text = userChatModel!.name!;
-    getThemes();
+    if(sharedPreferences!.getString("token")!=null&&sharedPreferences!.getString("token")!="null")getThemes();
     loadCustomThemes();
   }
 
@@ -411,7 +411,7 @@ class SettingChatController extends GetxController {
       perPage: 10,
       page: currentMembersPage,
       chatId: userChatModel!.id,
-      token: sharedPreferences!.getString("token"),
+
     );
 
     statuesRequest = handlingData(response);

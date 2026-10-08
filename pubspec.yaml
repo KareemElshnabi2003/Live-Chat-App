@@ -47,6 +47,9 @@ dependencies:
   device_info_plus: ^13.2.0
   uuid: ^4.6.0
   connectivity_plus: ^7.3.1
+  swipe_to: ^1.0.6
+  flutter_callkit_incoming: ^3.1.5
+  app_links: ^7.2.1
   
 
 

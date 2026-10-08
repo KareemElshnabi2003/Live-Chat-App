@@ -78,7 +78,7 @@ class PrivateChatsController extends GetxController {
     var response = await _chatsRemoteData.getuserChats(
         page: currentPage,
         perPage: perPage,
-        token: sharedPreferences!.getString("token"));
+    );
     print("Response page $currentPage: $response");
 
     statuesRequest = handlingData(response);
@@ -130,7 +130,7 @@ class PrivateChatsController extends GetxController {
     var response = await _chatsRemoteData.getuserChats(
         page: currentPage,
         perPage: perPage,
-        token: sharedPreferences!.getString("token"));
+    );
     print("Load more - page $currentPage: $response");
 
     StatuesRequest loadMoreStatus = handlingData(response);
@@ -358,7 +358,9 @@ class PrivateChats extends StatelessWidget {
                     onPressJoin: controller.onPressChat,
                     isFriendsSection: false,
                     action: S.of(context).createNow,
-                    ontap: controller.onPressChat);
+                    ontap: controller.onPressChat,
+                    needsAcceptance: false,
+                );
               }
 
               // Actual chat index (subtract 1 for the create chat card)
@@ -420,7 +422,9 @@ class PrivateChats extends StatelessWidget {
                   ontap: () {
                     homeController.onPressGroubChat(
                         chatModel: chat, isGust: false, id: chat.id);
-                  });
+                  },
+                  needsAcceptance: chat.accept == '1',
+              );
             },
             separatorBuilder: (context, index) => SizedBox(height: 2.h),
             itemCount: controller.myChats.length +

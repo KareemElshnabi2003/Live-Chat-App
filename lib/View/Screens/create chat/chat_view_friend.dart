@@ -11,11 +11,13 @@ import 'package:live_chat/Controller/chat_controller.dart';
 import 'package:live_chat/Core/Constant/app_color.dart';
 import 'package:live_chat/Core/class/status_request.dart';
 import 'package:live_chat/Data/Model/user_chat_model.dart';
+import 'package:live_chat/Data/Model/chat_message_model.dart';
 import 'package:live_chat/View/Screens/Home/home_view.dart';
 import 'package:live_chat/View/Screens/create%20chat/chat_view.dart';
 import 'package:live_chat/View/Screens/create%20chat/settings.dart';
 import 'package:live_chat/View/Screens/Chat%20Botton%20Sheet/show_bottom_change_music.dart';
 import 'package:live_chat/View/Screens/Chat%20Botton%20Sheet/show_bottom_sheet_persons_chat.dart';
+import 'package:live_chat/View/Widget/ChatWidgets/voice_recording_widgets.dart';
 import 'package:live_chat/View/Widget/PublicWidget/message_error.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_click_widget.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
@@ -73,16 +75,13 @@ class _ChatViewState extends State<ChatViewFriend> {
           margin: EdgeInsets.symmetric(horizontal: 2.w),
           child: EnhancedVoiceRecording(
             isRecording: controller.isRecording,
+            isPaused: false,
+            pref: pref ?? false,
             onStartRecording: controller.startRecording,
             onStopRecording: controller.stopRecording,
             onCancelRecording: controller.cancelRecording,
-            backgroundColor: pref!
-                ? AppColors.darkcolor.withOpacity(0.3)
-                : AppColors.whiteColor.withOpacity(0.3),
-            iconColor:
-                pref! ? AppColors.secondaryColor : AppColors.blackTextColor,
-            waveColor: AppColors.primaryColor,
-            timerColor: AppColors.primaryColor,
+            onPauseRecording: () {},
+            onResumeRecording: () {},
           ),
         ),
       );
@@ -590,7 +589,7 @@ class _ChatViewState extends State<ChatViewFriend> {
             () {
               controller.blockOrUnBlock(
                 friendID: controller.memberIdToBlock[0].id.toString(),
-                status: true,
+                status: 1,
               );
               widget.userChatModel!.isBlocked = "You blocked them";
               Get.back();
@@ -676,7 +675,7 @@ class _ChatViewState extends State<ChatViewFriend> {
               textClick(S.of(context).unBlock, true, () {
                 controller.blockOrUnBlock(
                   friendID: controller.memberIdToBlock[0].id,
-                  status: false,
+                  status: 0,
                 );
                 widget.userChatModel!.isBlocked = "None";
               }, AppColors.redColor, 3.5.w),
@@ -840,7 +839,7 @@ class _ChatViewState extends State<ChatViewFriend> {
                   onTap: () {
                     controller.blockOrUnBlock(
                       friendID: controller.memberIdToBlock[0].id,
-                      status: true,
+                      status: 1,
                     );
                     widget.userChatModel!.isBlocked = "You blocked them";
                     controller.update();
