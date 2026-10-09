@@ -66,7 +66,6 @@ class _ChatViewState extends State<ChatView> {
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
     final isRtl = Directionality.of(context) == TextDirection.rtl;
 

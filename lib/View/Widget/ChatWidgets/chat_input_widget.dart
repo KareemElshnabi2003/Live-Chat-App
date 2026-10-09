@@ -49,7 +49,10 @@ class ChatInputWidget extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     textClick(S.of(context).unBlock, true, () {
-                      controller.blockOrUnBlock(friendID: controller.memberIdToBlock[0].id, status: 0);
+                      final friendId = controller.memberIdToBlock.isNotEmpty
+                          ? controller.memberIdToBlock[0].id
+                          : (userChatModel.user?.id ?? 0);
+                      controller.blockOrUnBlock(friendID: friendId, status: 0);
                       userChatModel.isBlocked = "None";
                     }, AppColors.whiteColor, 4.w),
                   ],
@@ -288,7 +291,10 @@ class ChatInputWidget extends StatelessWidget {
               ),
               InkWell(
                 onTap: () {
-                  controller.blockOrUnBlock(friendID: controller.memberIdToBlock[0].id, status: 1);
+                  final friendId = controller.memberIdToBlock.isNotEmpty
+                      ? controller.memberIdToBlock[0].id
+                      : (userChatModel.user?.id ?? 0);
+                  controller.blockOrUnBlock(friendID: friendId, status: 1);
                   userChatModel.isBlocked = "You blocked them";
                   controller.update();
                 },

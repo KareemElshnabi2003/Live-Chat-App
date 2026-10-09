@@ -61,7 +61,7 @@ Widget SuggestedFriends({
                             : AppColors.black2TextColor,
                         borderRadius: BorderRadius.circular(80),
                       ),
-                      child: textNormal(ttitle[0], AppColors.whiteColor, 7.w,
+                      child: textNormal(ttitle.isNotEmpty ? ttitle[0] : '?', AppColors.whiteColor, 7.w,
                           FontWeight.bold),
                     ),
                   ),

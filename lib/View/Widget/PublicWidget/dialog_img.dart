@@ -65,13 +65,15 @@ dialogImgWidget(
                           : AppColors.black2TextColor,
                     ),
                     child: textNormal(
-                        title[0],
+                        title.isNotEmpty ? title[0] : '?',
                         pref! ? AppColors.blackTextColor : AppColors.whiteColor,
                         14.w,
                         FontWeight.bold),
                   )
                 : CachedNetworkImage(
                     fit: BoxFit.cover,
+                    memCacheWidth: 600,
+                    memCacheHeight: 600,
                     imageUrl: userChatModel.image!)
             : img == null
                 ? Container(
@@ -82,12 +84,15 @@ dialogImgWidget(
                           : AppColors.black2TextColor,
                     ),
                     child: textNormal(
-                        title[0],
+                        title.isNotEmpty ? title[0] : '?',
                         pref! ? AppColors.blackTextColor : AppColors.whiteColor,
                         14.w,
                         FontWeight.bold),
                   )
                 : CachedNetworkImage(
-                    fit: BoxFit.cover, imageUrl: "$img"),
+                    fit: BoxFit.cover,
+                    memCacheWidth: 600,
+                    memCacheHeight: 600,
+                    imageUrl: "$img"),
       ));
 }

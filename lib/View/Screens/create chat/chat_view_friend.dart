@@ -13,7 +13,6 @@ import 'package:live_chat/Core/class/status_request.dart';
 import 'package:live_chat/Data/Model/user_chat_model.dart';
 import 'package:live_chat/Data/Model/chat_message_model.dart';
 import 'package:live_chat/View/Screens/Home/home_view.dart';
-import 'package:live_chat/View/Screens/create%20chat/chat_view.dart';
 import 'package:live_chat/View/Screens/create%20chat/settings.dart';
 import 'package:live_chat/View/Screens/Chat%20Botton%20Sheet/show_bottom_change_music.dart';
 import 'package:live_chat/View/Screens/Chat%20Botton%20Sheet/show_bottom_sheet_persons_chat.dart';

@@ -113,7 +113,7 @@ class SharedChatsScreen<T extends BaseChatsController> extends StatelessWidget {
               private: chat.status == "Private",
               // 🌟 منع كراش الصورة هنا
               img: hasValidImg
-                  ? CachedNetworkImageProvider(chat.image!.trim())
+                  ? CachedNetworkImageProvider(chat.image!.trim(), maxWidth: 150, maxHeight: 150)
                   : const AssetImage(AppImages.noChatImg),
               body: formatLastMessage(context, chat),
               ttitle: chat.name!,

@@ -63,13 +63,13 @@ class ChatAppBarWidget extends StatelessWidget {
                 backgroundColor: Colors.grey.shade300,
                 backgroundImage:
                     userChatModel.image != null && userChatModel.image!.trim() != "null" && userChatModel.image!.trim().isNotEmpty && userChatModel.image!.trim() != "image"
-                        ? CachedNetworkImageProvider(userChatModel.image!.trim())
+                        ? CachedNetworkImageProvider(userChatModel.image!.trim(), maxWidth: 100, maxHeight: 100)
                         : null,
                 child: (userChatModel.image == null ||
                         userChatModel.image!.trim() == "null" || userChatModel.image!.trim().isEmpty || userChatModel.image!.trim() == "image")
                     ? Text(
-                        userChatModel.name!.isNotEmpty
-                            ? userChatModel.name![0].toUpperCase()
+                        (userChatModel.name ?? '').isNotEmpty
+                            ? (userChatModel.name ?? '')[0].toUpperCase()
                             : '',
                         style: const TextStyle(
                             color: Colors.black, fontWeight: FontWeight.bold),
@@ -80,7 +80,7 @@ class ChatAppBarWidget extends StatelessWidget {
               SizedBox(
                 width: 35.w,
                 child: Text(
-                  userChatModel.name!,
+                  userChatModel.name ?? '',
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                   style: TextStyle(
@@ -169,8 +169,11 @@ class ChatAppBarWidget extends StatelessWidget {
           await controller.getMemberToBlock();
           messageErrorWithButton(
               S.of(context).warning, S.of(context).sureToBlock, () {
+            final blockId = controller.memberIdToBlock.isNotEmpty
+                ? controller.memberIdToBlock[0].id.toString()
+                : (userChatModel.user?.id?.toString() ?? '');
             controller.blockOrUnBlock(
-                friendID: controller.memberIdToBlock[0].id.toString(),
+                friendID: blockId,
                 status: 1);
             userChatModel.isBlocked = "You blocked them";
             Get.back();

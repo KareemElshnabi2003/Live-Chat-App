@@ -162,7 +162,7 @@ class ChatBubbleWidget extends StatelessWidget {
                                 ),
                                 child: Center(
                                   child: Text(
-                                    message.reaction[0].react!,
+                                    message.reaction[0].react ?? '',
                                     style: TextStyle(fontSize: 3.5.w),
                                   ),
                                 ),
@@ -437,7 +437,21 @@ class ChatBubbleWidget extends StatelessWidget {
         );
       case 'image':
         Widget imageWidget = content.startsWith('http')
-            ? CachedNetworkImage(imageUrl: content)
+            ? CachedNetworkImage(
+                imageUrl: content,
+                memCacheWidth: 600,
+                memCacheHeight: 600,
+                placeholder: (context, url) => Container(
+                  height: 150,
+                  width: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Center(child: CircularProgressIndicator.adaptive(strokeWidth: 2)),
+                ),
+                errorWidget: (context, url, error) => const Icon(Icons.broken_image_rounded, size: 30),
+              )
             : Image.file(File(content));
         return Stack(
           clipBehavior: Clip.none,
@@ -509,7 +523,7 @@ class ChatBubbleWidget extends StatelessWidget {
           backgroundColor:
           isSender ? AppColors.buttoncolor : Colors.grey[300],
           backgroundImage: hasValidImage
-              ? CachedNetworkImageProvider(img.trim())
+              ? CachedNetworkImageProvider(img.trim(), maxWidth: 80, maxHeight: 80)
               : null,
           child: !hasValidImage
               ? Text(

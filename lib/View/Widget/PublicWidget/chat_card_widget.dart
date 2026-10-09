@@ -62,7 +62,7 @@ Widget chatCardWidget({
                       alignment: Alignment.center,
                       child: !imageUrl
                           ? textNormal(
-                        ttitle[0],
+                        ttitle.isNotEmpty ? ttitle[0] : '?',
                         AppColors.whiteColor,
                         7.w,
                         FontWeight.bold,

@@ -242,7 +242,7 @@ class Requests extends StatelessWidget {
             ),
             onPressAccept: isSent ? null : () => controller.acceptFriend(friendID: friend.id!),
             onPressReject: isSent ? null : () => controller.rejectFriend(friendID: friend.id!),
-            img: hasValidImg ? CachedNetworkImageProvider(friend.image!.trim()) : const AssetImage(AppImages.noChatImg),
+            img: hasValidImg ? CachedNetworkImageProvider(friend.image!.trim(), maxWidth: 150, maxHeight: 150) : const AssetImage(AppImages.noChatImg),
             body: isSent ? S.of(context).youSendRequest : S.of(context).sendToYouRequest,
             ttitle: friend.username!,
           );

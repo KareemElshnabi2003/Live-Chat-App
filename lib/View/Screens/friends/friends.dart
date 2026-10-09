@@ -293,7 +293,7 @@ class Friends extends StatelessWidget {
           if (friend.requestStatus == "friends") controller.createChatFriend(friendID: friend.id!);
         }
       },
-      img: hasValidImg ? CachedNetworkImageProvider(friend.image!.trim()) : const AssetImage(AppImages.noChatImg),
+      img: hasValidImg ? CachedNetworkImageProvider(friend.image!.trim(), maxWidth: 150, maxHeight: 150) : const AssetImage(AppImages.noChatImg),
       body: friend.requestStatus == "friends" ? S.of(Get.context!).friend : S.of(Get.context!).requestWaiting,
       ttitle: friend.username!,
       onPressJoin: () { if (friend.requestStatus == "friends") controller.createChatFriend(friendID: friend.id!); },
