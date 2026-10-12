@@ -32,6 +32,7 @@ import 'package:live_chat/View/Screens/settings/privacy.dart';
 import 'package:live_chat/View/Screens/start%20page/page_start.dart';
 import 'package:live_chat/View/Screens/suggession%20friends/suggession%20friends.dart';
 import 'package:live_chat/View/Widget/shared_chats_screen.dart';
+import 'package:live_chat/Controller/handel_notification.dart';
 import 'package:live_chat/generated/l10n.dart';
 import 'package:live_chat/main.dart';
 import 'package:uuid/uuid.dart';
@@ -51,6 +52,7 @@ class HomeNavigationController extends GetxController {
   List<SuggestFreindModel> friends = [];
   List<SuggestFreindModel> friendsSuggestion = [];
   List<UserChatModel> systemChats = [];
+  Future<List<UserChatModel>>? systemChatsFuture;
 
   // 🌟 متغيرات العدادات
   int totalFriendsCount = 0;
@@ -59,6 +61,8 @@ class HomeNavigationController extends GetxController {
 
   Future<void> updateChatUI() async {
     controller.getAds();
+    systemChatsFuture = null;
+    await getSystemChats(isRefresh: true);
     update();
   }
 
@@ -418,10 +422,15 @@ logOut() async {
     update();
   }
 
-  Future<List<UserChatModel>> getSystemChats() async {
+  Future<List<UserChatModel>> getSystemChats({bool isRefresh = false}) {
+    if (isRefresh || systemChatsFuture == null) {
+      systemChatsFuture = _fetchSystemChats();
+    }
+    return systemChatsFuture!;
+  }
+
+  Future<List<UserChatModel>> _fetchSystemChats() async {
     systemChats.clear();
-    statuesRequest = StatuesRequest.loading;
-    update();
     var response = await _chatsRemoteData.getSystemChatsGust(
       perPage: 8,
     );
@@ -832,6 +841,10 @@ logOut() async {
       getPinChat();
       getfriendesSuggestion();
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FirebaseNotification().checkAndRequestNotificationPermission();
+    });
 
     super.onInit();
   }

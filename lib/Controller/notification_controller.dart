@@ -9,6 +9,7 @@ import 'package:live_chat/Data/DataSource/notify_source.dart';
 import 'package:live_chat/Data/Model/notify_mode.dart';
 import 'package:live_chat/Data/Model/user_chat_model.dart';
 import 'package:live_chat/View/Screens/create%20chat/chat_view.dart';
+import 'package:live_chat/main.dart';
 
 class NotificationsController extends GetxController {
   String unReadNotify = '';
@@ -23,6 +24,26 @@ class NotificationsController extends GetxController {
   late ScrollController scrollController;
 
   onPressGroubChat({required UserChatModel chatModel, required bool isGust, required id}) {
+    // 🌟 استكمال بيانات الشات لو جاية ناقصة من الإشعار لضمان ظهور الإعدادات وصلاحيات قبول الأعضاء
+    final currentUserId = sharedPreferences?.getString("id")?.trim();
+    if ((chatModel.user == null || chatModel.user?.id == null) &&
+        chatModel.userId == null &&
+        currentUserId != null &&
+        currentUserId.isNotEmpty) {
+      chatModel.userId = int.tryParse(currentUserId);
+      chatModel.user = User(id: chatModel.userId);
+    }
+    if (chatModel.accept == null ||
+        chatModel.accept == "null" ||
+        chatModel.accept!.isEmpty) {
+      chatModel.accept = "1";
+    }
+    if (chatModel.status == null ||
+        chatModel.status == "null" ||
+        chatModel.status!.isEmpty) {
+      chatModel.status = "Private";
+    }
+
     Get.to(
           () => ChatView(
         userChatModel: chatModel,

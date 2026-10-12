@@ -32,6 +32,7 @@ import 'package:live_chat/View/Screens/settings/term_condation.dart';
 import 'package:live_chat/View/Screens/suggession%20friends/suggession%20friends.dart';
 import 'package:live_chat/View/Widget/PublicWidget/show_bottom_sheet.dart';
 import 'package:live_chat/View/Widget/shared_chats_screen.dart';
+import 'package:live_chat/Controller/handel_notification.dart';
 import 'package:live_chat/generated/l10n.dart';
 import 'package:live_chat/main.dart';
 import 'package:uuid/uuid.dart';
@@ -735,6 +736,11 @@ class PageStartController extends GetxController {
     getPinChat();
     getRecentChats();
     getSystemChats();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FirebaseNotification().checkAndRequestNotificationPermission();
+    });
+
     super.onInit();
   }
 }

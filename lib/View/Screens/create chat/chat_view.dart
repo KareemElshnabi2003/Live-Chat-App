@@ -81,9 +81,9 @@ class _ChatViewState extends State<ChatView> {
         backgroundColor: pref! ? AppColors.blackColor : AppColors.bgColor,
         body: SafeArea(
           child: GetBuilder<ChatController>(
-            builder: (controller) => controller.statuesRequest == StatuesRequest.loading
-                ? Center(child: textNormal(S.of(context).joining, AppColors.primaryColor, 3.5.w, FontWeight.w500))
-                : Container(
+            builder: (controller) => Stack(
+              children: [
+                Container(
               decoration: BoxDecoration(image: ChatHelpers.getBackgroundImage(widget.userChatModel!)),
               child: Column(
                 children: [
@@ -156,8 +156,39 @@ class _ChatViewState extends State<ChatView> {
                 ],
               ),
             ),
+            if (controller.statuesRequest == StatuesRequest.loading)
+              Container(
+                color: Colors.black45,
+                child: Center(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.5.h),
+                    decoration: BoxDecoration(
+                      color: pref! ? const Color(0xff1E1E1E) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(color: AppColors.primaryColor),
+                        SizedBox(height: 2.h),
+                        textNormal(S.of(context).joining, AppColors.primaryColor, 3.8.w, FontWeight.w600),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
           ),
         ),
       ),
     );
-  }}
+  }
+}

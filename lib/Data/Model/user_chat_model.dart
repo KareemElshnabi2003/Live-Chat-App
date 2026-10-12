@@ -3,6 +3,7 @@ import 'package:live_chat/Data/Model/message_model.dart';
 
 class UserChatModel {
   int? id;
+  int? userId;
   String? name;
   String? image;
   String? slug;
@@ -66,6 +67,12 @@ class UserChatModel {
     unreadCount = json['unread_count'];
     chatLink = json['chat_link'];
     user = json['user'] != null ? User.fromJson(json['user']) : null;
+    final dynamic rawUserId =
+        json['user_id'] ?? json['owner_id'] ?? json['created_by'];
+    userId = rawUserId != null ? int.tryParse(rawUserId.toString()) : user?.id;
+    if (user == null && userId != null) {
+      user = User(id: userId);
+    }
     if (json['chat_admins'] != null) {
       chatAdmins = <ChatAdmins>[];
       json['chat_admins'].forEach((v) {

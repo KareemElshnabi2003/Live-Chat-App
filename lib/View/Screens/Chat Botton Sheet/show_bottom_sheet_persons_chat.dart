@@ -204,12 +204,18 @@ Widget _buildTabButtons(
       _buildTabButton(
         text: S.of(Get.context!).members,
         isActive: controller.memberClick,
+        count: controller.members.length,
+        isRedBadge: false,
+        isRtl: isRtl,
         onTap: () => controller.changeClick(true),
       ),
       if (isNeedAccept)
         _buildTabButton(
           text: S.of(Get.context!).requestToSend,
           isActive: !controller.memberClick,
+          count: controller.memmbersRequests.length,
+          isRedBadge: true,
+          isRtl: isRtl,
           onTap: () => controller.changeClick(false),
         ),
     ],
@@ -219,19 +225,71 @@ Widget _buildTabButtons(
 Widget _buildTabButton({
   required String text,
   required bool isActive,
+  required int count,
+  required bool isRedBadge,
+  required bool isRtl,
   required VoidCallback onTap,
 }) {
   final color = isActive
       ? (pref! ? AppColors.whiteColor : AppColors.blackTextColor)
       : AppColors.inActiveColor;
 
+  // 🌟 ذكاء الألوان مطابق لصفحة الأصدقاء تماماً:
+  // - في الطلبات: أحمر لو فيه طلبات، ولون أساسي لو مفيش
+  // - في الأعضاء: عداد يوضح عدد الأعضاء بلون مميز
+  final Color badgeBgColor;
+  final Color badgeTextColor;
+
+  if (isRedBadge) {
+    if (count > 0) {
+      badgeBgColor = AppColors.redColor;
+      badgeTextColor = Colors.white;
+    } else {
+      badgeBgColor = pref! ? AppColors.secondaryColor : AppColors.primaryColor;
+      badgeTextColor = pref! ? AppColors.blackColor : Colors.white;
+    }
+  } else {
+    badgeBgColor = isActive
+        ? (pref! ? AppColors.secondaryColor : AppColors.primaryColor)
+        : (pref! ? Colors.grey.shade800 : Colors.grey.shade300);
+    badgeTextColor = isActive
+        ? (pref! ? AppColors.blackColor : Colors.white)
+        : (pref! ? AppColors.whiteColor : AppColors.blackTextColor);
+  }
+
   return InkWell(
+    borderRadius: BorderRadius.circular(10),
     onTap: onTap,
-    child: textNormal(
-      text,
-      color,
-      3.5.w,
-      FontWeight.w600,
+    child: Padding(
+      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          textNormal(
+            text,
+            color,
+            3.5.w,
+            isActive ? FontWeight.bold : FontWeight.w600,
+          ),
+          SizedBox(width: 1.5.w),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: badgeBgColor,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              "$count",
+              style: TextStyle(
+                color: badgeTextColor,
+                fontSize: 3.w,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }

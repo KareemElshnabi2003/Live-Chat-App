@@ -19,6 +19,7 @@ class IncomingCallScreen extends StatefulWidget {
   final String groubImg;
 
   final VoidCallback onPressAnswer;
+  final VoidCallback? onPressReject;
 
   const IncomingCallScreen({
     super.key,
@@ -27,6 +28,7 @@ class IncomingCallScreen extends StatefulWidget {
     required this.callerImage,
     required this.isVideoCall,
     required this.onPressAnswer,
+    this.onPressReject,
     required this.groubName,
     required this.isGroub,
   });
@@ -167,6 +169,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
 
   void _onReject() async {
     await _stopRingtone();
+    widget.onPressReject?.call();
     Get.back();
     _showSnackBar('تم رفض المكالمة', const Color(0xffE74C3C));
   }

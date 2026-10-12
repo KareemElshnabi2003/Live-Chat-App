@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:live_chat/Core/function/html_decoder.dart';
 import 'package:live_chat/Data/Model/user_chat_model.dart';
 import 'package:live_chat/generated/l10n.dart';
 import 'package:live_chat/main.dart'; // for sharedPreferences
@@ -32,27 +33,27 @@ String formatLastMessage(BuildContext context, UserChatModel chat) {
       }
     }
     
-    if (msgContent == '|||CALL_ENDED|||' || msgContent == '|||GROUP_CALL_ENDED|||') {
+    if (msgContent == '|||CALL_ENDED|||' || msgContent == '|||GROUP_CALL_ENDED|||' || msgContent.contains('CALL_ENDED')) {
       return "$prefix${isRtl ? "تم إنهاء المكالمة" : "Call ended"}";
-    } else if (msgContent == '|||CALL_DECLINED|||') {
+    } else if (msgContent == '|||CALL_DECLINED|||' || msgContent.contains('CALL_DECLINED')) {
       return "$prefix${isRtl ? "مكالمة فائتة" : "Missed call"}";
     } else if (msgContent.startsWith('|||GROUP_CALL_START|||') || msgContent.startsWith('|||PRIVATE_CALL_START|||')) {
       return "$prefix${msgContent.contains('video') ? (isRtl ? "مكالمة فيديو" : "Video Call") : (isRtl ? "مكالمة صوتية" : "Voice Call")}";
     }
     
-    return "$prefix$msgContent";
+    return decodeHtmlEntities("$prefix$msgContent");
   } else if (msgType == 'voice') {
     return "$prefix${S.of(context).voiceMessage}";
   } else if (msgType == 'image') {
     return "$prefix${S.of(context).image}";
   } else if (msgType == 'call') {
-    if (msgContent == '|||CALL_ENDED|||' || msgContent == '|||GROUP_CALL_ENDED|||') {
+    if (msgContent == '|||CALL_ENDED|||' || msgContent == '|||GROUP_CALL_ENDED|||' || msgContent.contains('CALL_ENDED')) {
       return "$prefix${isRtl ? "تم إنهاء المكالمة" : "Call ended"}";
-    } else if (msgContent == '|||CALL_DECLINED|||') {
+    } else if (msgContent == '|||CALL_DECLINED|||' || msgContent.contains('CALL_DECLINED')) {
       return "$prefix${isRtl ? "مكالمة فائتة" : "Missed call"}";
     }
     return "$prefix${msgContent.contains('video') ? (isRtl ? "مكالمة فيديو" : "Video Call") : (isRtl ? "مكالمة صوتية" : "Voice Call")}";
   }
 
-  return "$prefix$msgContent";
+  return decodeHtmlEntities("$prefix$msgContent");
 }

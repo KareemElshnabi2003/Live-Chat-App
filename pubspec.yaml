@@ -41,7 +41,7 @@ dependencies:
   flutter_sound:
   permission_handler:
   agora_rtc_engine: ^6.5.2
-  flutter_html: ^3.0.0
+  flutter_html:
   lottie: 
   dio: ^5.9.0
   device_info_plus: ^13.2.0
@@ -50,6 +50,7 @@ dependencies:
   swipe_to: ^1.0.6
   flutter_callkit_incoming: ^3.1.5
   app_links: ^7.2.1
+  flutter_local_notifications: 17.2.3
   
 
 
@@ -81,4 +82,8 @@ flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "lib/Images/play_store_512.png"
- 
+
+
+dependency_overrides:
+  csslib: 0.17.2
+  html: 0.15.0

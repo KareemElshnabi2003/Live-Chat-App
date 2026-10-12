@@ -36,20 +36,16 @@ class ChatsRemoteData {
       required String role,
       required callType,
       required bool isGroub}) async {
-    Map<String, dynamic> data = role == "publisher"
-        ? {
-            "conversation_id": "$chatId",
-            "role": role,
-            "call_type": callType,
-            "is_group": isGroub,
-            "user_id": "${sharedPreferences!.getString("id")}"
-          }
-        : {
-            "conversation_id": "$chatId",
-            "role": role,
-            "call_type": callType,
-            "is_group": isGroub,
-          };
+    final userId = sharedPreferences!.getString("id") ??
+        sharedPreferences!.getString("idGust") ??
+        "";
+    Map<String, dynamic> data = {
+      "conversation_id": "$chatId",
+      "role": role,
+      "call_type": callType,
+      "is_group": isGroub,
+      if (userId.isNotEmpty) "user_id": userId,
+    };
     var response = await api.postData("${AppApi.getTokenCallUrl}?device_id=$deviceId", data);
     return response.fold((l) => l, (r) => r);
   }

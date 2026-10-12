@@ -120,9 +120,10 @@ class Notifications extends StatelessWidget {
       body = langAr ? 'تم قبول طلب الصداقة الذي أرسلته إلي ${notification.additionalData!['username']}'
           : 'The friend request you sent to ${notification.additionalData!['username']} has been accepted.';
     } else if (notification.additionalData!['status'] == "want_to_join_chat") {
-      title = notification.additionalData!['conversation_name'];
-      body = langAr ? 'انضم ${notification.additionalData!['username']} إلي المحادثه : ${notification.additionalData!['conversation_name']}'
-          : '${notification.additionalData!['username']} join to chat : ${notification.additionalData!['conversation_name']}';
+      title = notification.additionalData!['conversation_name'] ?? '';
+      body = langAr
+          ? 'طلب ${notification.additionalData!['username']} الانضمام إلى المحادثة : ${notification.additionalData!['conversation_name']}'
+          : '${notification.additionalData!['username']} requested to join chat : ${notification.additionalData!['conversation_name']}';
     } else {
       title = notification.title ?? '';
       body = notification.content ?? '';

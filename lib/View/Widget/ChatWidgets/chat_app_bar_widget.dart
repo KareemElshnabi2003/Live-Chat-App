@@ -31,6 +31,9 @@ class ChatAppBarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isGroup = userChatModel.status != "Friends" &&
+        userChatModel.status != "Not Friend";
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.bgColor,
@@ -58,60 +61,134 @@ class ChatAppBarWidget extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 2.w),
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: Colors.grey.shade300,
-                backgroundImage:
-                    userChatModel.image != null && userChatModel.image!.trim() != "null" && userChatModel.image!.trim().isNotEmpty && userChatModel.image!.trim() != "image"
-                        ? CachedNetworkImageProvider(userChatModel.image!.trim(), maxWidth: 100, maxHeight: 100)
-                        : null,
-                child: (userChatModel.image == null ||
-                        userChatModel.image!.trim() == "null" || userChatModel.image!.trim().isEmpty || userChatModel.image!.trim() == "image")
-                    ? Text(
-                        (userChatModel.name ?? '').isNotEmpty
-                            ? (userChatModel.name ?? '')[0].toUpperCase()
-                            : '',
-                        style: const TextStyle(
-                            color: Colors.black, fontWeight: FontWeight.bold),
-                      )
-                    : null,
-              ),
-              SizedBox(width: 2.w),
-              SizedBox(
-                width: 35.w,
-                child: Text(
-                  userChatModel.name ?? '',
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                  style: TextStyle(
-                    color:
-                        pref! ? AppColors.blackColor : AppColors.blackTextColor,
-                    fontSize: 4.5.w,
-                    fontWeight: FontWeight.bold,
-                  ),
+              GestureDetector(
+                onTap: isGroup ? () => _openMembersSheet(context) : null,
+                child: Row(
+                  children: [
+                    ClipOval(
+                      child: SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: (userChatModel.image != null &&
+                                userChatModel.image!.trim() != "null" &&
+                                userChatModel.image!.trim().isNotEmpty &&
+                                userChatModel.image!.trim() != "image")
+                            ? CachedNetworkImage(
+                                imageUrl: userChatModel.image!.trim(),
+                                fit: BoxFit.cover,
+                                maxWidthDiskCache: 120,
+                                maxHeightDiskCache: 120,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.grey.shade300,
+                                  child: const Center(
+                                    child: SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: Colors.grey.shade300,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    (userChatModel.name ?? '').trim().isNotEmpty
+                                        ? (userChatModel.name ?? '')
+                                            .trim()[0]
+                                            .toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                color: Colors.grey.shade300,
+                                alignment: Alignment.center,
+                                child: Text(
+                                  (userChatModel.name ?? '').trim().isNotEmpty
+                                      ? (userChatModel.name ?? '')
+                                          .trim()[0]
+                                          .toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+                    SizedBox(width: 2.w),
+                    SizedBox(
+                      width: 35.w,
+                      child: Text(
+                        userChatModel.name ?? '',
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: pref!
+                              ? AppColors.blackColor
+                              : AppColors.blackTextColor,
+                          fontSize: 4.5.w,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          _buildAppBarActions(context),
+          _buildAppBarActions(context, isGroup),
         ],
       ),
     );
   }
 
-  Widget _buildAppBarActions(BuildContext context) {
-    final isCurrentUser = (userChatModel.user != null)
-        ? userChatModel.user!.id.toString() ==
-            sharedPreferences!.getString("id")
-        : false;
+  void _openMembersSheet(BuildContext context) {
+    if (isGust) {
+      messageErrorWithButton(
+        S.of(context).alert,
+        S.of(context).pleaseLoginToAccess,
+        () {
+          Get.back();
+          Get.back();
+        },
+        S.of(context).login,
+      );
+    } else {
+      controller.getMembers();
+      final ownerId = userChatModel.user?.id?.toString() ??
+          userChatModel.userId?.toString() ??
+          '';
+      showBottomSheetControlPersonWidget(
+        idAdmins: userChatModel.chatAdmins ?? [],
+        isNeedAccept: userChatModel.accept == "1",
+        idOwner: ownerId,
+        context: context,
+      );
+    }
+  }
 
-    final isGroup = userChatModel.status != "Friends" &&
-        userChatModel.status != "Not Friend";
+  Widget _buildAppBarActions(BuildContext context, bool isGroup) {
+    final currentUserId = sharedPreferences?.getString("id")?.trim() ?? "";
+    final isOwner = (userChatModel.user != null &&
+            userChatModel.user!.id.toString() == currentUserId) ||
+        (userChatModel.userId != null &&
+            userChatModel.userId.toString() == currentUserId);
 
+    final isAdmin = userChatModel.chatAdmins?.any(
+            (admin) => admin.chatAdminId?.toString() == currentUserId) ??
+        false;
+
+    final canManageGroup = isOwner || isAdmin;
     final isPublic = userChatModel.status?.toLowerCase() == "public";
-    final canShareGroup = isGroup && (isPublic || isCurrentUser);
+    final canShareGroup = isGroup && (isPublic || canManageGroup);
     final canMusic = isGroup && userChatModel.themeId != null;
-    final hasMoreMenu = canShareGroup || canMusic || (isGroup && isCurrentUser) || !isGroup;
 
     return Row(
       textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
@@ -120,15 +197,25 @@ class ChatAppBarWidget extends StatelessWidget {
         _buildAudioCallIcon(),
         const SizedBox(width: 12),
         _buildVideoCallIcon(),
-        if (hasMoreMenu) ...[
-          const SizedBox(width: 12),
-          _buildMoreMenu(context, isGroup, canShareGroup, canMusic, isCurrentUser),
-        ],
+        const SizedBox(width: 12),
+        _buildMoreMenu(
+          context,
+          isGroup,
+          canShareGroup,
+          canMusic,
+          canManageGroup,
+        ),
       ],
     );
   }
 
-  Widget _buildMoreMenu(BuildContext context, bool isGroup, bool canShareGroup, bool canMusic, bool isCurrentUser) {
+  Widget _buildMoreMenu(
+    BuildContext context,
+    bool isGroup,
+    bool canShareGroup,
+    bool canMusic,
+    bool canManageGroup,
+  ) {
     return PopupMenuButton<String>(
       color: pref! ? AppColors.blackColor : Colors.white,
       borderRadius: BorderRadius.circular(10),
@@ -142,22 +229,8 @@ class ChatAppBarWidget extends StatelessWidget {
           }
         } else if (value == 'music') {
           showBottomSheetChangeMusicWidget(context: context);
-        } else if (value == 'profile') {
-          if (isGust) {
-            messageErrorWithButton(
-                S.of(context).alert, S.of(context).pleaseLoginToAccess, () {
-              Get.back();
-              Get.back();
-            }, S.of(context).login);
-          } else {
-            controller.getMembers();
-            showBottomSheetControlPersonWidget(
-              idAdmins: userChatModel.chatAdmins!,
-              isNeedAccept: userChatModel.accept == "1",
-              idOwner: userChatModel.user!.id.toString(),
-              context: context,
-            );
-          }
+        } else if (value == 'members' || value == 'profile') {
+          _openMembersSheet(context);
         } else if (value == 'settings') {
           Get.to(
             () => const Settings(),
@@ -168,43 +241,54 @@ class ChatAppBarWidget extends StatelessWidget {
         } else if (value == 'block') {
           await controller.getMemberToBlock();
           messageErrorWithButton(
-              S.of(context).warning, S.of(context).sureToBlock, () {
-            final blockId = controller.memberIdToBlock.isNotEmpty
-                ? controller.memberIdToBlock[0].id.toString()
-                : (userChatModel.user?.id?.toString() ?? '');
-            controller.blockOrUnBlock(
-                friendID: blockId,
-                status: 1);
-            userChatModel.isBlocked = "You blocked them";
-            Get.back();
-          }, S.of(context).block);
+            S.of(context).warning,
+            S.of(context).sureToBlock,
+            () {
+              final blockId = controller.memberIdToBlock.isNotEmpty
+                  ? controller.memberIdToBlock[0].id.toString()
+                  : (userChatModel.user?.id?.toString() ??
+                      userChatModel.userId?.toString() ??
+                      '');
+              controller.blockOrUnBlock(friendID: blockId, status: 1);
+              userChatModel.isBlocked = "You blocked them";
+              Get.back();
+            },
+            S.of(context).block,
+          );
         }
       },
       itemBuilder: (BuildContext context) => [
         if (canShareGroup)
           PopupMenuItem(
-              value: 'share',
-              child: _menuItem(S.of(context).share, IconsaxPlusLinear.share)),
+            value: 'share',
+            child: _menuItem(S.of(context).share, IconsaxPlusLinear.share),
+          ),
         if (canMusic)
           PopupMenuItem(
-              value: 'music',
-              child: _menuItem(S.of(context).music, IconsaxPlusLinear.music)),
-        if (isGroup && isCurrentUser)
+            value: 'music',
+            child: _menuItem(S.of(context).music, IconsaxPlusLinear.music),
+          ),
+        if (isGroup)
           PopupMenuItem(
-              value: 'profile',
-              child: _menuItem(S.of(context).profile, IconsaxPlusLinear.profile)),
-        if (isGroup && isCurrentUser)
+            value: 'members',
+            child: _menuItem(S.of(context).members, IconsaxPlusLinear.people),
+          ),
+        if (isGroup && canManageGroup)
           PopupMenuItem(
-              value: 'settings',
-              child: _menuItem(S.of(context).settings, IconsaxPlusLinear.setting)),
+            value: 'settings',
+            child: _menuItem(S.of(context).settings, IconsaxPlusLinear.setting),
+          ),
         if (!isGroup)
           PopupMenuItem(
-              value: 'block',
-              child: _menuItem(S.of(context).block, Icons.block)),
+            value: 'block',
+            child: _menuItem(S.of(context).block, Icons.block),
+          ),
       ],
-      child: Icon(Icons.more_vert,
-          size: 5.5.w,
-          color: pref! ? AppColors.blackColor : AppColors.blackColor),
+      child: Icon(
+        Icons.more_vert,
+        size: 5.5.w,
+        color: pref! ? AppColors.blackColor : AppColors.blackColor,
+      ),
     );
   }
 
@@ -238,14 +322,18 @@ class ChatAppBarWidget extends StatelessWidget {
     final isGroup =
         userChatModel.status == "Public" || userChatModel.status == "Private";
     controller.audio = isAudio;
+    final currentUserIdStr = sharedPreferences?.getString("id") ?? "0";
+    final currentUserNameStr = sharedPreferences?.getString("name") ?? "";
+    final currentUserId = int.tryParse(currentUserIdStr) ?? 0;
+
     await controller.getTokenCall(
-        isGroub: isGroup,
-        groubUsersNames: isGroup
-            ? {
-                int.parse(sharedPreferences!.getString("id")!):
-                    sharedPreferences!.getString("name")!
-              }
-            : {},
-        usernameFriend: isGroup ? "" : userChatModel.name);
+      isGroub: isGroup,
+      groubUsersNames: isGroup
+          ? {
+              currentUserId: currentUserNameStr,
+            }
+          : {},
+      usernameFriend: isGroup ? "" : userChatModel.name,
+    );
   }
 }

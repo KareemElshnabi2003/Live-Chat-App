@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 import 'package:live_chat/Controller/chat_controller.dart';
 import 'package:live_chat/Core/Constant/app_color.dart';
+import 'package:live_chat/Core/function/html_decoder.dart';
 import 'package:live_chat/Data/Model/user_chat_model.dart';
 import 'package:live_chat/View/Widget/ChatWidgets/voice_recording_widgets.dart'; // 🌟 تأكد من استيراد ده
 import 'package:live_chat/View/Widget/PublicWidget/text_click_widget.dart';
@@ -139,11 +140,29 @@ class ChatInputWidget extends StatelessWidget {
   }
 
   Widget _buildReplyPreview(BuildContext context) {
+    final repMsg = controller.replyingToMessage!;
+    final myUsername = sharedPreferences?.getString("username") ?? "";
+    final myGuestName = sharedPreferences?.getString("usernameGust") ?? "";
+    final myName = sharedPreferences?.getString("name") ?? "";
+
+    final isMe = repMsg.isFromSender ||
+        (myUsername.isNotEmpty && repMsg.senderName == myUsername) ||
+        (myGuestName.isNotEmpty && repMsg.senderName == myGuestName) ||
+        (myName.isNotEmpty && repMsg.senderName == myName);
+
+    final senderDisplayName = isMe ? S.of(context).you : (repMsg.senderName ?? '');
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       decoration: BoxDecoration(
         color: pref! ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        border: BorderDirectional(
+          start: BorderSide(
+            color: pref! ? AppColors.secondaryColor : AppColors.buttoncolor,
+            width: 4,
+          ),
+        ),
       ),
       child: Row(
         textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
@@ -153,7 +172,7 @@ class ChatInputWidget extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  controller.replyingToMessage!.senderName ?? '',
+                  senderDisplayName,
                   style: TextStyle(
                     color: pref! ? AppColors.secondaryColor : AppColors.buttoncolor, 
                     fontWeight: FontWeight.bold,
@@ -163,8 +182,15 @@ class ChatInputWidget extends StatelessWidget {
                 Builder(
                   builder: (context) {
                     String msgText = '';
-                    if (controller.replyingToMessage!.messageType == 'text') {
-                      msgText = controller.replyingToMessage!.message.split('|||REPLY|||').last;
+                    if (repMsg.messageType == 'text') {
+                      msgText = repMsg.message.split('|||REPLY|||').last;
+                      if (msgText.contains('|||MSG|||')) {
+                        msgText = msgText.split('|||MSG|||').last;
+                      }
+                      if (msgText.contains('|||CALL|||')) {
+                        msgText = msgText.split('|||CALL|||').last;
+                      }
+
                       if (msgText.startsWith('|||GROUP_CALL_START|||') || msgText.startsWith('|||PRIVATE_CALL_START|||')) {
                         final callType = msgText.contains('video') ? (isRtl ? "مكالمة فيديو" : "Video Call") : (isRtl ? "مكالمة صوتية" : "Voice Call");
                         return Row(
@@ -174,7 +200,7 @@ class ChatInputWidget extends StatelessWidget {
                             Text(callType, style: TextStyle(color: pref! ? Colors.white70 : Colors.black54, fontSize: 3.w)),
                           ],
                         );
-                      } else if (msgText == '|||CALL_ENDED|||' || msgText == '|||GROUP_CALL_ENDED|||') {
+                      } else if (msgText == '|||CALL_ENDED|||' || msgText == '|||GROUP_CALL_ENDED|||' || msgText.contains('CALL_ENDED')) {
                         final callType = isRtl ? "تم إنهاء المكالمة" : "Call ended";
                         return Row(
                           children: [
@@ -183,7 +209,7 @@ class ChatInputWidget extends StatelessWidget {
                             Text(callType, style: TextStyle(color: pref! ? Colors.white70 : Colors.black54, fontSize: 3.w)),
                           ],
                         );
-                      } else if (msgText == '|||CALL_DECLINED|||') {
+                      } else if (msgText == '|||CALL_DECLINED|||' || msgText.contains('CALL_DECLINED')) {
                         final callType = isRtl ? "مكالمة فائتة" : "Missed call";
                         return Row(
                           children: [
@@ -193,7 +219,7 @@ class ChatInputWidget extends StatelessWidget {
                           ],
                         );
                       }
-                    } else if (controller.replyingToMessage!.messageType == 'image') {
+                    } else if (repMsg.messageType == 'image') {
                       return Row(
                         children: [
                           Icon(Icons.image, size: 4.w, color: pref! ? Colors.white70 : Colors.black54),
@@ -201,7 +227,7 @@ class ChatInputWidget extends StatelessWidget {
                           Text(isRtl ? "صورة" : "Image", style: TextStyle(color: pref! ? Colors.white70 : Colors.black54, fontSize: 3.w)),
                         ],
                       );
-                    } else if (controller.replyingToMessage!.messageType == 'voice' || controller.replyingToMessage!.messageType == 'audio') {
+                    } else if (repMsg.messageType == 'voice' || repMsg.messageType == 'audio') {
                       return Row(
                         children: [
                           Icon(Icons.mic, size: 4.w, color: pref! ? Colors.white70 : Colors.black54),
@@ -210,11 +236,11 @@ class ChatInputWidget extends StatelessWidget {
                         ],
                       );
                     } else {
-                      msgText = controller.replyingToMessage!.messageType;
+                      msgText = repMsg.messageType;
                     }
                     
                     return Text(
-                      msgText,
+                      decodeHtmlEntities(msgText),
                       maxLines: 1, 
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

@@ -1,7 +1,5 @@
 // ignore_for_file: avoid_print
 
-
-
 import 'package:device_preview/device_preview.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -10,8 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:live_chat/Controller/handel_notification.dart';
-import 'package:live_chat/Controller/langauge_controller.dart'; 
-
+import 'package:live_chat/Controller/langauge_controller.dart';
 import 'package:live_chat/Controller/network_controller.dart';
 import 'package:live_chat/Core/Class/api.dart';
 import 'package:live_chat/Core/initial_bindings.dart';
@@ -25,14 +22,30 @@ import 'package:live_chat/Core/Class/dynamic_link_service.dart';
 SharedPreferences? sharedPreferences;
 bool? pref;
 
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  print("Handling a background message: ${message.messageId}");
-  print("Message data: ${message.data}");
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 🛡️ معالجة شاملة تمنع كراش أو توقف التطبيق في حال فشل تحميل أي صورة من السيرفر (مثل 403 أو 404)
+  FlutterError.onError = (details) {
+    final errorStr = details.exception.toString();
+    if (errorStr.contains('HttpException') ||
+        errorStr.contains('statusCode: 403') ||
+        errorStr.contains('statusCode: 404')) {
+      return;
+    }
+    FlutterError.presentError(details);
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    final errorStr = error.toString();
+    if (errorStr.contains('HttpException') ||
+        errorStr.contains('statusCode: 403') ||
+        errorStr.contains('statusCode: 404')) {
+      return true; // تم التعامل مع الخطأ بأمان دون إيقاف التطبيق
+    }
+    return false;
+  };
+
   sharedPreferences = await SharedPreferences.getInstance();
   try {
     if (kIsWeb) {
@@ -50,26 +63,20 @@ void main() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
     }
-    print("device token>>>>> ${sharedPreferences!.getString("deviceToken")}");
-    print("device id>>>>> ${sharedPreferences!.getString("deviceId")}");
-    print("token>>>>> ${sharedPreferences!.getString("token")}");
 
-    print("✅ Firebase initialized successfully");
-
+    // 🌟 تشغيل مستمع الخلفية فقط هنا (لأنه بيحتاج يشتغل قبل الـ UI)
     if (!kIsWeb) {
-      FirebaseMessaging.onBackgroundMessage(
-          _firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     }
 
-    final firebaseNotification = FirebaseNotification();
-
-    if (!kIsWeb) {
-      await firebaseNotification.firebasemessaginsetting();
-      await firebaseNotification.intilizeNotification();
-    }
   } catch (e) {
     print("Firebase initialization failed: $e");
   }
+  
+  print("device token>>>>> ${sharedPreferences!.getString("deviceToken")}");
+  print("device id>>>>> ${sharedPreferences!.getString("deviceId")}");
+  print("token>>>>> ${sharedPreferences!.getString("token")}");
+  print("✅ Firebase initialized successfully");
 
   sharedPreferences!.getBool("isDarkMode") ??
       await sharedPreferences!.setBool("isDarkMode", false);
@@ -78,10 +85,11 @@ void main() async {
   final String initialLocale =
       sharedPreferences!.getString("selectedLanguage") ?? 'ar';
   await sharedPreferences!.setString("selectedLanguage", initialLocale);
+  
   Get.put(Api());
-
   Get.put(AppSettingsController());
-Get.put(NetworkController(), permanent: true);
+  Get.put(NetworkController(), permanent: true);
+  
   runApp(
     DevicePreview(
       enabled: false,
@@ -102,18 +110,13 @@ class MyApp extends StatelessWidget {
         init: AppSettingsController(),
         builder: (controller) => GetMaterialApp(
           onInit: () {
-            DynamicLinkService.initDynamicLinks(); 
-            
+            DynamicLinkService.initDynamicLinks();
           },
-          initialBinding: InitialBindings(), 
-          
+          initialBinding: InitialBindings(), // 🌟 هيتم استدعاء ملف Bindings من هنا
           builder: DevicePreview.appBuilder,
           useInheritedMediaQuery: true,
-
-
           locale: Locale(controller.selectedLanguage.value),
           fallbackLocale: const Locale('ar'),
-
           localizationsDelegates: const [
             S.delegate,
             GlobalMaterialLocalizations.delegate,

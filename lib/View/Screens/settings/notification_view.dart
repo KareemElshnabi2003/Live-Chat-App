@@ -7,7 +7,9 @@ import 'package:live_chat/main.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:live_chat/Controller/handel_notification.dart';
 import 'package:live_chat/generated/l10n.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class NotificationController extends GetxController {
   var isNotificationEnabled = true.obs;
@@ -20,10 +22,23 @@ class NotificationController extends GetxController {
 
   void _loadNotificationPreference() async {
     final prefs = await SharedPreferences.getInstance();
-    isNotificationEnabled.value = prefs.getBool('notificationsEnabled') ?? true;
+    final bool prefVal = prefs.getBool('notificationsEnabled') ?? true;
+    final isGranted = await Permission.notification.isGranted;
+    isNotificationEnabled.value = prefVal && isGranted;
   }
 
   void toggleNotification(bool value) async {
+    if (value) {
+      final isGranted = await FirebaseNotification().checkAndRequestNotificationPermission(
+        showDialogIfPermanentlyDenied: true,
+      );
+      if (!isGranted) {
+        isNotificationEnabled.value = false;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('notificationsEnabled', false);
+        return;
+      }
+    }
     isNotificationEnabled.value = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('notificationsEnabled', value);

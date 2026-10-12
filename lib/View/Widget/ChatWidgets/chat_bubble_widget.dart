@@ -10,6 +10,7 @@ import 'package:live_chat/Core/Constant/app_color.dart';
 import 'package:live_chat/Data/Model/chat_message_model.dart';
 import 'package:live_chat/View/Widget/ChatWidgets/audio_message_widget.dart';
 import 'package:live_chat/View/Widget/ChatWidgets/show_reaction_message_bottom_sheet_widget.dart';
+import 'package:live_chat/Core/function/html_decoder.dart';
 import 'package:live_chat/generated/l10n.dart';
 import 'package:live_chat/main.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
@@ -252,6 +253,28 @@ class ChatBubbleWidget extends StatelessWidget {
                Icon(callType == 'video' ? Icons.videocam : Icons.call, color: isFromSender ? Colors.white : AppColors.buttoncolor, size: 8.w),
                SizedBox(height: 1.h),
                Text(text, style: TextStyle(color: isFromSender ? Colors.white : AppColors.blackTextColor, fontWeight: FontWeight.bold, fontSize: 3.5.w)),
+               if (!isFromSender) ...[
+                 SizedBox(height: 1.h),
+                 ElevatedButton(
+                   onPressed: () {
+                     if (Get.isRegistered<ChatController>()) {
+                       final ctrl = Get.find<ChatController>();
+                       ctrl.audio = callType == 'audio' || callType == 'voice';
+                       ctrl.getTokenCall(
+                         isGroub: false,
+                         groubUsersNames: {},
+                         usernameFriend: "",
+                       );
+                     }
+                   },
+                   style: ElevatedButton.styleFrom(
+                     backgroundColor: isFromSender ? Colors.white : AppColors.buttoncolor,
+                     foregroundColor: isFromSender ? AppColors.buttoncolor : Colors.white,
+                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                   ),
+                   child: Text(S.of(Get.context!).join_now),
+                 ),
+               ],
              ]
            );
         } else if (content == '|||CALL_DECLINED|||') {
@@ -303,6 +326,46 @@ class ChatBubbleWidget extends StatelessWidget {
              originalType = 'call';
            }
 
+           // If the original message was any call message (even if tagged as MSG), handle as call
+           if (originalMessage.contains('CALL') ||
+               originalMessage.startsWith('|||GROUP_CALL') ||
+               originalMessage.startsWith('|||PRIVATE_CALL') ||
+               originalMessage.startsWith('|||CALL_')) {
+             originalType = 'call';
+           }
+
+           // Resolve whether the original message was sent by the current viewer
+           final myUsername = sharedPreferences?.getString("username") ?? "";
+           final myGuestName = sharedPreferences?.getString("usernameGust") ?? "";
+           final myName = sharedPreferences?.getString("name") ?? "";
+
+           bool isOriginalSenderMe = false;
+           String resolvedSender = originalSender;
+
+           if (resolvedSender.isNotEmpty) {
+             if ((myUsername.isNotEmpty && resolvedSender == myUsername) ||
+                 (myGuestName.isNotEmpty && resolvedSender == myGuestName) ||
+                 (myName.isNotEmpty && resolvedSender == myName)) {
+               isOriginalSenderMe = true;
+             }
+
+             // Backward compatibility for messages with hardcoded 'أنت' or 'You' in the database
+             if (resolvedSender == 'أنت' || resolvedSender == 'You') {
+               if (message.isFromSender) {
+                 isOriginalSenderMe = true;
+               } else {
+                 isOriginalSenderMe = false;
+                 resolvedSender = (message.senderName != null && message.senderName!.isNotEmpty)
+                     ? message.senderName!
+                     : name;
+               }
+             }
+           }
+
+           final displaySender = isOriginalSenderMe
+               ? (Get.context != null ? S.of(Get.context!).you : S.current.you)
+               : resolvedSender;
+
            return Column(
              crossAxisAlignment: CrossAxisAlignment.start,
              children: [
@@ -312,19 +375,19 @@ class ChatBubbleWidget extends StatelessWidget {
                  decoration: BoxDecoration(
                    color: isFromSender ? Colors.white.withOpacity(0.2) : Colors.black12,
                    borderRadius: BorderRadius.circular(8),
-                   border: Border(
-                     left: BorderSide(
-                       color: isFromSender ? Colors.white : AppColors.buttoncolor,
-                       width: 4
-                     )
-                   )
-                 ),
+                    border: BorderDirectional(
+                      start: BorderSide(
+                        color: isFromSender ? Colors.white : AppColors.buttoncolor,
+                        width: 4,
+                      ),
+                    ),
+                  ),
                  child: Column(
                    crossAxisAlignment: CrossAxisAlignment.start,
                    children: [
-                     if (originalSender.isNotEmpty)
+                     if (displaySender.isNotEmpty)
                        Text(
-                         originalSender,
+                         displaySender,
                          style: TextStyle(
                            color: isFromSender ? Colors.white : AppColors.buttoncolor,
                            fontWeight: FontWeight.bold,
@@ -333,7 +396,7 @@ class ChatBubbleWidget extends StatelessWidget {
                        ),
                      if (originalType == 'text')
                        Text(
-                         originalMessage, 
+                         decodeHtmlEntities(originalMessage),
                          style: TextStyle(
                            color: isFromSender ? Colors.white70 : Colors.black54, 
                            fontSize: 2.8.w
@@ -376,7 +439,7 @@ class ChatBubbleWidget extends StatelessWidget {
                      else if (originalType == 'call')
                        Builder(
                          builder: (context) {
-                           if (originalMessage == '|||CALL_ENDED|||' || originalMessage == '|||GROUP_CALL_ENDED|||') {
+                           if (originalMessage == '|||CALL_ENDED|||' || originalMessage == '|||GROUP_CALL_ENDED|||' || originalMessage.contains('CALL_ENDED')) {
                              return Row(
                                children: [
                                  Icon(Icons.call_end, size: 4.w, color: isFromSender ? Colors.white70 : Colors.black54),
@@ -387,7 +450,7 @@ class ChatBubbleWidget extends StatelessWidget {
                                  ),
                                ]
                              );
-                           } else if (originalMessage == '|||CALL_DECLINED|||') {
+                           } else if (originalMessage == '|||CALL_DECLINED|||' || originalMessage.contains('CALL_DECLINED')) {
                              return Row(
                                children: [
                                  Icon(Icons.phone_missed, size: 4.w, color: isFromSender ? Colors.white70 : Colors.black54),
@@ -416,7 +479,7 @@ class ChatBubbleWidget extends StatelessWidget {
                  ),
                ),
                Text(
-                 replyText,
+                 decodeHtmlEntities(replyText),
                  style: TextStyle(
                    color: isFromSender ? AppColors.whiteColor : AppColors.blackTextColor,
                    fontSize: 3.w,
@@ -427,7 +490,7 @@ class ChatBubbleWidget extends StatelessWidget {
            );
         }
         return Text(
-          content,
+          decodeHtmlEntities(content),
           style: TextStyle(
             color:
             isFromSender ? AppColors.whiteColor : AppColors.blackTextColor,
@@ -436,6 +499,7 @@ class ChatBubbleWidget extends StatelessWidget {
           ),
         );
       case 'image':
+        final isRtl = Directionality.of(Get.context!) == TextDirection.rtl;
         Widget imageWidget = content.startsWith('http')
             ? CachedNetworkImage(
                 imageUrl: content,
@@ -448,11 +512,65 @@ class ChatBubbleWidget extends StatelessWidget {
                     color: Colors.grey.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Center(child: CircularProgressIndicator.adaptive(strokeWidth: 2)),
+                  child: const Center(
+                      child: CircularProgressIndicator.adaptive(strokeWidth: 2)),
                 ),
-                errorWidget: (context, url, error) => const Icon(Icons.broken_image_rounded, size: 30),
+                errorWidget: (context, url, error) => Container(
+                  height: 140,
+                  width: 200,
+                  decoration: BoxDecoration(
+                    color: isFromSender
+                        ? Colors.white.withOpacity(0.12)
+                        : Colors.black.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isFromSender ? Colors.white24 : Colors.black12,
+                      width: 1,
+                    ),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.broken_image_rounded,
+                          size: 32,
+                          color: isFromSender ? Colors.white70 : Colors.black54,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          isRtl ? "تعذر تحميل الصورة" : "Failed to load image",
+                          style: TextStyle(
+                            fontSize: 2.8.w,
+                            color:
+                                isFromSender ? Colors.white70 : Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               )
-            : Image.file(File(content));
+            : Image.file(
+                File(content),
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 140,
+                  width: 200,
+                  decoration: BoxDecoration(
+                    color: isFromSender
+                        ? Colors.white.withOpacity(0.12)
+                        : Colors.black.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.broken_image_rounded,
+                      size: 32,
+                      color: isFromSender ? Colors.white70 : Colors.black54,
+                    ),
+                  ),
+                ),
+              );
         return Stack(
           clipBehavior: Clip.none,
           children: [
@@ -482,6 +600,7 @@ class ChatBubbleWidget extends StatelessWidget {
   }
 
   void _showImageInScreen({required String imgUrl}) {
+    final isRtl = Directionality.of(Get.context!) == TextDirection.rtl;
     Get.defaultDialog(
       radius: 0,
       backgroundColor: AppColors.blackColor,
@@ -498,10 +617,42 @@ class ChatBubbleWidget extends StatelessWidget {
               ? CachedNetworkImage(
                   imageUrl: imgUrl,
                   fit: BoxFit.contain,
+                  placeholder: (context, url) => const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                  errorWidget: (context, url, error) => Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.broken_image_rounded,
+                          color: Colors.white54,
+                          size: 50,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          isRtl
+                              ? "تعذر تحميل الصورة من السيرفر (403)"
+                              : "Image could not be loaded",
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 )
               : Image.file(
                   File(imgUrl),
                   fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => const Center(
+                    child: Icon(
+                      Icons.broken_image_rounded,
+                      color: Colors.white54,
+                      size: 50,
+                    ),
+                  ),
                 ),
         ),
       ),
@@ -509,36 +660,79 @@ class ChatBubbleWidget extends StatelessWidget {
   }
 
   Widget _buildAvatar(bool show, bool isSender, String name, String? img) {
-    // 🌟 فحص دقيق يمنع كراش الصورة تماماً
-    bool hasValidImage = img != null && img.trim().isNotEmpty && img.trim() != "null" && img.trim() != "image";
+    bool hasValidImage = img != null &&
+        img.trim().isNotEmpty &&
+        img.trim() != "null" &&
+        img.trim() != "image" &&
+        img.trim().startsWith('http');
+
+    if (!show) {
+      return SizedBox(width: 10.w, height: 8.w);
+    }
 
     return SizedBox(
       width: 10.w,
       height: 8.w,
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: 1.w),
-        child: show
-            ? CircleAvatar(
-          radius: 4.w,
-          backgroundColor:
-          isSender ? AppColors.buttoncolor : Colors.grey[300],
-          backgroundImage: hasValidImage
-              ? CachedNetworkImageProvider(img.trim(), maxWidth: 80, maxHeight: 80)
-              : null,
-          child: !hasValidImage
-              ? Text(
-            name.isNotEmpty ? name[0].toUpperCase() : '',
-            style: TextStyle(
-              color: isSender
-                  ? AppColors.whiteColor
-                  : AppColors.blackTextColor,
-              fontSize: 3.w,
-              fontWeight: FontWeight.w600,
-            ),
-          )
-              : null,
-        )
-            : null,
+        child: ClipOval(
+          child: SizedBox(
+            width: 8.w,
+            height: 8.w,
+            child: hasValidImage
+                ? CachedNetworkImage(
+                    imageUrl: img.trim(),
+                    memCacheWidth: 80,
+                    memCacheHeight: 80,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: isSender ? AppColors.buttoncolor : Colors.grey[300],
+                      child: Center(
+                        child: Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : '',
+                          style: TextStyle(
+                            color: isSender
+                                ? AppColors.whiteColor
+                                : AppColors.blackTextColor,
+                            fontSize: 3.w,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: isSender ? AppColors.buttoncolor : Colors.grey[300],
+                      child: Center(
+                        child: Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : '',
+                          style: TextStyle(
+                            color: isSender
+                                ? AppColors.whiteColor
+                                : AppColors.blackTextColor,
+                            fontSize: 3.w,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                : Container(
+                    color: isSender ? AppColors.buttoncolor : Colors.grey[300],
+                    child: Center(
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : '',
+                        style: TextStyle(
+                          color: isSender
+                              ? AppColors.whiteColor
+                              : AppColors.blackTextColor,
+                          fontSize: 3.w,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+        ),
       ),
     );
   }

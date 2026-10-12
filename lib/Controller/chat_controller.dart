@@ -26,6 +26,8 @@ import 'package:live_chat/View/Screens/create%20chat/audio_call_view.dart';
 import 'package:live_chat/View/Screens/create%20chat/chat_view.dart';
 import 'package:live_chat/View/Screens/create%20chat/video_call_view.dart';
 import 'package:live_chat/View/Widget/PublicWidget/message_error.dart';
+import 'package:live_chat/View/Widget/PublicWidget/video_call_notification.dart';
+import 'package:live_chat/Core/function/html_decoder.dart';
 import 'package:live_chat/generated/l10n.dart';
 import 'package:live_chat/main.dart';
 import 'package:path_provider/path_provider.dart';
@@ -56,6 +58,7 @@ class ChatController extends GetxController {
   bool isLoadingMore = false;
   bool hasMoreMessages = true;
   bool audio = false;
+  bool isIncomingCallScreenShowing = false;
   bool isImagePickerActive = false;
   TokenCallModel? tokenCallModel;
 
@@ -145,7 +148,7 @@ class ChatController extends GetxController {
 
                 if (!isMe) {
                   String messageType = msgData['message_type'] ?? 'text';
-                  String messageContent = msgData['message'] ?? '';
+                  String messageContent = decodeHtmlEntities(msgData['message'] ?? '');
 
                   ChatMessage newMsg = ChatMessage(
                     senderName: msgData['sender_name'] ?? 'Unknown',
@@ -162,6 +165,67 @@ class ChatController extends GetxController {
 
                   // 🌟 تحسين الأداء: الإضافة والـ Refresh في خطوة واحدة
                   ctrl.messages.insert(0, newMsg);
+
+                  // 🔔 Handle incoming call via Pusher in real-time
+                  if (messageContent.startsWith('|||PRIVATE_CALL_START|||') ||
+                      messageContent.startsWith('|||GROUP_CALL_START|||')) {
+                    if (!ctrl.isIncomingCallScreenShowing) {
+                      ctrl.isIncomingCallScreenShowing = true;
+                      bool isGroup = messageContent.startsWith('|||GROUP_CALL_START|||');
+                      String callType = messageContent
+                          .replaceAll('|||PRIVATE_CALL_START|||', '')
+                          .replaceAll('|||GROUP_CALL_START|||', '');
+                      bool isAudio = callType == 'audio' || callType == 'voice';
+                      String callerName = msgData['sender_name'] ?? 'Unknown';
+                      String callerImage = (msgData['sender_image'] ?? '').toString();
+
+                      Get.to(() => IncomingCallScreen(
+                        callerName: callerName,
+                        callerImage: callerImage,
+                        groubImg: '',
+                        groubName: '',
+                        isVideoCall: !isAudio,
+                        isGroub: isGroup,
+                        onPressAnswer: () async {
+                          ctrl.isIncomingCallScreenShowing = false;
+                          ctrl.audio = isAudio;
+                          Get.back(); // close IncomingCallScreen
+                          await ctrl.getTokenCall(
+                            isGroub: isGroup,
+                            groubUsersNames: isGroup
+                                ? {
+                                    int.parse(sharedPreferences!.getString("id")!):
+                                        sharedPreferences!.getString("name")!
+                                  }
+                                : {},
+                            usernameFriend: isGroup ? "" : callerName,
+                          );
+                        },
+                        onPressReject: () {
+                          ctrl.isIncomingCallScreenShowing = false;
+                          ctrl.sendSystemMessage("|||CALL_DECLINED|||");
+                        },
+                      ))?.then((_) {
+                        ctrl.isIncomingCallScreenShowing = false;
+                      });
+                    }
+                  } else if (messageContent == '|||CALL_ENDED|||' ||
+                      messageContent == '|||GROUP_CALL_ENDED|||' ||
+                      messageContent == '|||CALL_DECLINED|||') {
+                    if (ctrl.isIncomingCallScreenShowing) {
+                      ctrl.isIncomingCallScreenShowing = false;
+                      Get.back();
+                      Get.snackbar(
+                        "المكالمة",
+                        messageContent == '|||CALL_DECLINED|||'
+                            ? "تم رفض المكالمة"
+                            : "تم إنهاء المكالمة",
+                        backgroundColor: Colors.grey[900],
+                        colorText: Colors.white,
+                        duration: const Duration(seconds: 2),
+                      );
+                    }
+                  }
                 }
               }
             } catch (e) {
@@ -191,51 +255,66 @@ class ChatController extends GetxController {
     statuesRequest = StatuesRequest.loading;
     update();
 
-    var response = await _chatsRemoteData.getTokenCall(
-        callType: audio ? "audio" : "video",
-        isGroub: isGroub,
-        role: type,
-        chatId: int.parse(chatId));
+    try {
+      var response = await _chatsRemoteData.getTokenCall(
+          callType: audio ? "audio" : "video",
+          isGroub: isGroub,
+          role: type,
+          chatId: int.parse(chatId));
 
-    statuesRequest = handlingData(response);
+      statuesRequest = handlingData(response);
 
-    if (statuesRequest == StatuesRequest.success) {
-      final responseBody = response['data'];
-      if (responseBody != null) {
-        tokenCallModel = TokenCallModel.fromJson(responseBody);
+      if (statuesRequest == StatuesRequest.success) {
+        final responseBody = response['data'];
+        if (responseBody != null) {
+          tokenCallModel = TokenCallModel.fromJson(responseBody);
 
-        final callArgs = {
-          "ChannelName": tokenCallModel!.channel,
-          "Token": tokenCallModel!.token,
-          "UId": tokenCallModel!.uid,
-          "IsGroupCall": isGroub,
-          "chatId": chatId,
-          "RemoteUserName": usernameFriend,
-          "UserNamesMap": groubUsersNames,
-          "LocalUserName": sharedPreferences!.getString("name")
-        };
+          final callArgs = {
+            "ChannelName": tokenCallModel!.channel,
+            "Token": tokenCallModel!.token,
+            "UId": tokenCallModel!.uid,
+            "IsGroupCall": isGroub,
+            "chatId": chatId,
+            "RemoteUserName": usernameFriend,
+            "UserNamesMap": groubUsersNames,
+            "LocalUserName": sharedPreferences!.getString("name") ?? ""
+          };
 
-        // 🌟 إرسال رسائل التتبع للمكالمات (جماعية أو فردية)
-        if (type == 'publisher') {
-          if (isGroub) {
-            messageController.text =
-                "|||GROUP_CALL_START|||${audio ? 'audio' : 'video'}";
-            sendTextMessage();
-          } else {
-            messageController.text =
-                "|||PRIVATE_CALL_START|||${audio ? 'audio' : 'video'}";
-            sendTextMessage();
+          // 🌟 إرسال رسائل التتبع للمكالمات (جماعية أو فردية)
+          if (type == 'publisher') {
+            if (isGroub) {
+              messageController.text =
+                  "|||GROUP_CALL_START|||${audio ? 'audio' : 'video'}";
+              sendTextMessage();
+            } else {
+              messageController.text =
+                  "|||PRIVATE_CALL_START|||${audio ? 'audio' : 'video'}";
+              sendTextMessage();
+            }
           }
-        }
 
-        audio
-            ? Get.to(() => const AudioCallPage(), arguments: callArgs)
-            : Get.to(() => const VideoCallPage(), arguments: callArgs);
+          // Reset status before navigating so chat is clean when user returns
+          statuesRequest = StatuesRequest.none;
+          update();
+
+          audio
+              ? Get.to(() => const AudioCallPage(), arguments: callArgs)
+              : Get.to(() => const VideoCallPage(), arguments: callArgs);
+          return;
+        } else {
+          showUserFriendlyError(StatuesRequest.serverError);
+        }
       } else {
         showUserFriendlyError(statuesRequest);
       }
+    } catch (e) {
+      log("❌ Exception in call(): $e");
+      Get.snackbar("خطأ", "تعذر الاتصال بسيرفر المكالمات",
+          backgroundColor: Colors.red, colorText: Colors.white);
+    } finally {
+      statuesRequest = StatuesRequest.none;
+      update();
     }
-    update();
   }
 
   checkCall(
@@ -244,43 +323,54 @@ class ChatController extends GetxController {
       required usernameFriend}) async {
     statuesRequest = StatuesRequest.loading;
     update();
-    var response = await _chatsRemoteData.checkCall(id: chatId);
-    statuesRequest = handlingData(response);
 
-    if (statuesRequest == StatuesRequest.success) {
-      final responseBody = response['data'];
-      if (responseBody != null) {
-        int status = responseBody['status'];
-        String type = status == 0 ? 'publisher' : "subscriber";
-        
-        // Check if there is an active call of a different type
-        if (status != 0 && responseBody['call_type'] != null) {
-           String activeCallType = responseBody['call_type'];
-           bool activeIsAudio = activeCallType == 'audio' || activeCallType == 'voice';
-           
-           if (audio != activeIsAudio) {
-              // Different call type is active!
+    try {
+      var response = await _chatsRemoteData.checkCall(id: chatId);
+      statuesRequest = handlingData(response);
+
+      if (statuesRequest == StatuesRequest.success) {
+        final responseBody = response['data'];
+        if (responseBody != null) {
+          int status = responseBody['status'] ?? 0;
+          String type = status == 0 ? 'publisher' : "subscriber";
+
+          // Check if there is an active call of a different type
+          if (status != 0 && responseBody['call_type'] != null) {
+            String activeCallType = responseBody['call_type'];
+            bool activeIsAudio =
+                activeCallType == 'audio' || activeCallType == 'voice';
+
+            if (audio != activeIsAudio) {
               Get.snackbar(
                 "تنبيه",
                 "يوجد بالفعل مكالمة ${activeIsAudio ? 'صوتية' : 'فيديو'} جارية الآن. يرجى الانضمام إليها.",
                 backgroundColor: Colors.orange,
                 colorText: Colors.white,
               );
-              // Force the correct mode to match the active call
               audio = activeIsAudio;
-           }
+            }
+          }
+
+          await call(
+              isGroub: isGroub,
+              type: type,
+              groubUsersNames: groubUsersNames ?? {},
+              usernameFriend: usernameFriend);
+          return;
+        } else {
+          showUserFriendlyError(StatuesRequest.serverError);
         }
-        
-        call(
-            isGroub: isGroub,
-            type: type,
-            groubUsersNames: groubUsersNames!,
-            usernameFriend: usernameFriend);
       } else {
         showUserFriendlyError(statuesRequest);
       }
+    } catch (e) {
+      log("❌ Exception in checkCall(): $e");
+      Get.snackbar("خطأ", "تعذر التحقق من حالة المكالمة",
+          backgroundColor: Colors.red, colorText: Colors.white);
+    } finally {
+      statuesRequest = StatuesRequest.none;
+      update();
     }
-    update();
   }
 
   getTokenCall(
@@ -332,7 +422,7 @@ class ChatController extends GetxController {
             senderName: e.senderName ?? 'Unknown',
             imageUrl: e.senderImage, // خليتها null صريحة من غير "null"
             reaction: e.messageReactions ?? [],
-            message: e.message ?? '',
+            message: decodeHtmlEntities(e.message ?? ''),
             messageType: messageType,
             messageId: e.id.toString(),
             isPending: false,
@@ -490,12 +580,21 @@ class ChatController extends GetxController {
            msgContent = msgContent.split('|||REPLY|||').last;
         }
         final myName = sharedPreferences!.getString("username") ?? sharedPreferences!.getString("usernameGust") ?? "";
-        String senderNameForReply = replyingToMessage!.senderName == myName ? (S.of(Get.context!).you) : (replyingToMessage!.senderName ?? "Unknown");
+        String senderNameForReply = (replyingToMessage!.senderName != null && replyingToMessage!.senderName!.isNotEmpty)
+            ? replyingToMessage!.senderName!
+            : (myName.isNotEmpty ? myName : "Unknown");
         
         String tag = 'MSG';
         if (msgType == 'image') tag = 'IMG';
         if (msgType == 'voice' || msgType == 'audio') tag = 'VOICE';
-        if (msgType == 'text' && (msgContent.startsWith('|||GROUP_CALL_START|||') || msgContent.startsWith('|||PRIVATE_CALL_START|||'))) tag = 'CALL';
+        if (msgType == 'call' ||
+            (msgType == 'text' &&
+                (msgContent.contains('CALL') ||
+                    msgContent.startsWith('|||GROUP_CALL') ||
+                    msgContent.startsWith('|||PRIVATE_CALL') ||
+                    msgContent.startsWith('|||CALL_')))) {
+          tag = 'CALL';
+        }
         
         finalMessage = "$senderNameForReply|||$tag|||$msgContent|||REPLY|||$text";
       }
@@ -876,6 +975,15 @@ class ChatController extends GetxController {
     statuesRequest = handlingData(response);
 
     if (statuesRequest == StatuesRequest.success) {
+      final acceptedIndex =
+          memmbersRequests.indexWhere((member) => member.id == membeerId);
+      if (acceptedIndex != -1) {
+        final acceptedMember = memmbersRequests[acceptedIndex];
+        acceptedMember.memberStatus = "accepted";
+        if (!members.any((m) => m.id == membeerId)) {
+          members.add(acceptedMember);
+        }
+      }
       memmbersRequests.removeWhere((member) => member.id == membeerId);
 
       update();
