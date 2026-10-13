@@ -7,6 +7,49 @@ import 'package:live_chat/generated/l10n.dart';
 class VideoCallPage extends StatelessWidget {
   const VideoCallPage({super.key});
 
+  Future<void> _showExitConfirmDialog(
+      BuildContext context, VideoCallController controller) async {
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          S.of(context).endCall,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+        content: const Text(
+          "هل أنت متأكد من رغبتك في مغادرة المكالمة؟",
+          style: TextStyle(color: Colors.white70),
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.spaceEvenly,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text("البقاء",
+                style: TextStyle(color: Colors.grey, fontSize: 16)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(S.of(context).endCall,
+                style: const TextStyle(color: Colors.white, fontSize: 16)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldExit == true) {
+      await controller.endCall();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GetX<VideoCallController>(
@@ -15,7 +58,7 @@ class VideoCallPage extends StatelessWidget {
         canPop: false,
         onPopInvoked: (didPop) async {
           if (!didPop) {
-            await controller.endCall();
+            await _showExitConfirmDialog(context, controller);
           }
         },
         child: Scaffold(
@@ -57,7 +100,7 @@ class VideoCallPage extends StatelessWidget {
       elevation: 2,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-        onPressed: () => controller.endCall(),
+        onPressed: () => _showExitConfirmDialog(context, controller),
       ),
     );
   }

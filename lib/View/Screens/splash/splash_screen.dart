@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:live_chat/Controller/handel_notification.dart';
 import 'package:live_chat/Core/Constant/app_color.dart';
 import 'package:live_chat/View/Screens/Home/home_view.dart';
 import 'package:live_chat/View/Screens/start%20page/page_start.dart';
@@ -23,6 +24,9 @@ class _SplashScreenState extends State<SplashScreen> {
     Timer(
       const Duration(milliseconds: 500),
       () {
+        if (FirebaseNotification.isHandlingCallLaunch) {
+          return;
+        }
         if (sharedPreferences!.getString("page") == "Home") {
           Get.offAll(
             () => const HomeView(),

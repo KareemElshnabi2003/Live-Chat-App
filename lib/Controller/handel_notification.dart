@@ -17,6 +17,9 @@ import 'package:live_chat/Data/Model/user_chat_model.dart';
 import 'package:live_chat/View/Screens/create%20chat/audio_call_view.dart';
 import 'package:live_chat/View/Screens/create%20chat/chat_view.dart';
 import 'package:live_chat/View/Screens/create%20chat/video_call_view.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:live_chat/Controller/audio_call_controller.dart';
+import 'package:live_chat/Controller/video_call_controller.dart';
 import 'package:live_chat/View/Screens/friends/friends.dart';
 import 'package:live_chat/View/Screens/friends/requests.dart';
 import 'package:live_chat/View/Screens/notifications/notifications.dart';
@@ -70,6 +73,18 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       data['call_type'] != null;
 
   if (isCall) {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final myId = prefs.getString("id") ?? "";
+      final callerId = data['caller_id']?.toString() ?? "";
+      if (myId.isNotEmpty && callerId.isNotEmpty && myId == callerId) {
+        print("🔇 [BACKGROUND] Ignoring call notification: I am the caller ($myId == $callerId)");
+        return;
+      }
+    } catch (e) {
+      print("Error checking myId in background: $e");
+    }
+
     final callerName = data['caller_name'] ?? 'Unknown';
     final isAudio = data['call_type'] == "audio";
 
@@ -124,6 +139,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 class FirebaseNotification {
+  static bool isHandlingCallLaunch = false;
   final firebaseMessagin = FirebaseMessaging.instance;
 Future<void> intilizeNotification() async {
     // 🌟 1. طلب الصلاحيات أولاً (عشان فايربيز يفتح البوابات)
@@ -203,35 +219,61 @@ Future<void> intilizeNotification() async {
     handelBackGround();
     handleForGround();
 
-    // 🌟 6. مستمع المكالمات (CallKit)
-    FlutterCallkitIncoming.onEvent.listen((CallEvent? event) {
+    // 🌟 6. فحص ما إذا كان التطبيق فُتح عن طريق قبول مكالمة وهو مقفول
+    try {
+      final activeCalls = await FlutterCallkitIncoming.activeCalls();
+      if (activeCalls.isNotEmpty) {
+        log("📞 [STARTUP] Found active CallKit calls: $activeCalls");
+        for (var c in activeCalls) {
+          if (c.extra != null) {
+            final extra = Map<String, dynamic>.from(c.extra!);
+            log("📞 [STARTUP] User has active call from terminated state! Answering now...");
+            isHandlingCallLaunch = true;
+            await FlutterCallkitIncoming.endAllCalls();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Future.delayed(const Duration(milliseconds: 600), () {
+                answerCallFromNotification(extra);
+              });
+            });
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      log("Error checking active calls: $e");
+    }
+
+    // 🌟 7. مستمع المكالمات (CallKit)
+    FlutterCallkitIncoming.onEvent.listen((CallEvent? event) async {
       if (event == null) return;
       switch (event.eventName) {
         case CallEventConstants.actionCallAccept:
-          if (event is CallEventActionCallAccept) {
-            final data = event.callKitParams.extra;
-            if (data != null) {
-              final msg = RemoteMessage(data: Map<String, dynamic>.from(data));
-              handelMassage(msg);
-            }
+          await FlutterCallkitIncoming.endAllCalls();
+          final data = event is CallEventActionCallAccept
+              ? event.callKitParams.extra
+              : null;
+          if (data != null) {
+            isHandlingCallLaunch = true;
+            answerCallFromNotification(Map<String, dynamic>.from(data));
           }
           break;
         case CallEventConstants.actionCallDecline:
-          if (event is CallEventActionCallDecline) {
-            final data = event.callKitParams.extra;
-            if (data != null && data['status'] == 'started_call') {
-              final chatId = data['conversation_id'];
-              final isGroup = data['is_group'].toString() == 'true';
-              if (chatId != null && !isGroup) {
-                 if (Get.isRegistered<ChatsRemoteData>()) {
-                   final chatsData = Get.find<ChatsRemoteData>();
-                   chatsData.sendMessages(chatId: chatId.toString(), message: "|||CALL_DECLINED|||");
-                 } else {
-                   final api = Api();
-                   final chatsData = ChatsRemoteData(api: api);
-                   chatsData.sendMessages(chatId: chatId.toString(), message: "|||CALL_DECLINED|||");
-                 }
-              }
+          await FlutterCallkitIncoming.endAllCalls();
+          final data = event is CallEventActionCallDecline
+              ? event.callKitParams.extra
+              : null;
+          if (data != null && data['status'] == 'started_call') {
+            final chatId = data['conversation_id'];
+            final isGroup = data['is_group'].toString() == 'true';
+            if (chatId != null && !isGroup) {
+               if (Get.isRegistered<ChatsRemoteData>()) {
+                 final chatsData = Get.find<ChatsRemoteData>();
+                 chatsData.sendMessages(chatId: chatId.toString(), message: "|||CALL_DECLINED|||");
+               } else {
+                 final api = Api();
+                 final chatsData = ChatsRemoteData(api: api);
+                 chatsData.sendMessages(chatId: chatId.toString(), message: "|||CALL_DECLINED|||");
+               }
             }
           }
           break;
@@ -239,6 +281,45 @@ Future<void> intilizeNotification() async {
           break;
       }
     });
+  }
+
+  Future<void> answerCallFromNotification(Map<String, dynamic> data) async {
+    final bool isAlreadyInCall = Get.isRegistered<AudioCallController>() ||
+        Get.isRegistered<VideoCallController>();
+    if (isAlreadyInCall) {
+      log("🔇 Ignoring answer call: Already in an active call");
+      return;
+    }
+
+    final isAudio = data['call_type'] == "audio";
+    final isGroub = data['is_group'] == "1" ||
+        data['is_group'] == 1 ||
+        data['is_group'].toString() == 'true';
+    final callerName = data['caller_name'] ?? 'Unknown';
+    final usernameFriend = isGroub ? "" : callerName;
+
+    Map<int, String> groubUsersNames = {};
+    if (isGroub) {
+      final currentUserIdStr = sharedPreferences?.getString("id") ?? "0";
+      final currentUserName = sharedPreferences?.getString("username") ?? 'You';
+      groubUsersNames = {
+        int.tryParse(currentUserIdStr) ?? 0: currentUserName,
+      };
+      if (data['caller_id'] != null) {
+        final callerId = int.tryParse(data['caller_id'].toString()) ?? 0;
+        groubUsersNames[callerId] = callerName;
+      }
+    }
+
+    log("📞 Answering call directly from notification: chatId=${data['conversation_id']}, isAudio=$isAudio");
+
+    await checkCall(
+      chatId: data['conversation_id'],
+      audio: isAudio,
+      isGroub: isGroub,
+      groubUsersNames: groubUsersNames,
+      usernameFriend: usernameFriend,
+    );
   }  // handle foreground messages
   Future<void> handleForGround() async {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -263,6 +344,22 @@ Future<void> intilizeNotification() async {
           data['call_type'] != null;
 
       if (isCallNotification) {
+        // 🛡️ 1. لا تظهر إشعار المكالمة لنفسي لو أنا اللي متصل
+        final myId = sharedPreferences?.getString("id") ?? "";
+        final callerId = data['caller_id']?.toString() ?? "";
+        if (myId.isNotEmpty && callerId.isNotEmpty && myId == callerId) {
+          log("🔇 [FOREGROUND] Ignoring call notification: I am the caller ($myId == $callerId)");
+          return;
+        }
+
+        // 🛡️ 2. لا تظهر شاشة رنين إذا كان المستخدم في مكالمة جارية بالفعل
+        final bool isAlreadyInCall = Get.isRegistered<AudioCallController>() ||
+            Get.isRegistered<VideoCallController>();
+        if (isAlreadyInCall) {
+          log("🔇 [FOREGROUND] Ignoring call notification: Already in an active call");
+          return;
+        }
+
         final isAudio = data['call_type'] == "audio";
         final isGroub =
             data['is_group'] == "1" || data['is_group'] == 1 ? true : false;
@@ -727,6 +824,22 @@ Future<void> intilizeNotification() async {
         data['call_type'] != null;
 
     if (isCallNotification) {
+      // 🛡️ 1. لا تظهر إشعار المكالمة لنفسي لو أنا اللي متصل
+      final myId = sharedPreferences?.getString("id") ?? "";
+      final callerId = data['caller_id']?.toString() ?? "";
+      if (myId.isNotEmpty && callerId.isNotEmpty && myId == callerId) {
+        log("🔇 [TAP] Ignoring call notification: I am the caller ($myId == $callerId)");
+        return;
+      }
+
+      // 🛡️ 2. لا تظهر شاشة رنين إذا كان المستخدم في مكالمة جارية بالفعل
+      final bool isAlreadyInCall = Get.isRegistered<AudioCallController>() ||
+          Get.isRegistered<VideoCallController>();
+      if (isAlreadyInCall) {
+        log("🔇 [TAP] Ignoring call notification: Already in an active call");
+        return;
+      }
+
       final isAudio = data['call_type'] == "audio";
       final isGroub =
           data['is_group'] == "1" || data['is_group'] == 1 ? true : false;

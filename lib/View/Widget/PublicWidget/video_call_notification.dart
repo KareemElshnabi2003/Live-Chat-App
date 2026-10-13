@@ -94,7 +94,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
 
       // تحديد مسار الرنة من الـ Assets
       // اتأكد إن مسار الفايل مكتوب كامل زي ما هو في pubspec.yaml
-      await _audioPlayer.setAsset('assets/sounds/past_live.mp3');
+      await _audioPlayer.setAsset('assets/past_live.mp3');
 
       // تفعيل التكرار (عشان الرنة تفضل شغالة لحد ما اليوزر يرد)
       await _audioPlayer.setLoopMode(LoopMode.one);
