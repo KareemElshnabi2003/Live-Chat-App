@@ -39,7 +39,7 @@ class CapabilitiesController extends GetxController {
         List<dynamic> responseData = response['data'] ?? [];
         powers.assignAll(
             responseData.map((e) => PowerModel.fromJson(e)).toList());
-        log("User powers loaded: ${powers.length} items ${powers[0].active}");
+        log("User powers loaded: ${powers.length} items");
       } else {
         _handleError(statuesRequest.value);
       }

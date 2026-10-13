@@ -6,6 +6,7 @@ import 'package:live_chat/Controller/capabilities_controller.dart';
 import 'package:live_chat/Core/Constant/app_color.dart';
 import 'package:live_chat/Core/class/status_request.dart';
 import 'package:live_chat/View/Screens/Market%20Bottom%20Sheet/more_settings.dart';
+import 'package:live_chat/View/Widget/PublicWidget/shimmer_widgets.dart';
 import 'package:live_chat/View/Widget/PublicWidget/storetext.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
 import 'package:live_chat/main.dart';
@@ -58,7 +59,7 @@ class Capabilities extends StatelessWidget {
               SizedBox(height: 3.h),
               Obx(() =>
                   controller.statuesRequest.value == StatuesRequest.loading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const UserListShimmer(itemCount: 4, shrinkWrap: true)
                       : controller.powers.isEmpty
                           ? Center(
                               child: textNormal(
