@@ -6,6 +6,7 @@ import 'package:shimmer/shimmer.dart';
 
 /// 🌟 مكوّنات شيمر (Skeleton Loading) موحدة وعصرية لكامل التطبيق
 /// متجاوبة مع الوضع الداكن (Dark Mode) والوضع الفاتح (Light Mode)
+/// آمنة 100% ضد مشاكل الـ Unbounded Height (تستخدم Column بشكل افتراضي)
 
 Color get shimmerBaseColor =>
     (pref ?? false) ? Colors.grey.shade800 : Colors.grey.shade300;
@@ -24,7 +25,7 @@ class ChatListShimmer extends StatelessWidget {
     super.key,
     this.itemCount = 6,
     this.padding,
-    this.shrinkWrap = false,
+    this.shrinkWrap = true,
     this.physics,
   });
 
@@ -35,14 +36,30 @@ class ChatListShimmer extends StatelessWidget {
     return Shimmer.fromColors(
       baseColor: shimmerBaseColor,
       highlightColor: shimmerHighlightColor,
-      child: ListView.separated(
-        shrinkWrap: shrinkWrap,
-        physics: physics ?? const NeverScrollableScrollPhysics(),
-        padding: padding ?? EdgeInsets.zero,
-        itemCount: itemCount,
-        separatorBuilder: (_, __) => SizedBox(height: 2.h),
-        itemBuilder: (_, __) => _buildChatCardSkeleton(isRtl),
-      ),
+      child: shrinkWrap
+          ? Padding(
+              padding: padding ?? EdgeInsets.zero,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(
+                  itemCount,
+                  (index) => Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index == itemCount - 1 ? 0 : 2.h,
+                    ),
+                    child: _buildChatCardSkeleton(isRtl),
+                  ),
+                ),
+              ),
+            )
+          : ListView.separated(
+              shrinkWrap: false,
+              physics: physics ?? const NeverScrollableScrollPhysics(),
+              padding: padding ?? EdgeInsets.zero,
+              itemCount: itemCount,
+              separatorBuilder: (_, __) => SizedBox(height: 2.h),
+              itemBuilder: (_, __) => _buildChatCardSkeleton(isRtl),
+            ),
     );
   }
 
@@ -119,7 +136,7 @@ class UserListShimmer extends StatelessWidget {
     super.key,
     this.itemCount = 6,
     this.padding,
-    this.shrinkWrap = false,
+    this.shrinkWrap = true,
     this.physics,
   });
 
@@ -130,14 +147,30 @@ class UserListShimmer extends StatelessWidget {
     return Shimmer.fromColors(
       baseColor: shimmerBaseColor,
       highlightColor: shimmerHighlightColor,
-      child: ListView.separated(
-        shrinkWrap: shrinkWrap,
-        physics: physics ?? const NeverScrollableScrollPhysics(),
-        padding: padding ?? EdgeInsets.zero,
-        itemCount: itemCount,
-        separatorBuilder: (_, __) => SizedBox(height: 2.h),
-        itemBuilder: (_, __) => _buildUserCardSkeleton(isRtl),
-      ),
+      child: shrinkWrap
+          ? Padding(
+              padding: padding ?? EdgeInsets.zero,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(
+                  itemCount,
+                  (index) => Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index == itemCount - 1 ? 0 : 2.h,
+                    ),
+                    child: _buildUserCardSkeleton(isRtl),
+                  ),
+                ),
+              ),
+            )
+          : ListView.separated(
+              shrinkWrap: false,
+              physics: physics ?? const NeverScrollableScrollPhysics(),
+              padding: padding ?? EdgeInsets.zero,
+              itemCount: itemCount,
+              separatorBuilder: (_, __) => SizedBox(height: 2.h),
+              itemBuilder: (_, __) => _buildUserCardSkeleton(isRtl),
+            ),
     );
   }
 
@@ -206,11 +239,15 @@ class UserListShimmer extends StatelessWidget {
 class NotificationListShimmer extends StatelessWidget {
   final int itemCount;
   final EdgeInsetsGeometry? padding;
+  final bool shrinkWrap;
+  final ScrollPhysics? physics;
 
   const NotificationListShimmer({
     super.key,
     this.itemCount = 6,
     this.padding,
+    this.shrinkWrap = false,
+    this.physics,
   });
 
   @override
@@ -220,12 +257,30 @@ class NotificationListShimmer extends StatelessWidget {
     return Shimmer.fromColors(
       baseColor: shimmerBaseColor,
       highlightColor: shimmerHighlightColor,
-      child: ListView.separated(
-        padding: padding ?? EdgeInsets.zero,
-        itemCount: itemCount,
-        separatorBuilder: (_, __) => SizedBox(height: 1.5.h),
-        itemBuilder: (_, __) => _buildNotificationSkeleton(isRtl),
-      ),
+      child: shrinkWrap
+          ? Padding(
+              padding: padding ?? EdgeInsets.zero,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(
+                  itemCount,
+                  (index) => Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index == itemCount - 1 ? 0 : 1.5.h,
+                    ),
+                    child: _buildNotificationSkeleton(isRtl),
+                  ),
+                ),
+              ),
+            )
+          : ListView.separated(
+              shrinkWrap: false,
+              physics: physics ?? const NeverScrollableScrollPhysics(),
+              padding: padding ?? EdgeInsets.zero,
+              itemCount: itemCount,
+              separatorBuilder: (_, __) => SizedBox(height: 1.5.h),
+              itemBuilder: (_, __) => _buildNotificationSkeleton(isRtl),
+            ),
     );
   }
 
