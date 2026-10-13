@@ -150,7 +150,8 @@ class ChatAppBarWidget extends StatelessWidget {
   }
 
   void _openMembersSheet(BuildContext context) {
-    if (isGust) {
+    final bool isGuestUser = sharedPreferences?.getString("id") == null;
+    if (isGuestUser) {
       messageErrorWithButton(
         S.of(context).alert,
         S.of(context).pleaseLoginToAccess,

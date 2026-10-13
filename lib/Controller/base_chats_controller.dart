@@ -162,11 +162,19 @@ abstract class BaseChatsController extends GetxController {
         duration: const Duration(milliseconds: 400),
       );
     } else {
+      final currentUserId = sharedPreferences?.getString("id")?.trim();
+      if (currentUserId != null && currentUserId.isNotEmpty) {
+        if ((chatModel.user == null || chatModel.user?.id == null) &&
+            chatModel.userId == null) {
+          chatModel.userId = int.tryParse(currentUserId);
+          chatModel.user = User(id: chatModel.userId);
+        }
+      }
       Get.to(
             () => ChatView(
           userChatModel: chatModel,
           isPin: false,
-          isGust: sharedPreferences!.getString("id") == null,
+          isGust: sharedPreferences?.getString("id") == null,
         ),
         arguments: {"chatId": chatModel.id},
         transition: Transition.leftToRight,

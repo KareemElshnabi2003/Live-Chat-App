@@ -399,7 +399,8 @@ class _ChatViewState extends State<ChatViewFriend> {
 
   Widget _buildProfileIcon(ChatController controller) => GestureDetector(
         onTap: () {
-          if (widget.isGust) {
+          final isGuestUser = sharedPreferences?.getString("id") == null;
+          if (isGuestUser) {
             messageErrorWithButton(
               S.of(context).alert,
               S.of(context).pleaseLoginToAccess,

@@ -107,7 +107,10 @@ class SharedChatsScreen<T extends BaseChatsController> extends StatelessWidget {
                   title: chat.name!,
                   img: null,
                   userChatModel: chat,
-                  onPressChat: () => homeController.onPressGroubChat(chatModel: chat, isGust: true, id: chat.id),
+                  onPressChat: () => homeController.onPressGroubChat(
+                      chatModel: chat,
+                      isGust: sharedPreferences?.getString("id") == null,
+                      id: chat.id),
                 );
               },
               private: chat.status == "Private",
@@ -118,8 +121,14 @@ class SharedChatsScreen<T extends BaseChatsController> extends StatelessWidget {
               body: formatLastMessage(context, chat),
               ttitle: chat.name!,
               action: S.of(context).joinNow,
-              onPressJoin: () => homeController.onPressGroubChat(chatModel: chat, isGust: true, id: chat.id),
-              ontap: () => homeController.onPressGroubChat(chatModel: chat, isGust: true, id: chat.id),
+              onPressJoin: () => homeController.onPressGroubChat(
+                  chatModel: chat,
+                  isGust: sharedPreferences?.getString("id") == null,
+                  id: chat.id),
+              ontap: () => homeController.onPressGroubChat(
+                  chatModel: chat,
+                  isGust: sharedPreferences?.getString("id") == null,
+                  id: chat.id),
             );
           } else {
             return _buildLoadingMoreIndicator();

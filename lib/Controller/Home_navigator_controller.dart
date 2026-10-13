@@ -127,12 +127,15 @@ class HomeNavigationController extends GetxController {
     // 🌟 استكمال بيانات المالك لو ناقصة لضمان ظهور الإعدادات بشكل صحيح
     _enrichChatModelOwner(chatModel);
 
+    final bool effectiveIsGust =
+        (sharedPreferences?.getString("id") != null) ? false : isGust;
+
     print("id >>$id");
     Get.to(
       () => ChatView(
         userChatModel: chatModel,
         isPin: true,
-        isGust: isGust,
+        isGust: effectiveIsGust,
       ),
       arguments: {"chatId": id},
       transition: Transition.leftToRight,
@@ -156,11 +159,14 @@ class HomeNavigationController extends GetxController {
     // 🌟 استكمال بيانات المالك لو ناقصة لضمان ظهور الإعدادات بشكل صحيح
     _enrichChatModelOwner(chatModel);
 
+    final bool effectiveIsGust =
+        (sharedPreferences?.getString("id") != null) ? false : isGust;
+
     Get.to(
       () => ChatView(
         userChatModel: chatModel,
         isPin: false,
-        isGust: isGust,
+        isGust: effectiveIsGust,
       ),
       arguments: {"chatId": id},
       transition: Transition.leftToRight,
