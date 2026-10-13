@@ -124,6 +124,9 @@ class HomeNavigationController extends GetxController {
       if (!canEnter) return;
     }
 
+    // 🌟 استكمال بيانات المالك لو ناقصة لضمان ظهور الإعدادات بشكل صحيح
+    _enrichChatModelOwner(chatModel);
+
     print("id >>$id");
     Get.to(
       () => ChatView(
@@ -150,6 +153,9 @@ class HomeNavigationController extends GetxController {
       if (!canEnter) return;
     }
 
+    // 🌟 استكمال بيانات المالك لو ناقصة لضمان ظهور الإعدادات بشكل صحيح
+    _enrichChatModelOwner(chatModel);
+
     Get.to(
       () => ChatView(
         userChatModel: chatModel,
@@ -161,6 +167,28 @@ class HomeNavigationController extends GetxController {
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,
     );
+  }
+
+  /// 🌟 يستكمل بيانات المالك في نموذج الشات لو ناقصة
+  /// بيضمن ظهور قائمة الإعدادات للمالك بغض النظر عن مصدر الدخول
+  void _enrichChatModelOwner(UserChatModel chatModel) {
+    final currentUserId = sharedPreferences?.getString("id")?.trim();
+    if (currentUserId == null || currentUserId.isEmpty) return;
+
+    // لو بيانات المالك مش موجودة، حطها من المستخدم الحالي
+    if ((chatModel.user == null || chatModel.user?.id == null) &&
+        chatModel.userId == null) {
+      chatModel.userId = int.tryParse(currentUserId);
+      chatModel.user = User(id: chatModel.userId);
+    }
+
+    // لو accept فاضية، اعملها 1 كـ default للغرف الخاصة والعامة
+    if ((chatModel.accept == null ||
+            chatModel.accept == "null" ||
+            chatModel.accept!.isEmpty) &&
+        (chatModel.status == "Public" || chatModel.status == "Private")) {
+      chatModel.accept = "1";
+    }
   }
 
   getPinChat() async {
