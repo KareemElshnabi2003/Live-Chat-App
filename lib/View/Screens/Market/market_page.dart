@@ -18,6 +18,7 @@ import 'package:live_chat/main.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
 import 'package:live_chat/generated/l10n.dart';
+import 'package:shimmer/shimmer.dart';
 
 class MarketPage extends StatefulWidget {
   const MarketPage({super.key});
@@ -65,62 +66,145 @@ class _MarketPageState extends State<MarketPage> {
         onRefresh: () async {
           await controller.refreshData();
         },
-        child: Obx(
-          () => controller.isLoading.value
-              ? const Center(child: CircularProgressIndicator())
-              : controller.errorMessage.value.isNotEmpty
-                  ? _buildErrorState(context, controller, isRtl)
-                  : SingleChildScrollView(
-                      controller: _scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Column(
-                        children: [
-                          Obx(() => _headerPage(
-                                numOfStars: controller.numOfStars.value,
-                                onPress: () {
-                                  showBottomSheetPinChatWidget(
-                                      context: context);
-                                },
-                                onTapCharge: () {
-                                  showBottomSheetMarketBuyChargeWidget(
-                                      context: context);
-                                },
-                                isRtl: isRtl,
-                              )),
-                          SizedBox(height: 5.h),
-                          _buildStore(isRtl),
-                          _buildStoreInformation(controller.storePowers, isRtl),
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              // 🌟 الهيدر دايمًا ظاهر فورًا من الكاش — مش بينتظر الـ API
+              Obx(() => _headerPage(
+                    numOfStars: controller.numOfStars.value,
+                    onPress: () {
+                      showBottomSheetPinChatWidget(context: context);
+                    },
+                    onTapCharge: () {
+                      showBottomSheetMarketBuyChargeWidget(context: context);
+                    },
+                    isRtl: isRtl,
+                  )),
+              SizedBox(height: 5.h),
+              _buildStore(isRtl),
 
-                          // Loading indicator for pagination
-                          Obx(() => controller.isLoadingMore.value
-                              ? Padding(
-                                  padding: EdgeInsets.all(4.w),
-                                  child: const CircularProgressIndicator(),
-                                )
-                              : !controller.hasMoreData.value &&
-                                      controller.storePowers.isNotEmpty
-                                  ? Padding(
-                                      padding: EdgeInsets.all(4.w),
-                                      child: textNormal(
-                                        isRtl
-                                            ? "لا يوجد المزيد"
-                                            : "No more items",
-                                        pref!
-                                            ? AppColors.inActiveColor
-                                            : AppColors.blackColor
-                                                .withOpacity(0.6),
-                                        3.w,
-                                        FontWeight.w500,
-                                        textDirection: isRtl
-                                            ? TextDirection.rtl
-                                            : TextDirection.ltr,
-                                      ),
-                                    )
-                                  : const SizedBox.shrink()),
-                        ],
+              // 🌟 قائمة المنتجات: Shimmer أو داتا حقيقية أو Error
+              Obx(() {
+                if (controller.errorMessage.value.isNotEmpty &&
+                    controller.storePowers.isEmpty) {
+                  return _buildErrorState(context, controller, isRtl);
+                }
+                if (controller.isLoading.value &&
+                    controller.storePowers.isEmpty) {
+                  return _buildShimmerList(isRtl);
+                }
+                return _buildStoreInformation(controller.storePowers, isRtl);
+              }),
+
+              // 🌟 Load More: مؤشر صغير في الأسفل فقط
+              Obx(() => controller.isLoadingMore.value
+                  ? Padding(
+                      padding: EdgeInsets.symmetric(vertical: 3.h),
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: pref!
+                              ? AppColors.secondaryColor
+                              : AppColors.primaryColor,
+                        ),
+                      ),
+                    )
+                  : !controller.hasMoreData.value &&
+                          controller.storePowers.isNotEmpty
+                      ? Padding(
+                          padding: EdgeInsets.all(4.w),
+                          child: textNormal(
+                            isRtl ? "لا يوجد المزيد" : "No more items",
+                            pref!
+                                ? AppColors.inActiveColor
+                                : AppColors.blackColor.withOpacity(0.6),
+                            3.w,
+                            FontWeight.w500,
+                            textDirection:
+                                isRtl ? TextDirection.rtl : TextDirection.ltr,
+                          ),
+                        )
+                      : const SizedBox.shrink()),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🌟 Shimmer Skeleton لقائمة المنتجات أثناء التحميل
+  Widget _buildShimmerList(bool isRtl) {
+    final baseColor =
+        pref! ? Colors.grey.shade800 : Colors.grey.shade300;
+    final highlightColor =
+        pref! ? Colors.grey.shade700 : Colors.grey.shade100;
+
+    return Shimmer.fromColors(
+      baseColor: baseColor,
+      highlightColor: highlightColor,
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 7,
+        itemBuilder: (context, index) {
+          return Container(
+            margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.w),
+            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 3.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+              children: [
+                Expanded(
+                  flex: 7,
+                  child: Center(
+                    child: Container(
+                      height: 6.w,
+                      width: 35.w,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-        ),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Center(
+                    child: Container(
+                      height: 4.w,
+                      width: 12.w,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Center(
+                    child: Container(
+                      height: 7.w,
+                      width: 14.w,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -133,80 +217,80 @@ class _MarketPageState extends State<MarketPage> {
         controller.errorMessage.value.toLowerCase().contains('network') ||
         controller.errorMessage.value.toLowerCase().contains('connection');
 
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(6.w),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: EdgeInsets.all(6.w),
-              decoration: BoxDecoration(
-                color: isNetworkError
-                    ? AppColors.secondaryColor.withOpacity(0.1)
-                    : AppColors.primaryColor.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                isNetworkError ? LucideIcons.wifiOff : LucideIcons.wifiOff,
-                size: 20.w,
-                color: isNetworkError
-                    ? AppColors.secondaryColor
-                    : AppColors.primaryColor,
-              ),
+    return Padding(
+      padding: EdgeInsets.all(6.w),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(height: 8.h),
+          Container(
+            padding: EdgeInsets.all(6.w),
+            decoration: BoxDecoration(
+              color: isNetworkError
+                  ? AppColors.secondaryColor.withOpacity(0.1)
+                  : AppColors.primaryColor.withOpacity(0.1),
+              shape: BoxShape.circle,
             ),
-            SizedBox(height: 3.h),
-            textNormal(
-                isNetworkError
-                    ? (isRtl
-                        ? "لا يوجد اتصال بالإنترنت"
-                        : "No Internet Connection")
-                    : (isRtl ? "حدث خطأ" : "Something went wrong"),
-                pref! ? AppColors.whiteColor : AppColors.blackColor,
-                4.5.w,
-                FontWeight.w700,
-                textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr),
-            SizedBox(height: 2.h),
-            textNormal(
-                isNetworkError
-                    ? (isRtl
-                        ? "يرجى التحقق من اتصالك بالإنترنت"
-                        : "Please check your internet connection")
-                    : controller.errorMessage.value,
-                pref!
-                    ? AppColors.inActiveColor
-                    : AppColors.blackColor.withOpacity(0.6),
+            child: Icon(
+              LucideIcons.wifiOff,
+              size: 20.w,
+              color: isNetworkError
+                  ? AppColors.secondaryColor
+                  : AppColors.primaryColor,
+            ),
+          ),
+          SizedBox(height: 3.h),
+          textNormal(
+              isNetworkError
+                  ? (isRtl
+                      ? "لا يوجد اتصال بالإنترنت"
+                      : "No Internet Connection")
+                  : (isRtl ? "حدث خطأ" : "Something went wrong"),
+              pref! ? AppColors.whiteColor : AppColors.blackColor,
+              4.5.w,
+              FontWeight.w700,
+              textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr),
+          SizedBox(height: 2.h),
+          textNormal(
+              isNetworkError
+                  ? (isRtl
+                      ? "يرجى التحقق من اتصالك بالإنترنت"
+                      : "Please check your internet connection")
+                  : controller.errorMessage.value,
+              pref!
+                  ? AppColors.inActiveColor
+                  : AppColors.blackColor.withOpacity(0.6),
+              3.5.w,
+              FontWeight.w600,
+              textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr),
+          SizedBox(height: 4.h),
+          ElevatedButton.icon(
+            onPressed: () async {
+              await controller.refreshData();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  pref! ? AppColors.secondaryColor : AppColors.primaryColor,
+              padding:
+                  EdgeInsets.symmetric(horizontal: 8.w, vertical: 1.5.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              elevation: 2,
+            ),
+            icon: Icon(LucideIcons.refreshCw,
+                size: 5.w,
+                color:
+                    pref! ? AppColors.blackColor : AppColors.whiteColor),
+            label: textNormal(
+                isRtl ? "إعادة المحاولة" : "Try Again",
+                pref! ? AppColors.blackColor : AppColors.whiteColor,
                 3.5.w,
                 FontWeight.w600,
-                textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr),
-            SizedBox(height: 4.h),
-            ElevatedButton.icon(
-              onPressed: () async {
-                if (isNetworkError) {
-                  await controller.refreshData();
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    pref! ? AppColors.secondaryColor : AppColors.primaryColor,
-                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 1.5.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                elevation: 2,
-              ),
-              icon: Icon(LucideIcons.refreshCw,
-                  size: 5.w,
-                  color: pref! ? AppColors.blackColor : AppColors.whiteColor),
-              label: textNormal(
-                  isRtl ? "إعادة المحاولة" : "Try Again",
-                  pref! ? AppColors.blackColor : AppColors.whiteColor,
-                  3.5.w,
-                  FontWeight.w600,
-                  textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr),
-            ),
-          ],
-        ),
+                textDirection:
+                    isRtl ? TextDirection.rtl : TextDirection.ltr),
+          ),
+        ],
       ),
     );
   }
