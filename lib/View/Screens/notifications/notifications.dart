@@ -10,6 +10,7 @@ import 'package:live_chat/Data/Model/user_chat_model.dart';
 import 'package:live_chat/View/Screens/friends/friends.dart';
 import 'package:live_chat/View/Screens/friends/requests.dart';
 import 'package:live_chat/View/Widget/PublicWidget/loading.dart';
+import 'package:live_chat/View/Widget/PublicWidget/shimmer_widgets.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
 import 'package:live_chat/main.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -69,7 +70,7 @@ class Notifications extends StatelessWidget {
             Expanded(
               child: GetBuilder<NotificationsController>(builder: (controller) {
                 if (controller.statuesRequest == StatuesRequest.loading && controller.currentPage == 1) {
-                  return loading(10.h);
+                  return const NotificationListShimmer(itemCount: 7);
                 }
 
                 if (controller.notifications.isEmpty) {

@@ -13,6 +13,7 @@ import 'package:live_chat/Data/Model/power_model.dart';
 import 'package:live_chat/View/Screens/friends/friends.dart';
 import 'package:live_chat/View/Widget/PublicWidget/dialog_img.dart';
 import 'package:live_chat/View/Widget/PublicWidget/loading.dart';
+import 'package:live_chat/View/Widget/PublicWidget/shimmer_widgets.dart';
 import 'package:live_chat/View/Widget/PublicWidget/message_error.dart';
 import 'package:live_chat/View/Widget/PublicWidget/no_data.dart';
 import 'package:live_chat/View/Widget/PublicWidget/storetext.dart';
@@ -211,7 +212,7 @@ class Requests extends StatelessWidget {
   Widget _buildChatList(RequestsController controller, bool isSent) {
     return Obx(() {
       final list = isSent ? controller.sentRequests : controller.friends;
-      if (controller.statuesRequest == StatuesRequest.loading && list.isEmpty) return loading(80.h);
+      if (controller.statuesRequest == StatuesRequest.loading && list.isEmpty) return const UserListShimmer(itemCount: 8);
       if (list.isEmpty) {
         return controller.statuesRequest == StatuesRequest.socketException
             ? messageErrorWithButton(S.of(Get.context!).error, S.of(Get.context!).noInternet, () => controller.getFriends(page: 1), S.of(Get.context!).retry)

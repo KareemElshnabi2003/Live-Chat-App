@@ -19,7 +19,7 @@ import 'package:live_chat/View/Screens/settings/setting_view.dart';
 import 'package:live_chat/View/Widget/PublicWidget/chat_card_widget.dart';
 import 'package:live_chat/View/Screens/Home/show_bottom_sheet_pin_chat_widget.dart';
 import 'package:live_chat/View/Widget/PublicWidget/dialog_img.dart';
-import 'package:live_chat/View/Widget/PublicWidget/loading.dart';
+import 'package:live_chat/View/Widget/PublicWidget/shimmer_widgets.dart';
 import 'package:live_chat/View/Widget/PublicWidget/no_data.dart';
 import 'package:live_chat/View/Widget/PublicWidget/slider_img.dart';
 import 'package:live_chat/View/Widget/PublicWidget/storetext.dart';
@@ -242,7 +242,7 @@ class HomeView extends StatelessWidget {
       initialData: controller.systemChats,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return loading(10.h);
+          return const ChatListShimmer(itemCount: 4, shrinkWrap: true);
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return controller.statuesRequest == StatuesRequest.socketException
               ? Center(
@@ -438,7 +438,7 @@ class HomeView extends StatelessWidget {
           // 🌟 Pinned Chat Section (يختفي بالكامل لو مفيش محادثة شغالة)
           // ==============================
           if (controller.statuesRequest == StatuesRequest.loading)
-            loading(10.h)
+            const PinnedChatShimmer()
           else if (controller.pinChatModel != null && controller.pinChatModel!.conversation != null) ...[
             // 🌟 نقلنا العنوان هنا! مش هيتعرض غير لو المحادثة موجودة فعلاً
             Row(
@@ -690,7 +690,7 @@ class HomeView extends StatelessWidget {
         ),
         SizedBox(height: 2.h),
         controller.statuesRequest == StatuesRequest.loading
-            ? loading(10.h)
+            ? const UserListShimmer(itemCount: 2, shrinkWrap: true)
             : controller.friends.isEmpty
             ? Center(child: noData(S.of(Get.context!).noChat))
             : _buildChatFreindesList(
@@ -713,7 +713,7 @@ class HomeView extends StatelessWidget {
         ),
         SizedBox(height: 2.h),
         controller.statuesRequest == StatuesRequest.loading
-            ? loading(10.h)
+            ? const UserListShimmer(itemCount: 2, shrinkWrap: true)
             : controller.friendsSuggestion.isEmpty
             ? Center(child: noData(S.of(Get.context!).noChat))
             : _buildSuggestedFriendsList(controller),

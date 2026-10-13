@@ -225,7 +225,7 @@ class HomeNavigationController extends GetxController {
                 DateTime.parse(element['pin_date'].toString()).toLocal();
             String pinDate =
                 "${parsedDate.year}-${parsedDate.month.toString().padLeft(2, '0')}-${parsedDate.day.toString().padLeft(2, '0')}";
-List pinHours = [];
+            List pinHours = [];
             if (element['pin_hours'] != null) {
               if (element['pin_hours'] is String) {
                 try {
@@ -236,7 +236,8 @@ List pinHours = [];
               } else if (element['pin_hours'] is List) {
                 pinHours = element['pin_hours'];
               }
-            }            bool isTimeValid = pinHours.any((hourObj) {
+            }
+            bool isTimeValid = pinHours.any((hourObj) {
               int h = int.parse(hourObj['hour'].toString());
               String p = hourObj['period'].toString().toUpperCase();
 
@@ -266,7 +267,7 @@ List pinHours = [];
     update();
   }
 
-logOut() async {
+  logOut() async {
     statuesRequest = StatuesRequest.loading;
     update();
     var response = await _authRemoteData.logOut();
@@ -275,22 +276,22 @@ logOut() async {
 
     if (statuesRequest == StatuesRequest.success) {
       sharedPreferences!.clear();
-       try {
-      String? deviceId = sharedPreferences!.getString("deviceId");
+      try {
+        String? deviceId = sharedPreferences!.getString("deviceId");
 
-      if (deviceId == null || deviceId.isEmpty) {
-        const uuid = Uuid();
-        deviceId = uuid.v4();
+        if (deviceId == null || deviceId.isEmpty) {
+          const uuid = Uuid();
+          deviceId = uuid.v4();
 
-        await sharedPreferences!.setString("deviceId", deviceId);
+          await sharedPreferences!.setString("deviceId", deviceId);
 
-        log("✅ تم إنشاء وحفظ UUID جديد: ${sharedPreferences!.getString("deviceId")}");
-      } else {
-        log("⚡ الـ UUID موجود بالفعل: $deviceId");
+          log("✅ تم إنشاء وحفظ UUID جديد: ${sharedPreferences!.getString("deviceId")}");
+        } else {
+          log("⚡ الـ UUID موجود بالفعل: $deviceId");
+        }
+      } catch (e) {
+        log("❌ Error generating/saving UUID: $e");
       }
-    } catch (e) {
-      log("❌ Error generating/saving UUID: $e");
-    }
       Get.offAll(
         const PageStart(),
         transition: Transition.leftToRight,
@@ -333,13 +334,15 @@ logOut() async {
 
         // 🌟 ترتيب الدردشات بحيث تظهر الأحدث (التي بها آخر رسالة) في المقدمة
         newChats.sort((a, b) {
-          String? dateAStr = a.lastMessage?.createdAt ?? a.updatedAt ?? a.createdAt;
-          String? dateBStr = b.lastMessage?.createdAt ?? b.updatedAt ?? b.createdAt;
-          
+          String? dateAStr =
+              a.lastMessage?.createdAt ?? a.updatedAt ?? a.createdAt;
+          String? dateBStr =
+              b.lastMessage?.createdAt ?? b.updatedAt ?? b.createdAt;
+
           if (dateAStr == null && dateBStr == null) return 0;
           if (dateAStr == null) return 1;
           if (dateBStr == null) return -1;
-          
+
           try {
             DateTime dateA = DateTime.parse(dateAStr);
             DateTime dateB = DateTime.parse(dateBStr);
@@ -384,7 +387,9 @@ logOut() async {
       totalFriendsCount = friendsOnly.length;
 
       var receivedRequests = responseBody
-          .where((element) => element['request_status'] == "request_received" || element['request_status'] == "request_sent")
+          .where((element) =>
+              element['request_status'] == "request_received" ||
+              element['request_status'] == "request_sent")
           .toList();
       totalReceivedRequestsCount = receivedRequests.length;
 
@@ -407,22 +412,22 @@ logOut() async {
 
     if (statuesRequest == StatuesRequest.success) {
       sharedPreferences!.clear();
-       try {
-      String? deviceId = sharedPreferences!.getString("deviceId");
+      try {
+        String? deviceId = sharedPreferences!.getString("deviceId");
 
-      if (deviceId == null || deviceId.isEmpty) {
-        const uuid = Uuid();
-        deviceId = uuid.v4();
+        if (deviceId == null || deviceId.isEmpty) {
+          const uuid = Uuid();
+          deviceId = uuid.v4();
 
-        await sharedPreferences!.setString("deviceId", deviceId);
+          await sharedPreferences!.setString("deviceId", deviceId);
 
-        log("✅ تم إنشاء وحفظ UUID جديد: ${sharedPreferences!.getString("deviceId")}");
-      } else {
-        log("⚡ الـ UUID موجود بالفعل: $deviceId");
+          log("✅ تم إنشاء وحفظ UUID جديد: ${sharedPreferences!.getString("deviceId")}");
+        } else {
+          log("⚡ الـ UUID موجود بالفعل: $deviceId");
+        }
+      } catch (e) {
+        log("❌ Error generating/saving UUID: $e");
       }
-    } catch (e) {
-      log("❌ Error generating/saving UUID: $e");
-    }
       Get.offAll(
         const PageStart(),
         transition: Transition.leftToRight,
@@ -721,18 +726,16 @@ logOut() async {
     );
   }
 
-
   void navigateToAnotherChats() {
     Get.put(AnotherChatsController());
     Get.to(
-          () => SharedChatsScreen<AnotherChatsController>(
+      () => SharedChatsScreen<AnotherChatsController>(
         title: S.of(Get.context!).another_chats,
       ),
       transition: Transition.leftToRight,
       duration: const Duration(milliseconds: 400),
     );
   }
-
 
   void navigateToFriends() {
     Get.to(

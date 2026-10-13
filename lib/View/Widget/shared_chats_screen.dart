@@ -9,8 +9,8 @@ import 'package:live_chat/Core/Constant/app_images.dart';
 import 'package:live_chat/Core/class/status_request.dart';
 import 'package:live_chat/View/Widget/PublicWidget/chat_card_widget.dart';
 import 'package:live_chat/View/Widget/PublicWidget/dialog_img.dart';
-import 'package:live_chat/View/Widget/PublicWidget/loading.dart';
 import 'package:live_chat/View/Widget/PublicWidget/no_data.dart';
+import 'package:live_chat/View/Widget/PublicWidget/shimmer_widgets.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
 import 'package:live_chat/main.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
@@ -27,7 +27,10 @@ class SharedChatsScreen<T extends BaseChatsController> extends StatelessWidget {
 
   // 🌟 دالة مساعدة لمنع كراش الصور نهائياً
   bool _isValidImage(String? url) {
-    return url != null && url.trim().isNotEmpty && url.trim() != "null" && url.trim() != "image";
+    return url != null &&
+        url.trim().isNotEmpty &&
+        url.trim() != "null" &&
+        url.trim() != "image";
   }
 
   @override
@@ -37,7 +40,11 @@ class SharedChatsScreen<T extends BaseChatsController> extends StatelessWidget {
     return Scaffold(
       backgroundColor: pref! ? AppColors.blackColor : AppColors.bgColor,
       body: Padding(
-        padding: EdgeInsets.only(left: isRtl ? 2.w : 4.w, right: isRtl ? 4.w : 2.w, top: 5.h, bottom: 2.h),
+        padding: EdgeInsets.only(
+            left: isRtl ? 2.w : 4.w,
+            right: isRtl ? 4.w : 2.w,
+            top: 5.h,
+            bottom: 2.h),
         child: Column(
           children: [
             _buildHeader(context, isRtl),
@@ -45,18 +52,20 @@ class SharedChatsScreen<T extends BaseChatsController> extends StatelessWidget {
             Expanded(
               child: GetBuilder<T>(
                 builder: (ctrl) => ctrl.statuesRequest == StatuesRequest.loading
-                    ? loading(80.h)
+                    ? const ChatListShimmer(itemCount: 8)
                     : ctrl.chatsList.isEmpty
-                    ? Center(child: noData(S.of(context).noChat))
-                    : RefreshIndicator(
-                  // 🌟 التعديل هنا 👇
-                  onRefresh: () async {
-                    await ctrl.refreshChats();
-                  },
-                  color: AppColors.secondaryColor,
-                  backgroundColor: pref! ? AppColors.darkcolor : AppColors.whiteColor,
-                  child: _buildChatList(ctrl, isRtl, context),
-                ),
+                        ? Center(child: noData(S.of(context).noChat))
+                        : RefreshIndicator(
+                            // 🌟 التعديل هنا 👇
+                            onRefresh: () async {
+                              await ctrl.refreshChats();
+                            },
+                            color: AppColors.secondaryColor,
+                            backgroundColor: pref!
+                                ? AppColors.darkcolor
+                                : AppColors.whiteColor,
+                            child: _buildChatList(ctrl, isRtl, context),
+                          ),
               ),
             ),
           ],
@@ -72,13 +81,19 @@ class SharedChatsScreen<T extends BaseChatsController> extends StatelessWidget {
         GestureDetector(
           onTap: () => Get.back(),
           child: Icon(
-            isRtl ? IconsaxPlusLinear.arrow_right_3 : IconsaxPlusLinear.arrow_left_1,
+            isRtl
+                ? IconsaxPlusLinear.arrow_right_3
+                : IconsaxPlusLinear.arrow_left_1,
             size: 5.5.w,
             color: pref! ? AppColors.whiteColor : AppColors.blackTextColor,
           ),
         ),
         SizedBox(width: 2.w),
-        textNormal(title, pref! ? AppColors.whiteColor : AppColors.blackTextColor, 4.5.w, FontWeight.w500),
+        textNormal(
+            title,
+            pref! ? AppColors.whiteColor : AppColors.blackTextColor,
+            4.5.w,
+            FontWeight.w500),
       ],
     );
   }
@@ -89,7 +104,8 @@ class SharedChatsScreen<T extends BaseChatsController> extends StatelessWidget {
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
         controller: ctrl.scrollController,
-        padding: EdgeInsets.only(right: isRtl ? 0.w : 2.w, left: isRtl ? 2.w : 0.w),
+        padding:
+            EdgeInsets.only(right: isRtl ? 0.w : 2.w, left: isRtl ? 2.w : 0.w),
         separatorBuilder: (context, index) => SizedBox(height: 2.h),
         itemCount: ctrl.chatsList.length + (ctrl.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
@@ -98,7 +114,7 @@ class SharedChatsScreen<T extends BaseChatsController> extends StatelessWidget {
             final hasValidImg = _isValidImage(chat.image); // 🌟 الفحص الآمن
 
             return chatCardWidget(
-              needsAcceptance: chat.accept=="1"?true:false,
+              needsAcceptance: chat.accept == "1" ? true : false,
               power: null,
               imageUrl: hasValidImg,
               numOfMessage: 0,
@@ -116,7 +132,8 @@ class SharedChatsScreen<T extends BaseChatsController> extends StatelessWidget {
               private: chat.status == "Private",
               // 🌟 منع كراش الصورة هنا
               img: hasValidImg
-                  ? CachedNetworkImageProvider(chat.image!.trim(), maxWidth: 150, maxHeight: 150)
+                  ? CachedNetworkImageProvider(chat.image!.trim(),
+                      maxWidth: 150, maxHeight: 150)
                   : const AssetImage(AppImages.noChatImg),
               body: formatLastMessage(context, chat),
               ttitle: chat.name!,
@@ -143,10 +160,12 @@ class SharedChatsScreen<T extends BaseChatsController> extends StatelessWidget {
       padding: EdgeInsets.symmetric(vertical: 2.h),
       alignment: Alignment.center,
       child: SizedBox(
-        height: 6.w, width: 6.w,
+        height: 6.w,
+        width: 6.w,
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(pref! ? AppColors.whiteColor : AppColors.blackTextColor),
+          valueColor: AlwaysStoppedAnimation<Color>(
+              pref! ? AppColors.whiteColor : AppColors.blackTextColor),
         ),
       ),
     );

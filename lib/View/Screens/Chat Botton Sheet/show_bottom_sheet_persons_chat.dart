@@ -8,7 +8,7 @@ import 'package:live_chat/Core/Constant/app_images.dart';
 import 'package:live_chat/Core/class/status_request.dart';
 import 'package:live_chat/Data/Model/power_model.dart';
 import 'package:live_chat/Data/Model/user_chat_model.dart';
-import 'package:live_chat/View/Widget/PublicWidget/loading.dart';
+import 'package:live_chat/View/Widget/PublicWidget/shimmer_widgets.dart';
 import 'package:live_chat/View/Widget/PublicWidget/no_data.dart';
 import 'package:live_chat/View/Widget/PublicWidget/storetext.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_click_widget.dart';
@@ -343,7 +343,7 @@ Widget _buildRequestList(
     ChatController controller, String idOwner, List<ChatAdmins> idAdmins) {
   if (controller.statuesRequestMembers == StatuesRequest.loading &&
       controller.memmbersRequests.isEmpty) {
-    return loading(10.h);
+    return const UserListShimmer(itemCount: 5, shrinkWrap: true);
   }
 
   if (controller.memmbersRequests.isEmpty &&
@@ -363,7 +363,7 @@ Widget _buildMemberListContent(
     ChatController controller, String idOwner, List<ChatAdmins> idAdmins) {
   if (controller.statuesRequestMembers == StatuesRequest.loading &&
       controller.members.isEmpty) {
-    return loading(10.h);
+    return const UserListShimmer(itemCount: 5, shrinkWrap: true);
   }
 
   if (controller.members.isEmpty &&

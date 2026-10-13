@@ -16,7 +16,7 @@ import 'package:screen_go/extensions/responsive_nums.dart';
 import 'package:live_chat/generated/l10n.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:live_chat/Core/class/status_request.dart';
-import 'package:live_chat/View/Widget/PublicWidget/loading.dart';
+import 'package:live_chat/View/Widget/PublicWidget/shimmer_widgets.dart';
 import 'package:live_chat/View/Widget/PublicWidget/no_data.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -105,7 +105,7 @@ class OtherChats extends StatelessWidget {
       initialData: controller.homeController.systemChats,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return loading(10.h);
+          return const ChatListShimmer(itemCount: 8);
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return controller.homeController.statuesRequest ==
                   StatuesRequest.socketException

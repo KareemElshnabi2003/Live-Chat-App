@@ -9,7 +9,7 @@ import 'package:live_chat/Core/Constant/app_images.dart';
 import 'package:live_chat/Core/class/status_request.dart';
 import 'package:live_chat/View/Widget/PublicWidget/chat_card_widget.dart';
 import 'package:live_chat/View/Widget/PublicWidget/dialog_img.dart';
-import 'package:live_chat/View/Widget/PublicWidget/loading.dart';
+import 'package:live_chat/View/Widget/PublicWidget/shimmer_widgets.dart';
 import 'package:live_chat/View/Widget/PublicWidget/no_data.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
 import 'package:live_chat/main.dart';
@@ -96,7 +96,7 @@ class PageStart extends StatelessWidget {
                       // 2. Pinned Chat Section (يظهر فقط إذا كان هناك محادثة وميعادها شغال)
                       // ==============================
                       if (controller.statuesRequestGetData == StatuesRequest.loading)
-                        loading(10.h)
+                        const PinnedChatShimmer()
                       else if (controller.pinChatModel != null && controller.pinChatModel!.conversation != null) ...[
                         Row(
                           textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
@@ -163,7 +163,7 @@ class PageStart extends StatelessWidget {
                 ),
                 SizedBox(height: 2.h),
                 controller.statuesRequestGetData == StatuesRequest.loading
-                    ? loading(10.h)
+                    ? const ChatListShimmer(itemCount: 4, shrinkWrap: true)
                     : controller.recentChats.isEmpty
                     ? Center(child: noData(S.of(context).noChat))
                     : SizedBox(
@@ -228,7 +228,7 @@ class PageStart extends StatelessWidget {
                 ),
                 SizedBox(height: 2.h),
                 controller.statuesRequestGetData == StatuesRequest.loading
-                    ? loading(10.h)
+                    ? const ChatListShimmer(itemCount: 4, shrinkWrap: true)
                     : controller.systemChats.isEmpty
                     ? Center(child: noData(S.of(context).noChat))
                     : SizedBox(

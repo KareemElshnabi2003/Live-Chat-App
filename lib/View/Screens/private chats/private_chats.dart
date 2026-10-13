@@ -18,6 +18,7 @@ import 'package:live_chat/View/Screens/create%20chat/create_chat.dart';
 import 'package:live_chat/View/Widget/PublicWidget/chat_card_widget.dart';
 import 'package:live_chat/View/Widget/PublicWidget/dialog_img.dart';
 import 'package:live_chat/View/Widget/PublicWidget/loading.dart';
+import 'package:live_chat/View/Widget/PublicWidget/shimmer_widgets.dart';
 import 'package:live_chat/View/Widget/PublicWidget/no_data.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
 import 'package:live_chat/main.dart';
@@ -253,7 +254,7 @@ class PrivateChats extends StatelessWidget {
       builder: (controller) {
         // Initial loading
         if (controller.isInitialLoad && controller.myChats.isEmpty) {
-          return Center(child: loading(80.h));
+          return const ChatListShimmer(itemCount: 8);
         }
 
         // Error handling for initial load

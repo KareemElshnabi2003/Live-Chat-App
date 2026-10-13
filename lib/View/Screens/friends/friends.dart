@@ -12,6 +12,7 @@ import 'package:live_chat/Data/Model/power_model.dart';
 import 'package:live_chat/View/Screens/Home/home_view.dart';
 import 'package:live_chat/View/Widget/PublicWidget/dialog_img.dart';
 import 'package:live_chat/View/Widget/PublicWidget/loading.dart';
+import 'package:live_chat/View/Widget/PublicWidget/shimmer_widgets.dart';
 import 'package:live_chat/View/Widget/PublicWidget/no_data.dart';
 import 'package:live_chat/View/Widget/PublicWidget/storetext.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_click_widget.dart';
@@ -222,7 +223,7 @@ class Friends extends StatelessWidget {
     final isRtl = Directionality.of(Get.context!) == TextDirection.rtl;
 
     return Obx(() {
-      if (controller.statuesRequest == StatuesRequest.loading && controller.friends.isEmpty) return loading(80.h);
+      if (controller.statuesRequest == StatuesRequest.loading && controller.friends.isEmpty) return const UserListShimmer(itemCount: 8);
       if (controller.friends.isEmpty) {
         return controller.statuesRequest == StatuesRequest.socketException
             ? Center(
