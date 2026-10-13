@@ -855,7 +855,18 @@ Future<void> intilizeNotification() async {
       if (responseBody != null) {
         log("check call  >>> ${response['data']['status']}  <<< ");
 
-        if (response['data']['status'] == 0) {
+        final rawStatus = response['data']['status'];
+        bool isActive = false;
+        if (rawStatus is num) {
+          isActive = rawStatus != 0;
+        } else if (rawStatus is bool) {
+          isActive = rawStatus;
+        } else if (rawStatus != null) {
+          final s = rawStatus.toString().trim().toLowerCase();
+          isActive = s == "active" || s == "1" || s == "true";
+        }
+
+        if (!isActive) {
           messageError(
               S.of(Get.context!).warning, S.of(Get.context!).closeCall);
         } else {

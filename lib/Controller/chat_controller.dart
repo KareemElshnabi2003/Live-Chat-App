@@ -320,7 +320,8 @@ class ChatController extends GetxController {
   checkCall(
       {required bool isGroub,
       required Map<int, String>? groubUsersNames,
-      required usernameFriend}) async {
+      required usernameFriend,
+      bool isJoin = false}) async {
     statuesRequest = StatuesRequest.loading;
     update();
 
@@ -331,12 +332,32 @@ class ChatController extends GetxController {
       if (statuesRequest == StatuesRequest.success) {
         final responseBody = response['data'];
         if (responseBody != null) {
-          int status = responseBody['status'] ?? 0;
-          String type = status == 0 ? 'publisher' : "subscriber";
+          final rawStatus = responseBody['status'];
+          bool isActive = false;
+          if (rawStatus is num) {
+            isActive = rawStatus != 0;
+          } else if (rawStatus is bool) {
+            isActive = rawStatus;
+          } else if (rawStatus != null) {
+            final s = rawStatus.toString().trim().toLowerCase();
+            isActive = s == "active" || s == "1" || s == "true";
+          }
+
+          if (isJoin && !isActive) {
+            Get.snackbar(
+              "تنبيه",
+              "المكالمة غير نشطة أو قد انتهت بالفعل.",
+              backgroundColor: Colors.orange,
+              colorText: Colors.white,
+            );
+            return;
+          }
+
+          String type = isActive ? "subscriber" : "publisher";
 
           // Check if there is an active call of a different type
-          if (status != 0 && responseBody['call_type'] != null) {
-            String activeCallType = responseBody['call_type'];
+          if (isActive && responseBody['call_type'] != null) {
+            String activeCallType = responseBody['call_type'].toString();
             bool activeIsAudio =
                 activeCallType == 'audio' || activeCallType == 'voice';
 
@@ -376,11 +397,13 @@ class ChatController extends GetxController {
   getTokenCall(
       {required bool isGroub,
       required Map<int, String> groubUsersNames,
-      required usernameFriend}) async {
+      required usernameFriend,
+      bool isJoin = false}) async {
     await checkCall(
         isGroub: isGroub,
         groubUsersNames: groubUsersNames,
-        usernameFriend: usernameFriend);
+        usernameFriend: usernameFriend,
+        isJoin: isJoin);
   }
 
   Future<void> getMessages({int page = 1}) async {

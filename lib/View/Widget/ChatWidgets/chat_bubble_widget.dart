@@ -231,7 +231,8 @@ class ChatBubbleWidget extends StatelessWidget {
                        groubUsersNames: {
                          int.parse(sharedPreferences!.getString("id")!): sharedPreferences!.getString("name")!
                        },
-                       usernameFriend: "",
+                       usernameFriend: name,
+                        isJoin: true,
                      );
                    }
                  },
@@ -263,7 +264,8 @@ class ChatBubbleWidget extends StatelessWidget {
                        ctrl.getTokenCall(
                          isGroub: false,
                          groubUsersNames: {},
-                         usernameFriend: "",
+                         usernameFriend: name,
+                        isJoin: true,
                        );
                      }
                    },
