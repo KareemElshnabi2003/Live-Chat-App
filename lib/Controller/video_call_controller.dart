@@ -48,6 +48,8 @@ class VideoCallController extends GetxController {
 
   // Track if user manually ended the call (not disconnected)
   bool _userEndedCall = false;
+  bool isCaller = false;
+  bool _isEndingCall = false;
 
   // التعديل هنا: استخدام Get.find
   final ChatsRemoteData _chatsRemoteData = ChatsRemoteData(api: Get.find<Api>());
@@ -79,6 +81,8 @@ class VideoCallController extends GetxController {
     super.onInit();
     _isDisposed = false;
     _userEndedCall = false;
+    _isEndingCall = false;
+    isCaller = Get.arguments?["isCaller"] ?? false;
     token = Get.arguments?["Token"] ?? '';
     isGroubCall = Get.arguments?["IsGroupCall"] ?? false;
     uId = Get.arguments?["UId"];
@@ -289,18 +293,32 @@ class VideoCallController extends GetxController {
     debugPrint(
         "❌ REMOTE USER LEFT: $remoteUid, Name: $userName, reason: ${reason.name}");
 
-    final wasLastOtherUser =
-        _remoteUsers.length == 1 && _remoteUsers.contains(remoteUid);
-
     _batchUpdate(() {
       _remoteUsers.remove(remoteUid);
       _remoteVideoStates.remove(remoteUid);
       debugPrint("📊 Total remote users: ${_remoteUsers.length}");
     });
 
-    if (wasLastOtherUser && !_userEndedCall && !isGroubCall) {
-      debugPrint("🔚 Last remote user left - I should end the call on server");
-      endCallApi();
+    if (!isGroubCall) {
+      if (!isCaller) {
+        // إذا كنت أنا المشترك، والشخص الآخر (الذي أنشأ المكالمة) غادر:
+        // تنتهي المكالمة بالنسبة لي ونرجع للشات فوراً
+        debugPrint("🔚 Creator left the 1-on-1 call -> leaving call screen");
+        if (!_userEndedCall && !_isEndingCall) {
+          Get.snackbar(
+            "المكالمة",
+            "تم إنهاء المكالمة من قِبل المتصل",
+            backgroundColor: Colors.grey[900],
+            colorText: Colors.white,
+            duration: const Duration(seconds: 2),
+          );
+          onRemoteEndedCall();
+        }
+      } else {
+        // إذا كنت أنا من أنشأ المكالمة، والمشترك هو من غادر:
+        // لا ننهي المكالمة على السيرفر! ننتظره ليعود أو ننهيها نحن يدوياً
+        debugPrint("⏳ Subscriber left the 1-on-1 call -> waiting for rejoin or manual end");
+      }
     }
   }
 
@@ -440,33 +458,47 @@ class VideoCallController extends GetxController {
     }
   }
 
-  Future<void> endCall() async {
-    if (_isDisposed) return;
-
+  void onRemoteEndedCall() async {
+    if (_isEndingCall || _isDisposed) return;
+    _isEndingCall = true;
     _userEndedCall = true;
 
-    final currentRemoteUserCount = _remoteUsers.length;
+    debugPrint('🔴 Remote ended video call, closing view and staying in chat...');
+    if (Get.context != null && Get.context!.mounted) {
+      Get.back();
+    }
+    await _disposeEngine();
+  }
+
+  Future<void> endCall() async {
+    if (_isEndingCall || _isDisposed) return;
+    _isEndingCall = true;
+    _userEndedCall = true;
+
     final isOneOnOneCall = !isGroubCall;
 
-    debugPrint('🔴 User manually ending video call:');
-    debugPrint('   - Remote users count: $currentRemoteUserCount');
-    debugPrint('   - Is group call: $isGroubCall');
-    debugPrint('   - Is 1-on-1: $isOneOnOneCall');
-    debugPrint(
-        '   - Remote users: ${_remoteUsers.map((uid) => '${getUserName(uid)}($uid)').toList()}');
-
-    bool shouldEndCall = isOneOnOneCall || currentRemoteUserCount == 0;
-
-    debugPrint('   - Should call end API: $shouldEndCall');
-
-    if (shouldEndCall) {
-      await endCallApi();
+    // 🌟 في المكالمة الفردية: فقط من أنشأ المكالمة (isCaller) هو من ينهي المكالمة على السيرفر
+    // المشترك (subscriber) فقط يغادر محلياً ليعود للشات ويستطيع إعادة الانضمام
+    bool shouldEndCall = false;
+    if (isOneOnOneCall) {
+      shouldEndCall = isCaller;
+    } else {
+      shouldEndCall = _remoteUsers.isEmpty;
     }
 
+    debugPrint('🔴 User ending video call: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall');
+
+    // 1. إغلاق شاشة المكالمة فوراً ليعود المستخدم للشات دون تأخير ويمنع أي خروج خاطئ من الشات
+    if (Get.context != null && Get.context!.mounted) {
+      Get.back();
+    }
+
+    // 2. تنظيف محرك Agora
     await _disposeEngine();
 
-    if (!_isDisposed && Get.context != null && Get.context!.mounted) {
-      Get.back();
+    // 3. إنهاء المكالمة على السيرفر وإرسال رسالة الشات فقط إذا كان هو من أنشأ المكالمة
+    if (shouldEndCall) {
+      await endCallApi();
     }
   }
 
@@ -566,9 +598,12 @@ class VideoCallController extends GetxController {
       }
       return "In call";
     } else if (_isJoined.value) {
-      return isGroubCall
-          ? "Waiting for others to join..."
-          : "Waiting for ${remoteUserName ?? 'user'} to join...";
+      if (isGroubCall) {
+        return "Waiting for others to join...";
+      }
+      return isCaller
+          ? "Waiting for ${remoteUserName ?? 'user'} to join..."
+          : "Connected, waiting for video...";
     } else {
       return "Connecting...";
     }

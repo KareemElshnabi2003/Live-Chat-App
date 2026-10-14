@@ -1064,7 +1064,8 @@ Future<void> intilizeNotification() async {
               "chatId": chatId,
               "RemoteUserName": remoteUserName,
               "UserNamesMap": groubUsersNames,
-              "LocalUserName": sharedPreferences!.getString("name") ?? 'You'
+              "LocalUserName": sharedPreferences!.getString("name") ?? 'You',
+              "isCaller": false,
             });
           } else {
             Get.off(() => const VideoCallPage(), arguments: {
@@ -1075,7 +1076,8 @@ Future<void> intilizeNotification() async {
               "chatId": chatId,
               "RemoteUserName": remoteUserName,
               "UserNamesMap": groubUsersNames,
-              "LocalUserName": sharedPreferences!.getString("name") ?? 'You'
+              "LocalUserName": sharedPreferences!.getString("name") ?? 'You',
+              "isCaller": false,
             });
           }
         } else {

@@ -80,12 +80,16 @@ class AudioCallController extends GetxController {
   RtcEngine? _engine;
   static const int volumeThreshold = 30;
   bool _isDisposed = false;
+  bool isCaller = false;
+  bool _isEndingCall = false;
   final ChatsRemoteData _chatsRemoteData =
       ChatsRemoteData(api: Get.find<Api>());
   @override
   void onInit() {
     super.onInit();
     _isDisposed = false;
+    _isEndingCall = false;
+    isCaller = Get.arguments?['isCaller'] ?? false;
 
     token = Get.arguments?['Token'] ?? '';
     uId = Get.arguments?['UId'];
@@ -395,6 +399,24 @@ userNamesMap: ${userNamesMap.toString()}
         this.remoteUid.value = null;
       }
     });
+
+    if (!isGroupCall.value) {
+      if (!isCaller) {
+        debugPrint("🔚 Creator left audio call -> leaving call screen");
+        if (!_isDisposed && !_isEndingCall) {
+          Get.snackbar(
+            "المكالمة",
+            "تم إنهاء المكالمة من قِبل المتصل",
+            backgroundColor: Colors.grey[900],
+            colorText: Colors.white,
+            duration: const Duration(seconds: 2),
+          );
+          onRemoteEndedCall();
+        }
+      } else {
+        debugPrint("⏳ Subscriber left audio call -> waiting for rejoin or manual end");
+      }
+    }
   }
 
   void _onLocalAudioStateChanged(RtcConnection connection,
@@ -593,41 +615,41 @@ userNamesMap: ${userNamesMap.toString()}
     debugPrint('📞 Call mode switched to: ${toGroupCall ? 'GROUP' : 'SINGLE'}');
   }
 
+  void onRemoteEndedCall() async {
+    if (_isEndingCall || _isDisposed) return;
+    _isEndingCall = true;
+
+    debugPrint('🔴 Remote ended audio call, closing view and staying in chat...');
+    if (Get.context != null && Get.context!.mounted) {
+      Get.back();
+    }
+    await _disposeEngine();
+  }
+
   Future<void> endCall() async {
-    if (_isDisposed) return;
+    if (_isEndingCall || _isDisposed) return;
+    _isEndingCall = true;
 
-    // Count OTHER participants (excluding myself)
-    int otherParticipantsCount = 0;
-
-    if (isGroupCall.value) {
-      // In group call, count all participants except the current user
-      otherParticipantsCount =
-          participantsList.where((p) => p.uid != uId).length;
+    final isOneOnOneCall = !isGroupCall.value;
+    bool shouldEndCall = false;
+    if (isOneOnOneCall) {
+      shouldEndCall = isCaller;
     } else {
-      // In one-on-one call, check if remote user is still connected
-      otherParticipantsCount = remoteUid.value != null ? 1 : 0;
+      int otherParticipantsCount =
+          participantsList.where((p) => p.uid != uId).length;
+      shouldEndCall = otherParticipantsCount == 0;
     }
 
-    debugPrint(
-        '🔚 Ending call - Other participants count: $otherParticipantsCount');
-    debugPrint('🔚 Is group call: ${isGroupCall.value}');
-    debugPrint('🔚 Total participants: ${participantsList.length}');
-    debugPrint('🔚 Current UID: $uId');
+    debugPrint('🔚 endCall: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall');
 
-    // Only call endCallApi if I'm the last one in the call
-    bool isLastParticipant = otherParticipantsCount == 0;
-
-    if (isLastParticipant) {
-      debugPrint('✅ Last participant leaving - calling endCallApi');
-      await endCallApi();
-    } else {
-      debugPrint('⏭️ Not last participant - skipping endCallApi');
+    if (Get.context != null && Get.context!.mounted) {
+      Get.back();
     }
 
     await _disposeEngine();
 
-    if (!_isDisposed && Get.context != null && Get.context!.mounted) {
-      Get.back();
+    if (shouldEndCall) {
+      await endCallApi();
     }
   }
 

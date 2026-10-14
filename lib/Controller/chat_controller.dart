@@ -9,6 +9,8 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:live_chat/Controller/create_chat_controller.dart';
+import 'package:live_chat/Controller/video_call_controller.dart';
+import 'package:live_chat/Controller/audio_call_controller.dart';
 import 'package:live_chat/Core/Class/api.dart';
 import 'package:live_chat/Core/Class/error_handler.dart';
 import 'package:live_chat/Core/class/status_request.dart';
@@ -169,7 +171,11 @@ class ChatController extends GetxController {
                   // 🔔 Handle incoming call via Pusher in real-time
                   if (messageContent.startsWith('|||PRIVATE_CALL_START|||') ||
                       messageContent.startsWith('|||GROUP_CALL_START|||')) {
-                    if (!ctrl.isIncomingCallScreenShowing) {
+                    final bool isAlreadyInCall = Get.isRegistered<VideoCallController>() ||
+                        Get.isRegistered<AudioCallController>();
+                    if (isAlreadyInCall) {
+                      log("🔇 [PUSHER] Already in an active call - ignoring incoming call event");
+                    } else if (!ctrl.isIncomingCallScreenShowing) {
                       ctrl.isIncomingCallScreenShowing = true;
                       bool isGroup = messageContent.startsWith('|||GROUP_CALL_START|||');
                       String callType = messageContent
@@ -199,6 +205,7 @@ class ChatController extends GetxController {
                                   }
                                 : {},
                             usernameFriend: isGroup ? "" : callerName,
+                            isJoin: true, // 🌟 Callee answers as subscriber
                           );
                         },
                         onPressReject: () {
@@ -224,6 +231,16 @@ class ChatController extends GetxController {
                         colorText: Colors.white,
                         duration: const Duration(seconds: 2),
                       );
+                    } else {
+                      // 🌟 إغلاق شاشة المكالمة للمشترك إذا كان المتصل هو من أنهى المكالمة
+                      if (Get.isRegistered<VideoCallController>()) {
+                        final videoCtrl = Get.find<VideoCallController>();
+                        videoCtrl.onRemoteEndedCall();
+                      }
+                      if (Get.isRegistered<AudioCallController>()) {
+                        final audioCtrl = Get.find<AudioCallController>();
+                        audioCtrl.onRemoteEndedCall();
+                      }
                     }
                   }
                 }
@@ -269,6 +286,7 @@ class ChatController extends GetxController {
         if (responseBody != null) {
           tokenCallModel = TokenCallModel.fromJson(responseBody);
 
+          final bool isCaller = (type == 'publisher');
           final callArgs = {
             "ChannelName": tokenCallModel!.channel,
             "Token": tokenCallModel!.token,
@@ -277,11 +295,12 @@ class ChatController extends GetxController {
             "chatId": chatId,
             "RemoteUserName": usernameFriend,
             "UserNamesMap": groubUsersNames,
-            "LocalUserName": sharedPreferences!.getString("name") ?? ""
+            "LocalUserName": sharedPreferences!.getString("name") ?? "",
+            "isCaller": isCaller,
           };
 
-          // 🌟 إرسال رسائل التتبع للمكالمات (جماعية أو فردية)
-          if (type == 'publisher') {
+          // 🌟 إرسال رسائل التتبع للمكالمات: فقط من أنشأ المكالمة هو من يرسل رسالة البدء
+          if (isCaller) {
             if (isGroub) {
               messageController.text =
                   "|||GROUP_CALL_START|||${audio ? 'audio' : 'video'}";
@@ -322,6 +341,7 @@ class ChatController extends GetxController {
       required Map<int, String>? groubUsersNames,
       required usernameFriend,
       bool isJoin = false}) async {
+    if (statuesRequest == StatuesRequest.loading) return;
     statuesRequest = StatuesRequest.loading;
     update();
 
@@ -353,7 +373,17 @@ class ChatController extends GetxController {
             return;
           }
 
-          String type = isActive ? "subscriber" : "publisher";
+          // 🌟 إذا كانت هناك مكالمة جارية بالفعل وضغط المستخدم على أيقونة الاتصال، ينضم إليها كمشترك ولا ينشئ مكالمة جديدة
+          if (!isJoin && isActive && !isGroub) {
+            Get.snackbar(
+              "تنبيه",
+              "يوجد مكالمة جارية بالفعل مع هذا الشخص، جاري الانضمام إليها...",
+              backgroundColor: Colors.blueGrey,
+              colorText: Colors.white,
+            );
+          }
+
+          String type = (isJoin || isActive) ? "subscriber" : "publisher";
 
           // Check if there is an active call of a different type
           if (isActive && responseBody['call_type'] != null) {
@@ -364,7 +394,7 @@ class ChatController extends GetxController {
             if (audio != activeIsAudio) {
               Get.snackbar(
                 "تنبيه",
-                "يوجد بالفعل مكالمة ${activeIsAudio ? 'صوتية' : 'فيديو'} جارية الآن. يرجى الانضمام إليها.",
+                "المكالمة الجارية هي مكالمة ${activeIsAudio ? 'صوتية' : 'فيديو'}. تم تحويلك إليها.",
                 backgroundColor: Colors.orange,
                 colorText: Colors.white,
               );
