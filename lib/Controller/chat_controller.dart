@@ -641,7 +641,10 @@ class ChatController extends GetxController {
     update();
   }
 
-  Future<void> sendSystemMessage(String finalMessage) async {
+  Future<void> sendSystemMessage(String finalMessage, {String? targetChatId}) async {
+    final effectiveChatId = (targetChatId != null && targetChatId.isNotEmpty)
+        ? targetChatId
+        : chatId;
     final tempId = DateTime.now().millisecondsSinceEpoch.toString();
 
     messages.insert(
@@ -649,8 +652,9 @@ class ChatController extends GetxController {
         ChatMessage(
           imageUrl: null,
           reaction: [],
-          senderName: sharedPreferences!.getString("username") ??
-              sharedPreferences!.getString("usernameGust") ??
+          senderName: sharedPreferences?.getString("name") ??
+              sharedPreferences?.getString("username") ??
+              sharedPreferences?.getString("usernameGust") ??
               "",
           message: finalMessage,
           messageType: 'text',
@@ -663,11 +667,13 @@ class ChatController extends GetxController {
 
     statuesRequest = StatuesRequest.loading;
     var response = await _chatsRemoteData.sendMessages(
-        chatId: chatId, message: finalMessage);
+        chatId: effectiveChatId, message: finalMessage);
 
     statuesRequest = handlingData(response);
+    final isSuccess = statuesRequest == StatuesRequest.success ||
+        (response is Map && (response['status'] == 'success' || response['code'] == 200));
 
-    if (statuesRequest == StatuesRequest.success) {
+    if (isSuccess) {
       log('✅ System message sent: $finalMessage');
       int indexToUpdate = messages.indexWhere((msg) => msg.messageId == tempId);
       if (indexToUpdate != -1) {
@@ -677,7 +683,9 @@ class ChatController extends GetxController {
           reaction: messages[indexToUpdate].reaction,
           message: messages[indexToUpdate].message,
           messageType: messages[indexToUpdate].messageType,
-          messageId: response['data']['id']?.toString() ?? tempId,
+          messageId: (response is Map && response['data'] != null)
+              ? response['data']['id']?.toString() ?? tempId
+              : tempId,
           isFromSender: true,
           isPending: false,
           timestamp: messages[indexToUpdate].timestamp,

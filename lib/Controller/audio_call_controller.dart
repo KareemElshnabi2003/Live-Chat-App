@@ -5,7 +5,6 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:live_chat/Core/Class/api.dart';
-import 'package:live_chat/Core/Class/error_handler.dart';
 import 'package:live_chat/Core/class/status_request.dart';
 import 'package:live_chat/Core/function/handling_data.dart';
 import 'package:live_chat/Data/DataSource/chats_source.dart';
@@ -664,15 +663,15 @@ userNamesMap: ${userNamesMap.toString()}
 
     debugPrint('🔚 endCall: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall');
 
+    if (shouldEndCall) {
+      endCallApi();
+    }
+
     if (Get.context != null && Get.context!.mounted) {
       Get.back();
     }
 
     await _disposeEngine();
-
-    if (shouldEndCall) {
-      await endCallApi();
-    }
   }
 
   StatuesRequest statuesRequest = StatuesRequest.none;
@@ -682,47 +681,32 @@ userNamesMap: ${userNamesMap.toString()}
       log('⚠️ Cannot end call: chatId is empty');
       return;
     }
-    log('🔚 Calling endCallApi - I am the last participant');
-    _safeUpdate(() => statuesRequest = StatuesRequest.loading);
+    log('🔚 Calling endCallApi for chatId: $chatId');
 
     try {
       var response = await _chatsRemoteData.endCall(id: chatId);
       log('📞 End call response: ${response.toString()}');
 
-      _safeUpdate(() {
-        statuesRequest = handlingData(response);
-        if (statuesRequest == StatuesRequest.success) {
-          log('✅ End call successful >>> ${response['data']} <<<');
-          if (sendEndedMessage) {
-            if (Get.isRegistered<ChatController>()) {
-              Get.find<ChatController>().sendSystemMessage(isGroupCall.value ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||");
-            } else {
-              _chatsRemoteData.sendMessages(
-                  chatId: chatId, 
-                  message: isGroupCall.value ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||"
-              );
-            }
-          }
-          final responseBody = response['data'];
-          if (responseBody != null) {
-            log('📊 End call data >>> ${response['data']} <<<');
+      final status = handlingData(response);
+      final isSuccess = status == StatuesRequest.success ||
+          (response is Map && (response['status'] == 'success' || response['code'] == 200));
+
+      if (isSuccess) {
+        log('✅ End call successful');
+        if (sendEndedMessage) {
+          final endMsg = isGroupCall.value ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||";
+          if (Get.isRegistered<ChatController>()) {
+            Get.find<ChatController>().sendSystemMessage(endMsg, targetChatId: chatId);
           } else {
-            log('⚠️ End call data is null');
+            _chatsRemoteData.sendMessages(
+                chatId: chatId, 
+                message: endMsg
+            );
           }
-        } else {
-          showUserFriendlyError(statuesRequest);
         }
-        //  else if (statuesRequest == StatuesRequest.socketException) {
-        //   log('❌ Socket exception when ending call');
-        // } else if (statuesRequest == StatuesRequest.unprocessableException) {
-        //   log('❌ Unprocessable exception: ${response["error"]["message"]}');
-        // } else {
-        //   log('❌ Failed to end call: $statuesRequest');
-        // }
-      });
+      }
     } catch (e) {
       log('❌ Exception in endCallApi: $e');
-      _safeUpdate(() => statuesRequest = StatuesRequest.serverException);
     }
   }
 

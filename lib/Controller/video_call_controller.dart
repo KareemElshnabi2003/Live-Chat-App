@@ -3,7 +3,6 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:live_chat/Core/Class/api.dart';
-import 'package:live_chat/Core/Class/error_handler.dart';
 import 'package:live_chat/Core/class/status_request.dart';
 import 'package:live_chat/Core/function/handling_data.dart';
 import 'package:live_chat/Data/DataSource/chats_source.dart';
@@ -511,6 +510,10 @@ class VideoCallController extends GetxController {
 
     debugPrint('🔴 User ending video call: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall');
 
+    if (shouldEndCall) {
+      endCallApi();
+    }
+
     // 1. إغلاق شاشة المكالمة فوراً ليعود المستخدم للشات دون تأخير ويمنع أي خروج خاطئ من الشات
     if (Get.context != null && Get.context!.mounted) {
       Get.back();
@@ -518,11 +521,6 @@ class VideoCallController extends GetxController {
 
     // 2. تنظيف محرك Agora
     await _disposeEngine();
-
-    // 3. إنهاء المكالمة على السيرفر وإرسال رسالة الشات فقط إذا كان هو من أنشأ المكالمة
-    if (shouldEndCall) {
-      await endCallApi();
-    }
   }
 
   Future<void> endCallApi({bool sendEndedMessage = true}) async {
@@ -533,42 +531,30 @@ class VideoCallController extends GetxController {
 
     try {
       log("📡 Calling end call API for chatId: $chatId");
-      statuesRequest = StatuesRequest.loading;
-      update();
 
       var response = await _chatsRemoteData.endCall(id: chatId);
       log("📥 End call API response: $response");
 
-      statuesRequest = handlingData(response);
+      final status = handlingData(response);
+      final isSuccess = status == StatuesRequest.success ||
+          (response is Map && (response['status'] == 'success' || response['code'] == 200));
 
-      if (statuesRequest == StatuesRequest.success) {
-        log("✅ Call ended successfully: ${response['data']}");
+      if (isSuccess) {
+        log("✅ Call ended successfully: ${response is Map ? response['data'] : ''}");
         if (sendEndedMessage) {
+          final endMsg = isGroubCall ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||";
           if (Get.isRegistered<ChatController>()) {
-            Get.find<ChatController>().sendSystemMessage(isGroubCall ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||");
+            Get.find<ChatController>().sendSystemMessage(endMsg, targetChatId: chatId);
           } else {
             _chatsRemoteData.sendMessages(
                 chatId: chatId, 
-                message: isGroubCall ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||"
+                message: endMsg
             );
           }
         }
-        final responseBody = response['data'];
-        if (responseBody != null) {
-          log("   - Response data: ${response['data']}");
-        } else {
-          log("   - No response data");
-        }
-      } else{
-                  showUserFriendlyError(statuesRequest);
-
       }
-
-      update();
     } catch (e) {
       log("❌ Exception in endCallApi: $e");
-      statuesRequest = StatuesRequest.serverException;
-      update();
     }
   }
 
