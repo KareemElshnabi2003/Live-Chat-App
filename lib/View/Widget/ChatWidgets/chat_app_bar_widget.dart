@@ -330,15 +330,6 @@ class ChatAppBarWidget extends StatelessWidget {
       );
 
   void _initCall(bool isAudio) async {
-    if (controller.isIncomingCallActive) {
-      Get.snackbar(
-        "تنبيه",
-        "يوجد مكالمة جارية بالفعل، يمكنك الضغط على 'انضمام الآن' من الرسالة في الشات",
-        backgroundColor: Colors.orange,
-        colorText: Colors.white,
-      );
-      return;
-    }
     final isGroup =
         userChatModel.status == "Public" || userChatModel.status == "Private";
     controller.audio = isAudio;
@@ -354,6 +345,7 @@ class ChatAppBarWidget extends StatelessWidget {
             }
           : {},
       usernameFriend: isGroup ? "" : userChatModel.name,
+      isJoin: controller.isIncomingCallActive,
     );
   }
 }

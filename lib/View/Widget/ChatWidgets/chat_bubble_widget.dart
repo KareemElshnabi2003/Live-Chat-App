@@ -226,13 +226,15 @@ class ChatBubbleWidget extends StatelessWidget {
                    if (Get.isRegistered<ChatController>()) {
                      final ctrl = Get.find<ChatController>();
                      ctrl.audio = callType == 'audio' || callType == 'voice';
+                     final myId = int.tryParse(sharedPreferences?.getString("id") ?? "0") ?? 0;
+                     final myName = sharedPreferences?.getString("name") ?? "";
                      ctrl.getTokenCall(
                        isGroub: true,
                        groubUsersNames: {
-                         int.parse(sharedPreferences!.getString("id")!): sharedPreferences!.getString("name")!
+                         myId: myName,
                        },
-                       usernameFriend: name,
-                        isJoin: true,
+                       usernameFriend: "",
+                       isJoin: true,
                      );
                    }
                  },

@@ -501,7 +501,7 @@ Future<void> intilizeNotification() async {
                 final api = Get.isRegistered<Api>() ? Get.find<Api>() : Api();
                 final chatsData = ChatsRemoteData(api: api);
                 final cId = data['conversation_id']?.toString();
-                if (cId != null && cId.isNotEmpty) {
+                if (cId != null && cId.isNotEmpty && !isGroub) {
                   chatsData.sendMessages(
                     chatId: cId,
                     message: "|||CALL_DECLINED|||",
@@ -1013,7 +1013,7 @@ Future<void> intilizeNotification() async {
               final api = Get.isRegistered<Api>() ? Get.find<Api>() : Api();
               final chatsData = ChatsRemoteData(api: api);
               final cId = data['conversation_id']?.toString();
-              if (cId != null && cId.isNotEmpty) {
+              if (cId != null && cId.isNotEmpty && !isGroub) {
                 chatsData.sendMessages(
                   chatId: cId,
                   message: "|||CALL_DECLINED|||",

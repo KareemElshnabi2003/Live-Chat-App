@@ -46,6 +46,7 @@ class _ChatViewState extends State<ChatView> {
     // 🌟 تحديد نوع الشات عشان نمنع الـ APIs اللي ملهاش لازمة في الشات الخاص (بين شخصين)
     // غرف الدردشة بيبقى الـ status بتاعها Public أو Private، أما شات الأصدقاء مبيكونش كده
     controller.isPublicChat = widget.userChatModel?.status == 'Public' || widget.userChatModel?.status == 'Private';
+    controller.userChatModel = widget.userChatModel;
 
     _scrollController.addListener(() {
       if (_scrollController.offset > 200) {

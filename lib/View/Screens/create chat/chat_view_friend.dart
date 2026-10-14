@@ -459,39 +459,33 @@ class _ChatViewState extends State<ChatViewFriend> {
         borderRadius: BorderRadius.circular(10),
         onSelected: (String value) async {
           final controller = Get.find<ChatController>();
-          if (controller.isIncomingCallActive) {
-            Get.snackbar(
-              "تنبيه",
-              "يوجد مكالمة جارية بالفعل، يمكنك الضغط على 'انضمام الآن' من الرسالة في الشات",
-              backgroundColor: Colors.orange,
-              colorText: Colors.white,
-            );
-            return;
-          }
           final isGroup = widget.userChatModel!.status == "Public" ||
               widget.userChatModel!.status == "Private";
+          final currentUserId = int.tryParse(sharedPreferences?.getString("id") ?? "0") ?? 0;
+          final currentUserName = sharedPreferences?.getString("name") ?? "";
+
           if (value == 'video_call') {
             controller.audio = false;
             await controller.getTokenCall(
                 isGroub: isGroup,
                 groubUsersNames: isGroup
                     ? {
-                        int.parse(sharedPreferences!.getString("id")!):
-                            sharedPreferences!.getString("name")!
+                        currentUserId: currentUserName,
                       }
                     : {},
-                usernameFriend: isGroup ? "" : widget.userChatModel!.name);
+                usernameFriend: isGroup ? "" : widget.userChatModel!.name,
+                isJoin: controller.isIncomingCallActive);
           } else if (value == 'audio_call') {
             controller.audio = true;
             await controller.getTokenCall(
                 isGroub: isGroup,
                 groubUsersNames: isGroup
                     ? {
-                        int.parse(sharedPreferences!.getString("id")!):
-                            sharedPreferences!.getString("name")!
+                        currentUserId: currentUserName,
                       }
                     : {},
-                usernameFriend: isGroup ? "" : widget.userChatModel!.name);
+                usernameFriend: isGroup ? "" : widget.userChatModel!.name,
+                isJoin: controller.isIncomingCallActive);
           }
         },
         itemBuilder: (BuildContext context) => [

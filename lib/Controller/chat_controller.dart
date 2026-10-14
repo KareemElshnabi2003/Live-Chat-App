@@ -66,6 +66,7 @@ class ChatController extends GetxController {
   TokenCallModel? tokenCallModel;
 
   bool isPublicChat = true; // 🌟 هيتحدد من الشاشة
+  UserChatModel? userChatModel;
 
   late final AudioPlayer audioPlayer;
   bool music1 = false, music2 = false, music3 = false;
@@ -199,8 +200,8 @@ class ChatController extends GetxController {
                       Get.to(() => IncomingCallScreen(
                         callerName: callerName,
                         callerImage: callerImage,
-                        groubImg: '',
-                        groubName: '',
+                        groubImg: isGroup ? (ctrl.userChatModel?.image ?? '') : '',
+                        groubName: isGroup ? (ctrl.userChatModel?.name ?? '') : '',
                         isVideoCall: !isAudio,
                         isGroub: isGroup,
                         onPressAnswer: () async {
@@ -218,12 +219,13 @@ class ChatController extends GetxController {
 
                           ctrl.isIncomingCallScreenShowing = false;
                           ctrl.audio = isAudio;
+                          final myId = int.tryParse(sharedPreferences?.getString("id") ?? "0") ?? 0;
+                          final myName = sharedPreferences?.getString("name") ?? "";
                           await ctrl.getTokenCall(
                             isGroub: isGroup,
                             groubUsersNames: isGroup
                                 ? {
-                                    int.parse(sharedPreferences!.getString("id")!):
-                                        sharedPreferences!.getString("name")!
+                                    myId: myName,
                                   }
                                 : {},
                             usernameFriend: isGroup ? "" : callerName,
@@ -234,7 +236,10 @@ class ChatController extends GetxController {
                           ctrl.isIncomingCallScreenShowing = false;
                           ctrl.isIncomingCallActive = false;
                           ctrl.update();
-                          ctrl.sendSystemMessage("|||CALL_DECLINED|||");
+                          // 🌟 فقط في المكالمات الفردية نرسل إشعار الرفض للمتصل، في الجروب الرفض فردي ولا ينهي المكالمة
+                          if (!isGroup) {
+                            ctrl.sendSystemMessage("|||CALL_DECLINED|||");
+                          }
                         },
                       ))?.then((_) {
                         ctrl.isIncomingCallScreenShowing = false;
@@ -415,10 +420,12 @@ class ChatController extends GetxController {
           }
 
           // 🌟 إذا كانت هناك مكالمة جارية بالفعل وضغط المستخدم على أيقونة الاتصال، ينضم إليها كمشترك ولا ينشئ مكالمة جديدة
-          if (!isJoin && isActive && !isGroub) {
+          if (!isJoin && isActive) {
             Get.snackbar(
               "تنبيه",
-              "يوجد مكالمة جارية بالفعل مع هذا الشخص، جاري الانضمام إليها...",
+              isGroub
+                  ? "يوجد مكالمة جماعية جارية بالفعل، جاري الانضمام إليها..."
+                  : "يوجد مكالمة جارية بالفعل مع هذا الشخص، جاري الانضمام إليها...",
               backgroundColor: Colors.blueGrey,
               colorText: Colors.white,
             );
