@@ -37,6 +37,8 @@ String formatLastMessage(BuildContext context, UserChatModel chat) {
       return "$prefix${isRtl ? "تم إنهاء المكالمة" : "Call ended"}";
     } else if (msgContent == '|||CALL_DECLINED|||' || msgContent.contains('CALL_DECLINED')) {
       return "$prefix${isRtl ? "مكالمة فائتة" : "Missed call"}";
+    } else if (msgContent == '|||CALL_BUSY|||' || msgContent.contains('CALL_BUSY')) {
+      return "$prefix${isRtl ? "المستخدم مشغول" : "User is busy"}";
     } else if (msgContent.startsWith('|||GROUP_CALL_START|||') || msgContent.startsWith('|||PRIVATE_CALL_START|||')) {
       return "$prefix${msgContent.contains('video') ? (isRtl ? "مكالمة فيديو" : "Video Call") : (isRtl ? "مكالمة صوتية" : "Voice Call")}";
     }

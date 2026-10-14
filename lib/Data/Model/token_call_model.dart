@@ -13,7 +13,7 @@ class TokenCallModel {
       {this.uid, this.token, this.channel, this.conversation, this.expireAt});
 
   TokenCallModel.fromJson(Map<String, dynamic> json) {
-    uid = json['uid'];
+    uid = json['uid'] != null ? int.tryParse(json['uid'].toString()) : null;
     token = json['token'];
     channel = json['channel'];
     conversation = json['conversation'] != null

@@ -18,17 +18,17 @@ import 'package:live_chat/View/Screens/create%20chat/audio_call_view.dart';
 import 'package:live_chat/View/Screens/create%20chat/chat_view.dart';
 import 'package:live_chat/View/Screens/create%20chat/video_call_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:live_chat/View/Screens/Home/home_view.dart';
+import 'package:live_chat/View/Screens/start%20page/page_start.dart';
 import 'package:live_chat/Controller/audio_call_controller.dart';
 import 'package:live_chat/Controller/video_call_controller.dart';
 import 'package:live_chat/View/Screens/friends/friends.dart';
 import 'package:live_chat/View/Screens/friends/requests.dart';
 import 'package:live_chat/View/Screens/notifications/notifications.dart';
-import 'package:live_chat/View/Widget/PublicWidget/message_error.dart';
 import 'dart:convert';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:live_chat/View/Widget/PublicWidget/video_call_notification.dart';
 import 'package:live_chat/Core/Constant/app_color.dart';
-import 'package:live_chat/generated/l10n.dart';
 import 'package:live_chat/main.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:live_chat/firebase_options.dart';
@@ -140,6 +140,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 class FirebaseNotification {
   static bool isHandlingCallLaunch = false;
+  static bool isAnsweringNotificationCall = false;
   final firebaseMessagin = FirebaseMessaging.instance;
 Future<void> intilizeNotification() async {
     // 🌟 1. طلب الصلاحيات أولاً (عشان فايربيز يفتح البوابات)
@@ -225,9 +226,9 @@ Future<void> intilizeNotification() async {
       if (activeCalls.isNotEmpty) {
         log("📞 [STARTUP] Found active CallKit calls: $activeCalls");
         for (var c in activeCalls) {
-          if (c.extra != null) {
+          if (c.extra != null && c.isAccepted) {
             final extra = Map<String, dynamic>.from(c.extra!);
-            log("📞 [STARTUP] User has active call from terminated state! Answering now...");
+            log("📞 [STARTUP] User accepted call from terminated state! Answering now...");
             isHandlingCallLaunch = true;
             await FlutterCallkitIncoming.endAllCalls();
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -284,6 +285,10 @@ Future<void> intilizeNotification() async {
   }
 
   Future<void> answerCallFromNotification(Map<String, dynamic> data) async {
+    if (isAnsweringNotificationCall) {
+      log("🔇 Ignoring answer call: Already in progress");
+      return;
+    }
     final bool isAlreadyInCall = Get.isRegistered<AudioCallController>() ||
         Get.isRegistered<VideoCallController>();
     if (isAlreadyInCall) {
@@ -291,35 +296,46 @@ Future<void> intilizeNotification() async {
       return;
     }
 
-    final isAudio = data['call_type'] == "audio";
-    final isGroub = data['is_group'] == "1" ||
-        data['is_group'] == 1 ||
-        data['is_group'].toString() == 'true';
-    final callerName = data['caller_name'] ?? 'Unknown';
-    final usernameFriend = isGroub ? "" : callerName;
+    isAnsweringNotificationCall = true;
 
-    Map<int, String> groubUsersNames = {};
-    if (isGroub) {
-      final currentUserIdStr = sharedPreferences?.getString("id") ?? "0";
-      final currentUserName = sharedPreferences?.getString("username") ?? 'You';
-      groubUsersNames = {
-        int.tryParse(currentUserIdStr) ?? 0: currentUserName,
-      };
-      if (data['caller_id'] != null) {
-        final callerId = int.tryParse(data['caller_id'].toString()) ?? 0;
-        groubUsersNames[callerId] = callerName;
+    try {
+      final isAudio = data['call_type'] == "audio";
+      final isGroub = data['is_group'] == "1" ||
+          data['is_group'] == 1 ||
+          data['is_group'].toString() == 'true';
+      final callerName = data['caller_name'] ??
+          data['sender_name'] ??
+          data['title'] ??
+          'Unknown';
+      final usernameFriend = isGroub ? "" : callerName;
+
+      Map<int, String> groubUsersNames = {};
+      if (isGroub) {
+        final currentUserIdStr = sharedPreferences?.getString("id") ?? "0";
+        final currentUserName = sharedPreferences?.getString("username") ?? 'You';
+        groubUsersNames = {
+          int.tryParse(currentUserIdStr) ?? 0: currentUserName,
+        };
+        if (data['caller_id'] != null) {
+          final callerId = int.tryParse(data['caller_id'].toString()) ?? 0;
+          groubUsersNames[callerId] = callerName;
+        }
       }
+
+      log("📞 Answering call directly from notification: chatId=${data['conversation_id']}, isAudio=$isAudio");
+
+      await checkCall(
+        chatId: data['conversation_id']?.toString() ?? '',
+        audio: isAudio,
+        isGroub: isGroub,
+        groubUsersNames: groubUsersNames,
+        usernameFriend: usernameFriend,
+      );
+    } finally {
+      Future.delayed(const Duration(seconds: 3), () {
+        isAnsweringNotificationCall = false;
+      });
     }
-
-    log("📞 Answering call directly from notification: chatId=${data['conversation_id']}, isAudio=$isAudio");
-
-    await checkCall(
-      chatId: data['conversation_id'],
-      audio: isAudio,
-      isGroub: isGroub,
-      groubUsersNames: groubUsersNames,
-      usernameFriend: usernameFriend,
-    );
   }  // handle foreground messages
   Future<void> handleForGround() async {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -356,7 +372,16 @@ Future<void> intilizeNotification() async {
         final bool isAlreadyInCall = Get.isRegistered<AudioCallController>() ||
             Get.isRegistered<VideoCallController>();
         if (isAlreadyInCall) {
-          log("🔇 [FOREGROUND] Ignoring call notification: Already in an active call");
+          log("🔇 [FOREGROUND] Ignoring call notification: Already in an active call - notifying caller");
+          final callingChatId = data['conversation_id'];
+          if (callingChatId != null) {
+            final api = Get.isRegistered<Api>() ? Get.find<Api>() : Api();
+            final chatsData = ChatsRemoteData(api: api);
+            chatsData.sendMessages(
+              chatId: callingChatId.toString(),
+              message: "|||CALL_BUSY|||",
+            );
+          }
           return;
         }
 
@@ -980,8 +1005,20 @@ Future<void> intilizeNotification() async {
         }
 
         if (!isActive) {
-          messageError(
-              S.of(Get.context!).warning, S.of(Get.context!).closeCall);
+          if (isHandlingCallLaunch) {
+            isHandlingCallLaunch = false;
+            if (sharedPreferences?.getString("page") == "Home") {
+              Get.offAll(() => const HomeView());
+            } else {
+              Get.offAll(() => const PageStart());
+            }
+          }
+          Get.snackbar(
+            "تنبيه",
+            "المكالمة غير نشطة أو قد انتهت بالفعل.",
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+          );
         } else {
           Map<int, String> updatedUserNamesMap = {...groubUsersNames};
 
@@ -1055,30 +1092,31 @@ Future<void> intilizeNotification() async {
               ? ""
               : (usernameFriend.isNotEmpty ? usernameFriend : 'User');
 
+          final callArgs = {
+            "ChannelName": _tokenCallModel!.channel,
+            "Token": _tokenCallModel!.token,
+            "UId": _tokenCallModel!.uid,
+            "IsGroupCall": isGroub,
+            "chatId": chatId.toString(),
+            "RemoteUserName": remoteUserName,
+            "UserNamesMap": groubUsersNames,
+            "LocalUserName": sharedPreferences!.getString("name") ?? 'You',
+            "isCaller": false,
+          };
+
+          if (isHandlingCallLaunch) {
+            isHandlingCallLaunch = false;
+            if (sharedPreferences?.getString("page") == "Home") {
+              Get.offAll(() => const HomeView());
+            } else {
+              Get.offAll(() => const PageStart());
+            }
+          }
+
           if (audio) {
-            Get.off(() => const AudioCallPage(), arguments: {
-              "ChannelName": _tokenCallModel!.channel,
-              "Token": _tokenCallModel!.token,
-              "UId": _tokenCallModel!.uid,
-              "IsGroupCall": isGroub,
-              "chatId": chatId,
-              "RemoteUserName": remoteUserName,
-              "UserNamesMap": groubUsersNames,
-              "LocalUserName": sharedPreferences!.getString("name") ?? 'You',
-              "isCaller": false,
-            });
+            Get.to(() => const AudioCallPage(), arguments: callArgs);
           } else {
-            Get.off(() => const VideoCallPage(), arguments: {
-              "ChannelName": _tokenCallModel!.channel,
-              "Token": _tokenCallModel!.token,
-              "UId": _tokenCallModel!.uid,
-              "IsGroupCall": isGroub,
-              "chatId": chatId,
-              "RemoteUserName": remoteUserName,
-              "UserNamesMap": groubUsersNames,
-              "LocalUserName": sharedPreferences!.getString("name") ?? 'You',
-              "isCaller": false,
-            });
+            Get.to(() => const VideoCallPage(), arguments: callArgs);
           }
         } else {
           log("❌ Token data is null");

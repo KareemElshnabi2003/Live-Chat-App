@@ -61,6 +61,7 @@ class ChatController extends GetxController {
   bool hasMoreMessages = true;
   bool audio = false;
   bool isIncomingCallScreenShowing = false;
+  bool isIncomingCallActive = false;
   bool isImagePickerActive = false;
   TokenCallModel? tokenCallModel;
 
@@ -174,8 +175,13 @@ class ChatController extends GetxController {
                     final bool isAlreadyInCall = Get.isRegistered<VideoCallController>() ||
                         Get.isRegistered<AudioCallController>();
                     if (isAlreadyInCall) {
-                      log("🔇 [PUSHER] Already in an active call - ignoring incoming call event");
+                      log("🔇 [PUSHER] Already in an active call - replying with CALL_BUSY and ignoring");
+                      if (!isMe) {
+                        ctrl.sendSystemMessage("|||CALL_BUSY|||");
+                      }
                     } else if (!ctrl.isIncomingCallScreenShowing) {
+                      ctrl.isIncomingCallActive = true;
+                      ctrl.update();
                       ctrl.isIncomingCallScreenShowing = true;
                       bool isGroup = messageContent.startsWith('|||GROUP_CALL_START|||');
                       String callType = messageContent
@@ -210,15 +216,34 @@ class ChatController extends GetxController {
                         },
                         onPressReject: () {
                           ctrl.isIncomingCallScreenShowing = false;
+                          ctrl.isIncomingCallActive = false;
+                          ctrl.update();
                           ctrl.sendSystemMessage("|||CALL_DECLINED|||");
                         },
                       ))?.then((_) {
                         ctrl.isIncomingCallScreenShowing = false;
                       });
                     }
+                  } else if (messageContent == '|||CALL_BUSY|||') {
+                    ctrl.isIncomingCallActive = false;
+                    ctrl.update();
+                    if (ctrl.isIncomingCallScreenShowing) {
+                      ctrl.isIncomingCallScreenShowing = false;
+                      Get.back();
+                    }
+                    if (Get.isRegistered<VideoCallController>()) {
+                      final videoCtrl = Get.find<VideoCallController>();
+                      videoCtrl.onBusyCall();
+                    }
+                    if (Get.isRegistered<AudioCallController>()) {
+                      final audioCtrl = Get.find<AudioCallController>();
+                      audioCtrl.onBusyCall();
+                    }
                   } else if (messageContent == '|||CALL_ENDED|||' ||
                       messageContent == '|||GROUP_CALL_ENDED|||' ||
                       messageContent == '|||CALL_DECLINED|||') {
+                    ctrl.isIncomingCallActive = false;
+                    ctrl.update();
                     if (ctrl.isIncomingCallScreenShowing) {
                       ctrl.isIncomingCallScreenShowing = false;
                       Get.back();
@@ -488,6 +513,7 @@ class ChatController extends GetxController {
         if (page == 1) {
           messages
               .assignAll(newChatMessages); // 🌟 أسرع بكتير من clear ثم addAll
+          _updateCallActiveStatus();
         } else {
           messages.addAll(newChatMessages);
         }
@@ -499,6 +525,25 @@ class ChatController extends GetxController {
     }
     isLoadingMore = false;
     update();
+  }
+
+  void _updateCallActiveStatus() {
+    isIncomingCallActive = false;
+    for (var msg in messages) {
+      final content = msg.message;
+      if (content == '|||CALL_ENDED|||' ||
+          content == '|||GROUP_CALL_ENDED|||' ||
+          content == '|||CALL_DECLINED|||' ||
+          content == '|||CALL_BUSY|||') {
+        isIncomingCallActive = false;
+        break;
+      }
+      if (content.startsWith('|||PRIVATE_CALL_START|||') ||
+          content.startsWith('|||GROUP_CALL_START|||')) {
+        isIncomingCallActive = !msg.isFromSender;
+        break;
+      }
+    }
   }
 
   Future<void> loadMoreMessages() async {

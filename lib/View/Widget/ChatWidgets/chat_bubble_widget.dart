@@ -289,6 +289,16 @@ class ChatBubbleWidget extends StatelessWidget {
                Text(text, style: TextStyle(color: isFromSender ? Colors.white : AppColors.blackTextColor, fontStyle: FontStyle.italic, fontSize: 3.5.w)),
              ]
            );
+        } else if (content == '|||CALL_BUSY|||') {
+           final text = isRtl ? 'المستخدم مشغول بمكالمة أخرى' : 'User is busy on another call';
+           return Row(
+             mainAxisSize: MainAxisSize.min,
+             children: [
+               Icon(Icons.phone_paused, color: Colors.orangeAccent, size: 5.w),
+               SizedBox(width: 2.w),
+               Text(text, style: TextStyle(color: isFromSender ? Colors.white : AppColors.blackTextColor, fontStyle: FontStyle.italic, fontSize: 3.5.w)),
+             ]
+           );
         } else if (content == '|||CALL_ENDED|||' || content == '|||GROUP_CALL_ENDED|||') {
            final text = isRtl ? 'تم إنهاء المكالمة' : 'Call ended';
            return Row(

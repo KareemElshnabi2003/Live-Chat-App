@@ -87,7 +87,7 @@ class VideoCallController extends GetxController {
     isGroubCall = Get.arguments?["IsGroupCall"] ?? false;
     uId = Get.arguments?["UId"];
     channelName = Get.arguments?["ChannelName"] ?? '';
-    chatId = Get.arguments?['chatId'] ?? '';
+    chatId = Get.arguments?['chatId']?.toString() ?? '';
     localUserName = Get.arguments?['LocalUserName'] ?? 'You';
     remoteUserName = Get.arguments?['RemoteUserName'];
 
@@ -468,6 +468,28 @@ class VideoCallController extends GetxController {
       Get.back();
     }
     await _disposeEngine();
+  }
+
+  void onBusyCall() async {
+    if (_isEndingCall || _isDisposed) return;
+    _isEndingCall = true;
+    _userEndedCall = true;
+
+    debugPrint('🔴 Remote user is busy, exiting call and ending on server...');
+    if (Get.context != null && Get.context!.mounted) {
+      Get.back();
+    }
+    await _disposeEngine();
+    await endCallApi();
+
+    Get.snackbar(
+      "المكالمة",
+      "المستخدم في مكالمة أخرى حالياً",
+      backgroundColor: Colors.red[900],
+      colorText: Colors.white,
+      duration: const Duration(seconds: 3),
+      snackPosition: SnackPosition.TOP,
+    );
   }
 
   Future<void> endCall() async {

@@ -305,21 +305,40 @@ class ChatAppBarWidget extends StatelessWidget {
         ],
       );
 
-  Widget _buildAudioCallIcon() => GestureDetector(
-        onTap: () => _initCall(true),
-        child: Icon(IconsaxPlusLinear.call_calling,
-            size: 5.5.w,
-            color: pref! ? AppColors.blackColor : AppColors.blackColor),
+  Widget _buildAudioCallIcon() => GetBuilder<ChatController>(
+        builder: (ctrl) {
+          final isBlocked = ctrl.isIncomingCallActive;
+          return GestureDetector(
+            onTap: () => _initCall(true),
+            child: Icon(IconsaxPlusLinear.call_calling,
+                size: 5.5.w,
+                color: isBlocked ? Colors.grey : AppColors.blackColor),
+          );
+        },
       );
 
-  Widget _buildVideoCallIcon() => GestureDetector(
-        onTap: () => _initCall(false),
-        child: Icon(IconsaxPlusLinear.video,
-            size: 5.5.w,
-            color: pref! ? AppColors.blackColor : AppColors.blackColor),
+  Widget _buildVideoCallIcon() => GetBuilder<ChatController>(
+        builder: (ctrl) {
+          final isBlocked = ctrl.isIncomingCallActive;
+          return GestureDetector(
+            onTap: () => _initCall(false),
+            child: Icon(IconsaxPlusLinear.video,
+                size: 5.5.w,
+                color: isBlocked ? Colors.grey : AppColors.blackColor),
+          );
+        },
       );
 
   void _initCall(bool isAudio) async {
+    if (controller.isIncomingCallActive) {
+      Get.snackbar(
+        "تنبيه",
+        "يوجد مكالمة جارية بالفعل، يمكنك الضغط على 'انضمام الآن' من الرسالة في الشات",
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return;
+    }
     final isGroup =
         userChatModel.status == "Public" || userChatModel.status == "Private";
     controller.audio = isAudio;

@@ -459,6 +459,15 @@ class _ChatViewState extends State<ChatViewFriend> {
         borderRadius: BorderRadius.circular(10),
         onSelected: (String value) async {
           final controller = Get.find<ChatController>();
+          if (controller.isIncomingCallActive) {
+            Get.snackbar(
+              "تنبيه",
+              "يوجد مكالمة جارية بالفعل، يمكنك الضغط على 'انضمام الآن' من الرسالة في الشات",
+              backgroundColor: Colors.orange,
+              colorText: Colors.white,
+            );
+            return;
+          }
           final isGroup = widget.userChatModel!.status == "Public" ||
               widget.userChatModel!.status == "Private";
           if (value == 'video_call') {
@@ -534,50 +543,76 @@ class _ChatViewState extends State<ChatViewFriend> {
         ),
       );
 
-  Widget _buildAudioCallIcon() => GestureDetector(
-        onTap: () async {
-          final controller = Get.find<ChatController>();
-          final isGroup = widget.userChatModel!.status == "Public" ||
-              widget.userChatModel!.status == "Private";
-          controller.audio = true;
-          await controller.getTokenCall(
-              isGroub: isGroup,
-              groubUsersNames: isGroup
-                  ? {
-                      int.parse(sharedPreferences!.getString("id")!):
-                          sharedPreferences!.getString("name")!
-                    }
-                  : {},
-              usernameFriend: isGroup ? "" : widget.userChatModel!.name);
+  Widget _buildAudioCallIcon() => GetBuilder<ChatController>(
+        builder: (controller) {
+          final isBlocked = controller.isIncomingCallActive;
+          return GestureDetector(
+            onTap: () async {
+              if (isBlocked) {
+                Get.snackbar(
+                  "تنبيه",
+                  "يوجد مكالمة جارية بالفعل، يمكنك الضغط على 'انضمام الآن' من الرسالة في الشات",
+                  backgroundColor: Colors.orange,
+                  colorText: Colors.white,
+                );
+                return;
+              }
+              final isGroup = widget.userChatModel!.status == "Public" ||
+                  widget.userChatModel!.status == "Private";
+              controller.audio = true;
+              await controller.getTokenCall(
+                  isGroub: isGroup,
+                  groubUsersNames: isGroup
+                      ? {
+                          int.parse(sharedPreferences!.getString("id")!):
+                              sharedPreferences!.getString("name")!
+                        }
+                      : {},
+                  usernameFriend: isGroup ? "" : widget.userChatModel!.name);
+            },
+            child: Icon(
+              IconsaxPlusLinear.call_calling,
+              size: 5.5.w,
+              color: isBlocked ? Colors.grey : AppColors.blackColor,
+            ),
+          );
         },
-        child: Icon(
-          IconsaxPlusLinear.call_calling,
-          size: 5.5.w,
-          color: pref! ? AppColors.blackColor : AppColors.blackColor,
-        ),
       );
 
-  Widget _buildVideoCallIcon() => GestureDetector(
-        onTap: () async {
-          final controller = Get.find<ChatController>();
-          final isGroup = widget.userChatModel!.status == "public" ||
-              widget.userChatModel!.status == "private";
-          controller.audio = false;
-          await controller.getTokenCall(
-              isGroub: isGroup,
-              groubUsersNames: isGroup
-                  ? {
-                      int.parse(sharedPreferences!.getString("id")!):
-                          sharedPreferences!.getString("name")!
-                    }
-                  : {},
-              usernameFriend: isGroup ? "" : widget.userChatModel!.name);
+  Widget _buildVideoCallIcon() => GetBuilder<ChatController>(
+        builder: (controller) {
+          final isBlocked = controller.isIncomingCallActive;
+          return GestureDetector(
+            onTap: () async {
+              if (isBlocked) {
+                Get.snackbar(
+                  "تنبيه",
+                  "يوجد مكالمة جارية بالفعل، يمكنك الضغط على 'انضمام الآن' من الرسالة في الشات",
+                  backgroundColor: Colors.orange,
+                  colorText: Colors.white,
+                );
+                return;
+              }
+              final isGroup = widget.userChatModel!.status == "public" ||
+                  widget.userChatModel!.status == "private";
+              controller.audio = false;
+              await controller.getTokenCall(
+                  isGroub: isGroup,
+                  groubUsersNames: isGroup
+                      ? {
+                          int.parse(sharedPreferences!.getString("id")!):
+                              sharedPreferences!.getString("name")!
+                        }
+                      : {},
+                  usernameFriend: isGroup ? "" : widget.userChatModel!.name);
+            },
+            child: Icon(
+              IconsaxPlusLinear.video,
+              size: 5.5.w,
+              color: isBlocked ? Colors.grey : AppColors.blackColor,
+            ),
+          );
         },
-        child: Icon(
-          IconsaxPlusLinear.video,
-          size: 5.5.w,
-          color: pref! ? AppColors.blackColor : AppColors.blackColor,
-        ),
       );
 
   Widget _buildBlockIcon(ChatController controller) => GestureDetector(

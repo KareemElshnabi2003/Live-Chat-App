@@ -218,6 +218,15 @@ class ChatInputWidget extends StatelessWidget {
                             Text(callType, style: TextStyle(color: pref! ? Colors.white70 : Colors.black54, fontSize: 3.w)),
                           ],
                         );
+                      } else if (msgText == '|||CALL_BUSY|||' || msgText.contains('CALL_BUSY')) {
+                        final callType = isRtl ? "المستخدم مشغول" : "User is busy";
+                        return Row(
+                          children: [
+                            Icon(Icons.phone_paused, size: 4.w, color: Colors.orangeAccent),
+                            SizedBox(width: 1.w),
+                            Text(callType, style: TextStyle(color: pref! ? Colors.white70 : Colors.black54, fontSize: 3.w)),
+                          ],
+                        );
                       }
                     } else if (repMsg.messageType == 'image') {
                       return Row(

@@ -95,7 +95,7 @@ class AudioCallController extends GetxController {
     uId = Get.arguments?['UId'];
     channelName = Get.arguments?['ChannelName'] ?? '';
     isGroupCall.value = Get.arguments?['IsGroupCall'] ?? false;
-    chatId = Get.arguments?['chatId'] ?? '';
+    chatId = Get.arguments?['chatId']?.toString() ?? '';
     localUserName.value = Get.arguments?['LocalUserName'] ?? 'You';
     remoteUserName.value = Get.arguments?['RemoteUserName'] ?? 'User';
 
@@ -624,6 +624,27 @@ userNamesMap: ${userNamesMap.toString()}
       Get.back();
     }
     await _disposeEngine();
+  }
+
+  void onBusyCall() async {
+    if (_isEndingCall || _isDisposed) return;
+    _isEndingCall = true;
+
+    debugPrint('🔴 Remote user is busy, exiting audio call and ending on server...');
+    if (Get.context != null && Get.context!.mounted) {
+      Get.back();
+    }
+    await _disposeEngine();
+    await endCallApi();
+
+    Get.snackbar(
+      "المكالمة",
+      "المستخدم في مكالمة أخرى حالياً",
+      backgroundColor: Colors.red[900],
+      colorText: Colors.white,
+      duration: const Duration(seconds: 3),
+      snackPosition: SnackPosition.TOP,
+    );
   }
 
   Future<void> endCall() async {
