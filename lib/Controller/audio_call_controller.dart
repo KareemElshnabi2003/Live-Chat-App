@@ -630,12 +630,13 @@ userNamesMap: ${userNamesMap.toString()}
     if (_isEndingCall || _isDisposed) return;
     _isEndingCall = true;
 
-    debugPrint('🔴 Remote user is busy, exiting audio call and ending on server...');
+    debugPrint('🔴 Remote user is busy, exiting audio call and ending on server without sending CALL_ENDED message...');
     if (Get.context != null && Get.context!.mounted) {
       Get.back();
     }
     await _disposeEngine();
-    await endCallApi();
+    // 🌟 إنهاء المكالمة على السيرفر لتفريغ الجلسة مع منع إرسال رسالة CALL_ENDED لأن الطرف الآخر أرسل CALL_BUSY بالفعل
+    await endCallApi(sendEndedMessage: false);
 
     Get.snackbar(
       "المكالمة",
@@ -676,7 +677,7 @@ userNamesMap: ${userNamesMap.toString()}
 
   StatuesRequest statuesRequest = StatuesRequest.none;
 
-  Future<void> endCallApi() async {
+  Future<void> endCallApi({bool sendEndedMessage = true}) async {
     if (chatId.isEmpty) {
       log('⚠️ Cannot end call: chatId is empty');
       return;
@@ -692,13 +693,15 @@ userNamesMap: ${userNamesMap.toString()}
         statuesRequest = handlingData(response);
         if (statuesRequest == StatuesRequest.success) {
           log('✅ End call successful >>> ${response['data']} <<<');
-          if (Get.isRegistered<ChatController>()) {
-            Get.find<ChatController>().sendSystemMessage(isGroupCall.value ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||");
-          } else {
-            _chatsRemoteData.sendMessages(
-                chatId: chatId, 
-                message: isGroupCall.value ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||"
-            );
+          if (sendEndedMessage) {
+            if (Get.isRegistered<ChatController>()) {
+              Get.find<ChatController>().sendSystemMessage(isGroupCall.value ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||");
+            } else {
+              _chatsRemoteData.sendMessages(
+                  chatId: chatId, 
+                  message: isGroupCall.value ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||"
+              );
+            }
           }
           final responseBody = response['data'];
           if (responseBody != null) {

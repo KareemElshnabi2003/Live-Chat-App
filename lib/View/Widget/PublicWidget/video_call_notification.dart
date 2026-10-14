@@ -11,6 +11,9 @@ import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
 
 class IncomingCallScreen extends StatefulWidget {
+  // 🛡️ Flag لمنع ظهور شاشتين رنين في نفس الوقت (مثلاً من Pusher و FCM معاً)
+  static bool isShowing = false;
+
   final String callerName;
   final String groubName;
   final String callerImage;
@@ -71,11 +74,13 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
   @override
   void initState() {
     super.initState();
+    IncomingCallScreen.isShowing = true;
     _startRingtone();
   }
 
   @override
   void dispose() {
+    IncomingCallScreen.isShowing = false;
     _stopRingtone();
     _audioPlayer.dispose();
     _pulseController.dispose();
@@ -84,27 +89,15 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
     super.dispose();
   }
 
-
-
-
 // 3. عدل دالة التشغيل
   Future<void> _startRingtone() async {
     try {
       _isPlayingSound = true;
-
       // تحديد مسار الرنة من الـ Assets
-      // اتأكد إن مسار الفايل مكتوب كامل زي ما هو في pubspec.yaml
       await _audioPlayer.setAsset('assets/past_live.mp3');
-
-      // تفعيل التكرار (عشان الرنة تفضل شغالة لحد ما اليوزر يرد)
       await _audioPlayer.setLoopMode(LoopMode.one);
-
-      // ضبط الصوت
-      await _audioPlayer.setVolume(0.8);
-
-      // تشغيل
-      _audioPlayer.play();
-
+      await _audioPlayer.setVolume(1.0);
+      await _audioPlayer.play();
     } catch (e) {
       debugPrint('Error playing ringtone: $e');
     }
@@ -121,39 +114,6 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
       debugPrint('Error stopping ringtone: $e');
     }
   }
-  // // Start playing ringtone
-  // Future<void> _startRingtone() async {
-  //   try {
-  //     _isPlayingSound = true;
-  //
-  //     // Option 1: Play from assets (preferred)
-  //     // Make sure you have a ringtone file in assets/sounds/ringtone.mp3
-  //     await _audioPlayer.play(AssetSource('past_live.mp3'));
-  //
-  //     // Set to loop
-  //     await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-  //
-  //     // Set volume (0.0 to 1.0)
-  //     await _audioPlayer.setVolume(0.8);
-  //
-  //     // Option 2: Play from URL (if you want to use online sound)
-  //     // await _audioPlayer.play(UrlSource('YOUR_RINGTONE_URL'));
-  //   } catch (e) {
-  //     debugPrint('Error playing ringtone: $e');
-  //   }
-  // }
-  //
-  // // Stop playing ringtone
-  // Future<void> _stopRingtone() async {
-  //   try {
-  //     if (_isPlayingSound) {
-  //       await _audioPlayer.stop();
-  //       _isPlayingSound = false;
-  //     }
-  //   } catch (e) {
-  //     debugPrint('Error stopping ringtone: $e');
-  //   }
-  // }
 
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -168,6 +128,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
   }
 
   void _onReject() async {
+    IncomingCallScreen.isShowing = false;
     await _stopRingtone();
     widget.onPressReject?.call();
     Get.back();
@@ -175,7 +136,9 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
   }
 
   void _onAccept() async {
+    IncomingCallScreen.isShowing = false;
     await _stopRingtone();
+    Get.back();
     widget.onPressAnswer();
   }
 

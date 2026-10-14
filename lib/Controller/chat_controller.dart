@@ -179,7 +179,7 @@ class ChatController extends GetxController {
                       if (!isMe) {
                         ctrl.sendSystemMessage("|||CALL_BUSY|||");
                       }
-                    } else if (!ctrl.isIncomingCallScreenShowing) {
+                    } else if (!ctrl.isIncomingCallScreenShowing && !IncomingCallScreen.isShowing) {
                       ctrl.isIncomingCallActive = true;
                       ctrl.update();
                       ctrl.isIncomingCallScreenShowing = true;
@@ -201,7 +201,6 @@ class ChatController extends GetxController {
                         onPressAnswer: () async {
                           ctrl.isIncomingCallScreenShowing = false;
                           ctrl.audio = isAudio;
-                          Get.back(); // close IncomingCallScreen
                           await ctrl.getTokenCall(
                             isGroub: isGroup,
                             groubUsersNames: isGroup
