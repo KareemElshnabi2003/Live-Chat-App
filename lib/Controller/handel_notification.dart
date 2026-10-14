@@ -8,18 +8,10 @@ import 'package:flutter_callkit_incoming/entities/call_event.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:live_chat/Core/Class/api.dart';
-import 'package:live_chat/Core/Class/error_handler.dart';
-import 'package:live_chat/Core/class/status_request.dart';
-import 'package:live_chat/Core/function/handling_data.dart';
 import 'package:live_chat/Data/DataSource/chats_source.dart';
-import 'package:live_chat/Data/Model/token_call_model.dart';
 import 'package:live_chat/Data/Model/user_chat_model.dart';
-import 'package:live_chat/View/Screens/create%20chat/audio_call_view.dart';
 import 'package:live_chat/View/Screens/create%20chat/chat_view.dart';
-import 'package:live_chat/View/Screens/create%20chat/video_call_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:live_chat/View/Screens/Home/home_view.dart';
-import 'package:live_chat/View/Screens/start%20page/page_start.dart';
 import 'package:live_chat/Controller/audio_call_controller.dart';
 import 'package:live_chat/Controller/video_call_controller.dart';
 import 'package:live_chat/Controller/chat_controller.dart';
@@ -327,7 +319,8 @@ Future<void> intilizeNotification() async {
         user: User(id: currentUserId),
       );
 
-      await Get.to(
+      // ⚠️ تنبيه هام: لا نستخدم await هنا لأن Get.to() تُرجع Future يكتمل فقط عند إغلاق الشاشة (Pop)!
+      Get.to(
         () => ChatView(
           userChatModel: chatModel,
           isPin: false,
@@ -335,6 +328,9 @@ Future<void> intilizeNotification() async {
         ),
         arguments: {"chatId": chatId},
       );
+
+      // 🌟 تأخير بسيط (400ms) لإعطاء فرصة لـ initState في ChatView لتسجيل ChatController
+      await Future.delayed(const Duration(milliseconds: 400));
 
       // 3. الآن تم تسجيل ChatController في الذاكرة ومتاح بشكل كامل
       if (Get.isRegistered<ChatController>()) {
@@ -1077,192 +1073,6 @@ Future<void> intilizeNotification() async {
         transition: Transition.leftToRight,
         duration: const Duration(milliseconds: 800),
         curve: Curves.easeOut);
-  }
-
-  final ChatsRemoteData _chatsRemoteData =
-      ChatsRemoteData(api: Get.find<Api>());
-
-  StatuesRequest statuesRequest = StatuesRequest.none;
-  TokenCallModel? _tokenCallModel;
-
-  checkCall({
-    required chatId,
-    required bool audio,
-    required bool isGroub,
-    required Map<int, String> groubUsersNames,
-    required String usernameFriend,
-  }) async {
-    log("check");
-    statuesRequest = StatuesRequest.loading;
-    Get.appUpdate();
-
-    var response = await _chatsRemoteData.checkCall(
-      id: chatId,
-    );
-    log(response.toString());
-    statuesRequest = handlingData(response);
-
-    if (statuesRequest == StatuesRequest.success) {
-      log("check call  >>> ${response['data']}  <<< ");
-
-      final responseBody = response['data'];
-      if (responseBody != null) {
-        log("check call  >>> ${response['data']['status']}  <<< ");
-
-        final rawStatus = response['data']['status'];
-        bool isActive = false;
-        if (rawStatus is num) {
-          isActive = rawStatus != 0;
-        } else if (rawStatus is bool) {
-          isActive = rawStatus;
-        } else if (rawStatus != null) {
-          final s = rawStatus.toString().trim().toLowerCase();
-          isActive = s == "active" || s == "1" || s == "true";
-        }
-
-        if (!isActive) {
-          if (isHandlingCallLaunch) {
-            isHandlingCallLaunch = false;
-            if (sharedPreferences?.getString("page") == "Home") {
-              Get.offAll(() => const HomeView());
-            } else {
-              Get.offAll(() => const PageStart());
-            }
-          }
-          Get.snackbar(
-            "تنبيه",
-            "المكالمة غير نشطة أو قد انتهت بالفعل.",
-            backgroundColor: Colors.orange,
-            colorText: Colors.white,
-          );
-        } else {
-          Map<int, String> updatedUserNamesMap = {...groubUsersNames};
-
-          if (isGroub) {
-            var usersResponse = await _chatsRemoteData.getConversationUsers(
-              chatId: int.parse(chatId.toString()),
-            );
-
-            if (usersResponse['status'] == 'success' &&
-                usersResponse['data'] != null) {
-              for (var userData in usersResponse['data']) {
-                final uid = int.parse(userData['uid'].toString());
-                final username = userData['username'] ?? 'User';
-                updatedUserNamesMap[uid] = username;
-              }
-              log("✅ Fetched ${updatedUserNamesMap.length} users for group call");
-            }
-          }
-
-          getTokenCall(
-              chatId: chatId,
-              audio: audio,
-              isGroub: isGroub,
-              groubUsersNames: updatedUserNamesMap, // Pass updated map
-              usernameFriend: usernameFriend);
-        }
-      } else {
-        log("check call data is null");
-        showUserFriendlyError(statuesRequest);
-      }
-    }
-
-    Get.appUpdate();
-  }
-
-  Future<void> getTokenCall({
-    required chatId,
-    required bool audio,
-    required bool isGroub,
-    required Map<int, String> groubUsersNames,
-    required String usernameFriend,
-  }) async {
-    Get.dialog(
-      const Center(
-        child: CircularProgressIndicator(color: Colors.white),
-      ),
-      barrierDismissible: false,
-    );
-
-    try {
-      var response = await _chatsRemoteData.getTokenCall(
-        callType: audio ? "audio" : "video",
-        isGroub: isGroub,
-        role: "subscriber",
-        chatId: int.parse(chatId.toString()),
-      );
-
-      statuesRequest = handlingData(response);
-
-      if (Get.isDialogOpen ?? false) {
-        Get.back();
-      }
-
-      if (statuesRequest == StatuesRequest.success) {
-        final responseBody = response['data'];
-        if (responseBody != null) {
-          _tokenCallModel = TokenCallModel.fromJson(responseBody);
-          log("✅ Token loaded successfully >>> ${response['data']} <<<");
-
-          final remoteUserName = isGroub
-              ? ""
-              : (usernameFriend.isNotEmpty ? usernameFriend : 'User');
-
-          final callArgs = {
-            "ChannelName": _tokenCallModel!.channel,
-            "Token": _tokenCallModel!.token,
-            "UId": _tokenCallModel!.uid,
-            "IsGroupCall": isGroub,
-            "chatId": chatId.toString(),
-            "RemoteUserName": remoteUserName,
-            "UserNamesMap": groubUsersNames,
-            "LocalUserName": sharedPreferences!.getString("name") ?? 'You',
-            "isCaller": false,
-          };
-
-          if (isHandlingCallLaunch) {
-            isHandlingCallLaunch = false;
-            if (sharedPreferences?.getString("page") == "Home") {
-              Get.offAll(() => const HomeView());
-            } else {
-              Get.offAll(() => const PageStart());
-            }
-          }
-
-          if (audio) {
-            Get.to(() => const AudioCallPage(), arguments: callArgs);
-          } else {
-            Get.to(() => const VideoCallPage(), arguments: callArgs);
-          }
-        } else {
-          log("❌ Token data is null");
-          Get.snackbar(
-            'Error',
-            'Failed to get call token',
-            snackPosition: SnackPosition.TOP,
-            backgroundColor: Colors.red[700],
-            colorText: Colors.white,
-          );
-        }
-      } else {
-        log("❌ Failed to get token: ${statuesRequest.toString()}");
-
-        showUserFriendlyError(statuesRequest);
-      }
-    } catch (e) {
-      // Close loading dialog
-      if (Get.isDialogOpen ?? false) {
-        Get.back();
-      }
-      log("❌ Error in getTokenCall: $e");
-      Get.snackbar(
-        'Error',
-        'Failed to load call information',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red[700],
-        colorText: Colors.white,
-      );
-    }
   }
 
   onPressGroubChat({
