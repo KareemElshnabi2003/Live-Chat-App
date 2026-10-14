@@ -4,24 +4,23 @@ import 'package:live_chat/Core/Class/api.dart';
 import 'package:live_chat/Core/class/status_request.dart';
 
 StatuesRequest? _lastErrorStatus;
+String? _lastErrorMessage;
 DateTime? _lastErrorTime;
 
 void showUserFriendlyError(StatuesRequest status, {String? customMessage}) {
-  
   final now = DateTime.now();
+  final targetMessage = customMessage ?? Api.serverMessage;
+
   if (_lastErrorStatus == status && 
+      _lastErrorMessage == targetMessage &&
       _lastErrorTime != null && 
-      now.difference(_lastErrorTime!).inSeconds < 4) {
-    return; // اخرج من الدالة وماتعرضش حاجة
+      now.difference(_lastErrorTime!).inMilliseconds < 1500) {
+    return;
   }
 
-  // تحديث وقت ونوع آخر خطأ
   _lastErrorStatus = status;
+  _lastErrorMessage = targetMessage;
   _lastErrorTime = now;
-
-  // -----------------------------------------
-  // باقي الكود بتاعك زي ما هو بالظبط من غير تغيير
-  // -----------------------------------------
 
   String title = "تنبيه";
   String message = "";
@@ -45,10 +44,15 @@ void showUserFriendlyError(StatuesRequest status, {String? customMessage}) {
     case StatuesRequest.serverException:
     case StatuesRequest.serverError:
     case StatuesRequest.formatException:
-      bgColor = Colors.red.shade600;
-      iconData = Icons.dns_rounded;
-      title = "عذراً، حدث خطأ";
-      message = "نواجه مشكلة في الخادم حالياً، يرجى المحاولة لاحقاً.";
+      final hasServerMsg = (customMessage != null && customMessage.isNotEmpty) ||
+          (Api.serverMessage != null && Api.serverMessage!.isNotEmpty);
+      bgColor = hasServerMsg ? Colors.redAccent.shade700 : Colors.red.shade600;
+      iconData = hasServerMsg ? Icons.error_outline_rounded : Icons.dns_rounded;
+      title = hasServerMsg ? "تنبيه" : "عذراً، حدث خطأ";
+      message = customMessage ??
+          Api.serverMessage ??
+          "نواجه مشكلة في الخادم حالياً، يرجى المحاولة لاحقاً.";
+      Api.serverMessage = null;
       break;
 
     case StatuesRequest.forbiddenException:
@@ -62,17 +66,19 @@ void showUserFriendlyError(StatuesRequest status, {String? customMessage}) {
     case StatuesRequest.badRequestException:
     case StatuesRequest.conflictException:
     case StatuesRequest.unprocessableException:
-      bgColor = Colors.orange.shade800;
-      iconData = Icons.rule_rounded;
+      bgColor = Colors.redAccent.shade700;
+      iconData = Icons.error_outline_rounded;
       title = "تنبيه";
       message = customMessage ?? Api.serverMessage ?? "البيانات المدخلة غير صحيحة، يرجى مراجعتها.";
       Api.serverMessage = null; 
       break;
 
     default:
-      bgColor = Colors.redAccent;
-      iconData = Icons.warning_amber_rounded;
-      title = "خطأ غير متوقع";
+      final hasCustom = (customMessage != null && customMessage.isNotEmpty) ||
+          (Api.serverMessage != null && Api.serverMessage!.isNotEmpty);
+      bgColor = hasCustom ? Colors.redAccent.shade700 : Colors.redAccent;
+      iconData = hasCustom ? Icons.error_outline_rounded : Icons.warning_amber_rounded;
+      title = hasCustom ? "تنبيه" : "خطأ غير متوقع";
       message = customMessage ?? Api.serverMessage ?? "حدث خطأ غير معروف، يرجى إعادة المحاولة.";
       Api.serverMessage = null;
   }

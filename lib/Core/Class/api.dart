@@ -53,8 +53,30 @@ class Api extends GetxService {
   void _extractServerMessage(String body) {
     try {
       final decodedData = jsonDecode(body);
-      serverMessage =
-          decodedData['message'] ?? decodedData['msg'] ?? decodedData['error'];
+      if (decodedData is Map) {
+        if (decodedData['message'] != null &&
+            decodedData['message'].toString().trim().isNotEmpty) {
+          serverMessage = decodedData['message'].toString().trim();
+        } else if (decodedData['msg'] != null &&
+            decodedData['msg'].toString().trim().isNotEmpty) {
+          serverMessage = decodedData['msg'].toString().trim();
+        } else if (decodedData['error'] != null &&
+            decodedData['error'].toString().trim().isNotEmpty) {
+          serverMessage = decodedData['error'].toString().trim();
+        } else if (decodedData['errors'] != null) {
+          final errors = decodedData['errors'];
+          if (errors is Map && errors.isNotEmpty) {
+            final firstVal = errors.values.first;
+            if (firstVal is List && firstVal.isNotEmpty) {
+              serverMessage = firstVal.first.toString();
+            } else {
+              serverMessage = firstVal.toString();
+            }
+          } else if (errors is List && errors.isNotEmpty) {
+            serverMessage = errors.first.toString();
+          }
+        }
+      }
     } catch (e) {
       serverMessage = null;
     }
@@ -74,7 +96,7 @@ class Api extends GetxService {
       return right({"status": "success"}); // إرجاع نجاح بدون محاولة فك تشفير JSON لأن البودي فاضي
     }
 
-    if ([400, 402, 403, 404, 409, 422].contains(response.statusCode)) {
+    if (response.body.isNotEmpty) {
       _extractServerMessage(response.body);
     }
 

@@ -407,12 +407,21 @@ class PageStartController extends GetxController {
       statuesRequest = handlingData(response);
 
       if (statuesRequest == StatuesRequest.success) {
-        updateSheet('verifyLogin');
+        if (response['status'] == 'error' || response['code'] == 404 || response['code'] == "404") {
+          showUserFriendlyError(
+            StatuesRequest.badRequestException,
+            customMessage: response['message']?.toString() ?? S.of(Get.context!).emailError,
+          );
+        } else {
+          updateSheet('verifyLogin');
+        }
       } else if (statuesRequest == StatuesRequest.unprocessableException) {
-        log("safdfce error ");
-        snackBarError(message: S.of(Get.context!).emailError);
+        showUserFriendlyError(
+          statuesRequest,
+          customMessage: Api.serverMessage ?? S.of(Get.context!).emailError,
+        );
       } else {
-        showUserFriendlyError(statuesRequest);
+        showUserFriendlyError(statuesRequest, customMessage: Api.serverMessage);
       }
     }
     update();
@@ -427,11 +436,18 @@ class PageStartController extends GetxController {
     statuesRequest = handlingData(response);
 
     if (statuesRequest == StatuesRequest.success) {
-      userNameController.text != ""
-          ? updateSheet('verifyRegister')
-          : updateSheet('verifyLogin');
+      if (response['status'] == 'error' || response['code'] == 404 || response['code'] == "404") {
+        showUserFriendlyError(
+          StatuesRequest.badRequestException,
+          customMessage: response['message']?.toString(),
+        );
+      } else {
+        userNameController.text != ""
+            ? updateSheet('verifyRegister')
+            : updateSheet('verifyLogin');
+      }
     } else {
-      showUserFriendlyError(statuesRequest);
+      showUserFriendlyError(statuesRequest, customMessage: Api.serverMessage);
     }
     update();
   }
@@ -446,9 +462,16 @@ class PageStartController extends GetxController {
     statuesRequest = handlingData(response);
 
     if (statuesRequest == StatuesRequest.success) {
-      snackBarSuccess(message: S.of(Get.context!).successResend);
+      if (response['status'] == 'error' || response['code'] == 404 || response['code'] == "404") {
+        showUserFriendlyError(
+          StatuesRequest.badRequestException,
+          customMessage: response['message']?.toString(),
+        );
+      } else {
+        snackBarSuccess(message: S.of(Get.context!).successResend);
+      }
     } else {
-      showUserFriendlyError(statuesRequest);
+      showUserFriendlyError(statuesRequest, customMessage: Api.serverMessage);
     }
     update();
   }
@@ -469,11 +492,21 @@ class PageStartController extends GetxController {
       statuesRequest = handlingData(response);
 
       if (statuesRequest == StatuesRequest.success) {
-        updateSheet('verifyRegister');
+        if (response['status'] == 'error' || response['code'] == 404 || response['code'] == "404") {
+          showUserFriendlyError(
+            StatuesRequest.badRequestException,
+            customMessage: response['message']?.toString() ?? S.of(Get.context!).registerError,
+          );
+        } else {
+          updateSheet('verifyRegister');
+        }
       } else if (statuesRequest == StatuesRequest.unprocessableException) {
-        snackBarError(message: S.of(Get.context!).registerError);
+        showUserFriendlyError(
+          statuesRequest,
+          customMessage: Api.serverMessage ?? S.of(Get.context!).registerError,
+        );
       } else {
-        showUserFriendlyError(statuesRequest);
+        showUserFriendlyError(statuesRequest, customMessage: Api.serverMessage);
       }
     }
     update();
@@ -492,8 +525,11 @@ class PageStartController extends GetxController {
       statuesRequest = handlingData(response);
 
       if (statuesRequest == StatuesRequest.success) {
-        if (response['code'] == "404") {
-          snackBarError(message: S.of(Get.context!).otpError);
+        if (response['code'] == 404 || response['code'] == "404" || response['status'] == 'error') {
+          showUserFriendlyError(
+            StatuesRequest.badRequestException,
+            customMessage: response['message']?.toString() ?? S.of(Get.context!).otpError,
+          );
         } else {
           sharedPreferences!.remove("deviceId");
            try {
@@ -548,9 +584,15 @@ class PageStartController extends GetxController {
           );
         }
       } else if (statuesRequest == StatuesRequest.unprocessableException) {
-        snackBarError(message: S.of(Get.context!).otpError);
+        showUserFriendlyError(
+          statuesRequest,
+          customMessage: Api.serverMessage ?? S.of(Get.context!).otpError,
+        );
       } else {
-        showUserFriendlyError(statuesRequest);
+        showUserFriendlyError(
+          statuesRequest,
+          customMessage: Api.serverMessage ?? S.of(Get.context!).otpError,
+        );
       }
     }
     update();
@@ -568,8 +610,11 @@ class PageStartController extends GetxController {
       statuesRequest = handlingData(response);
 
       if (statuesRequest == StatuesRequest.success) {
-        if (response['code'] == 404) {
-          snackBarError(message: S.of(Get.context!).otpError);
+        if (response['code'] == 404 || response['code'] == "404" || response['status'] == 'error') {
+          showUserFriendlyError(
+            StatuesRequest.badRequestException,
+            customMessage: response['message']?.toString() ?? S.of(Get.context!).otpError,
+          );
         } else {
           Map<String, dynamic> responseBody = response;
           sharedPreferences!
@@ -598,8 +643,16 @@ class PageStartController extends GetxController {
             curve: Curves.easeOut,
           );
         }
+      } else if (statuesRequest == StatuesRequest.unprocessableException) {
+        showUserFriendlyError(
+          statuesRequest,
+          customMessage: Api.serverMessage ?? S.of(Get.context!).otpError,
+        );
       } else {
-        showUserFriendlyError(statuesRequest);
+        showUserFriendlyError(
+          statuesRequest,
+          customMessage: Api.serverMessage ?? S.of(Get.context!).otpError,
+        );
       }
     }
     update();
