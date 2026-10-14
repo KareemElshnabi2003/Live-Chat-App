@@ -174,12 +174,17 @@ class ChatController extends GetxController {
                       messageContent.startsWith('|||GROUP_CALL_START|||')) {
                     final bool isAlreadyInCall = Get.isRegistered<VideoCallController>() ||
                         Get.isRegistered<AudioCallController>();
-                    if (isAlreadyInCall) {
-                      log("🔇 [PUSHER] Already in an active call - replying with CALL_BUSY and ignoring");
-                      if (!isMe) {
-                        ctrl.sendSystemMessage("|||CALL_BUSY|||");
-                      }
-                    } else if (!ctrl.isIncomingCallScreenShowing && !IncomingCallScreen.isShowing) {
+                    String currentCallChatId = VideoCallController.chatId.isNotEmpty
+                        ? VideoCallController.chatId
+                        : AudioCallController.chatId;
+
+                    // إذا كان المستخدم في نفس هذه المكالمة بالفعل، نتجاهل إشعار البدء المكرر
+                    if (isAlreadyInCall && currentCallChatId == ctrl.chatId.toString()) {
+                      log("🔇 [PUSHER] Already in this active call, ignoring duplicate start message");
+                      return;
+                    }
+
+                    if (!ctrl.isIncomingCallScreenShowing && !IncomingCallScreen.isShowing) {
                       ctrl.isIncomingCallActive = true;
                       ctrl.update();
                       ctrl.isIncomingCallScreenShowing = true;
@@ -199,6 +204,18 @@ class ChatController extends GetxController {
                         isVideoCall: !isAudio,
                         isGroub: isGroup,
                         onPressAnswer: () async {
+                          // 🌟 إذا كان المستخدم في مكالمة جارية بالفعل، ننهيها أولاً قبل الانتقال للمكالمة الجديدة
+                          if (Get.isRegistered<VideoCallController>()) {
+                            log("🔚 Ending active video call before switching to new call");
+                            await Get.find<VideoCallController>().endCall();
+                            Get.delete<VideoCallController>(force: true);
+                          }
+                          if (Get.isRegistered<AudioCallController>()) {
+                            log("🔚 Ending active audio call before switching to new call");
+                            await Get.find<AudioCallController>().endCall();
+                            Get.delete<AudioCallController>(force: true);
+                          }
+
                           ctrl.isIncomingCallScreenShowing = false;
                           ctrl.audio = isAudio;
                           await ctrl.getTokenCall(

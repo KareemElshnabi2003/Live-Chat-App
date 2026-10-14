@@ -293,6 +293,18 @@ Future<void> intilizeNotification() async {
     log("📞 [UNIFIED] Answering call through ChatController: chatId=$chatId, isAudio=$isAudio, isGroub=$isGroub");
 
     try {
+      // 🌟 إذا كان المستخدم في مكالمة جارية بالفعل، ننهيها أولاً قبل الانتقال للمكالمة الجديدة
+      if (Get.isRegistered<VideoCallController>()) {
+        log("🔚 Ending current video call to accept new call");
+        await Get.find<VideoCallController>().endCall();
+        Get.delete<VideoCallController>(force: true);
+      }
+      if (Get.isRegistered<AudioCallController>()) {
+        log("🔚 Ending current audio call to accept new call");
+        await Get.find<AudioCallController>().endCall();
+        Get.delete<AudioCallController>(force: true);
+      }
+
       // 1. إذا كان ChatController مسجلاً بالفعل لنفس الشات، نستخدمه مباشرة
       if (Get.isRegistered<ChatController>()) {
         final ctrl = Get.find<ChatController>();
@@ -305,6 +317,9 @@ Future<void> intilizeNotification() async {
             isJoin: true,
           );
           return;
+        } else {
+          // إذا كان مسجلاً لشات مختلف، نحذفه لإنشاء كنترولر الشات الجديد
+          Get.delete<ChatController>(force: true);
         }
       }
 
@@ -353,13 +368,6 @@ Future<void> intilizeNotification() async {
       log("🔇 Ignoring answer call: Already in progress");
       return;
     }
-    final bool isAlreadyInCall = Get.isRegistered<AudioCallController>() ||
-        Get.isRegistered<VideoCallController>();
-    if (isAlreadyInCall) {
-      log("🔇 Ignoring answer call: Already in an active call");
-      return;
-    }
-
     isAnsweringNotificationCall = true;
 
     try {
@@ -438,27 +446,16 @@ Future<void> intilizeNotification() async {
           return;
         }
 
-        // 🛡️ 2. لا تظهر شاشة رنين إذا كان المستخدم في مكالمة جارية بالفعل
+        // 🛡️ 2. إذا كان المستخدم في نفس المكالمة الجارية بالفعل، نتجاهل الإشعار المكرر
         final bool isAlreadyInCall = Get.isRegistered<AudioCallController>() ||
             Get.isRegistered<VideoCallController>();
-        if (isAlreadyInCall) {
-          log("🔇 [FOREGROUND] Ignoring call notification: Already in an active call");
-          final callingChatId = data['conversation_id']?.toString();
-          String currentCallChatId = "";
-          if (Get.isRegistered<VideoCallController>()) {
-            currentCallChatId = VideoCallController.chatId;
-          } else if (Get.isRegistered<AudioCallController>()) {
-            currentCallChatId = AudioCallController.chatId;
-          }
-          // نرسل CALL_BUSY فقط إذا كانت المكالمة الواردة لشات مختلف عن شات المكالمة الحالية
-          if (callingChatId != null && callingChatId.isNotEmpty && callingChatId != currentCallChatId) {
-            final api = Get.isRegistered<Api>() ? Get.find<Api>() : Api();
-            final chatsData = ChatsRemoteData(api: api);
-            chatsData.sendMessages(
-              chatId: callingChatId,
-              message: "|||CALL_BUSY|||",
-            );
-          }
+        final callingChatId = data['conversation_id']?.toString() ?? "";
+        String currentCallChatId = VideoCallController.chatId.isNotEmpty
+            ? VideoCallController.chatId
+            : AudioCallController.chatId;
+
+        if (isAlreadyInCall && callingChatId == currentCallChatId) {
+          log("🔇 [FOREGROUND] Already in this active call, ignoring duplicate notification");
           return;
         }
 
@@ -954,11 +951,16 @@ Future<void> intilizeNotification() async {
         return;
       }
 
-      // 🛡️ 2. لا تظهر شاشة رنين إذا كان المستخدم في مكالمة جارية بالفعل
+      // 🛡️ 2. إذا كان المستخدم في نفس المكالمة الجارية بالفعل، نتجاهل الإشعار المكرر
       final bool isAlreadyInCall = Get.isRegistered<AudioCallController>() ||
           Get.isRegistered<VideoCallController>();
-      if (isAlreadyInCall) {
-        log("🔇 [TAP] Ignoring call notification: Already in an active call");
+      final callingChatId = data['conversation_id']?.toString() ?? "";
+      String currentCallChatId = VideoCallController.chatId.isNotEmpty
+          ? VideoCallController.chatId
+          : AudioCallController.chatId;
+
+      if (isAlreadyInCall && callingChatId == currentCallChatId) {
+        log("🔇 [TAP] Already in this active call, ignoring duplicate notification");
         return;
       }
 
