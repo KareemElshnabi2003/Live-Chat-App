@@ -44,16 +44,15 @@ class NotificationController extends GetxController {
       }
       isNotificationEnabled.value = true;
       await prefs.setBool('notificationsEnabled', true);
+      await sharedPreferences?.setBool('notificationsEnabled', true);
       try {
         await FirebaseMessaging.instance.setAutoInitEnabled(true);
         // احصل على توكن جديد أو نفس التوكن القديم
         final token = await FirebaseMessaging.instance.getToken();
         if (token != null) {
           await prefs.setString("deviceToken", token);
-          sharedPreferences?.setString("deviceToken", token);
+          await sharedPreferences?.setString("deviceToken", token);
         }
-        // أعد تهيئة مستمعات الإشعارات
-        await FirebaseNotification().intilizeNotification();
       } catch (e) {
         debugPrint("Error enabling notifications: $e");
       }
@@ -61,6 +60,7 @@ class NotificationController extends GetxController {
       // 🔕 تعطيل الإشعارات
       isNotificationEnabled.value = false;
       await prefs.setBool('notificationsEnabled', false);
+      await sharedPreferences?.setBool('notificationsEnabled', false);
       try {
         // فقط نمنع الإشعارات المحلية، لا نمسح التوكن حتى يعمل الـ re-enable بدون مشاكل
         await flutterLocalNotificationsPlugin.cancelAll();

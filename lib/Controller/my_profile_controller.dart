@@ -87,6 +87,10 @@ class MyAccountController extends GetxController {
       request.fields['phone'] = phoneController.text.trim();
       request.fields['age'] = ageController.text.trim();
       request.fields['country_id'] = '1';
+      final deviceToken = sharedPreferences?.getString("deviceToken");
+      if (deviceToken != null && deviceToken.isNotEmpty) {
+        request.fields['fcm_token'] = deviceToken;
+      }
 
       String genderValue = '';
       if (selectedGender.value == S.of(Get.context!).male) {

@@ -91,6 +91,10 @@ class AuthRemoteData {
       if (countryId != null && countryId.isNotEmpty) {
         data['country_id'] = countryId;
       }
+      final deviceToken = sharedPreferences?.getString("deviceToken");
+      if (deviceToken != null && deviceToken.isNotEmpty) {
+        data['fcm_token'] = deviceToken;
+      }
 
       var response = await api.postRequestwithfile(
           "${AppApi.updateProfileUrl}?device_id=$deviceId", data, image, null);
