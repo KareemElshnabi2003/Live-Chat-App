@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:live_chat/Controller/Home_navigator_controller.dart';
 import 'package:live_chat/Controller/chat_controller.dart';
 import 'package:live_chat/Core/Constant/app_color.dart';
 import 'package:live_chat/Core/class/status_request.dart';
@@ -42,6 +43,20 @@ class _ChatViewState extends State<ChatView> {
   void initState() {
     super.initState();
     final controller = Get.put(ChatController());
+
+    // 🌟 التأكد من ربط بيانات إعلان الدردشة المثبتة لو لم تكن محملة
+    if (widget.isPin && widget.userChatModel != null) {
+      if (!ChatHelpers.hasAd(widget.userChatModel!)) {
+        if (Get.isRegistered<HomeNavigationController>()) {
+          final pinModel = Get.find<HomeNavigationController>().pinChatModel;
+          if (pinModel != null) {
+            widget.userChatModel!.adTitle ??= pinModel.adTitle;
+            widget.userChatModel!.adLink ??= pinModel.adLink;
+            widget.userChatModel!.adImage ??= pinModel.adImage;
+          }
+        }
+      }
+    }
     
     // 🌟 تحديد نوع الشات عشان نمنع الـ APIs اللي ملهاش لازمة في الشات الخاص (بين شخصين)
     // غرف الدردشة بيبقى الـ status بتاعها Public أو Private، أما شات الأصدقاء مبيكونش كده

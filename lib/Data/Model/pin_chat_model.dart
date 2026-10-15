@@ -62,10 +62,16 @@ class PinChatModel {
       }
     }
 
-    // 🌟 فحص الـ conversation زي ما عملنا قبل كده
+    // 🌟 فحص الـ conversation وتمرير بيانات الإعلان إليها
     conversation = json['conversation'] != null
         ? UserChatModel.fromJson(json['conversation'])
         : null;
+
+    if (conversation != null) {
+      conversation!.adTitle = adTitle ?? conversation!.adTitle;
+      conversation!.adLink = adLink ?? conversation!.adLink;
+      conversation!.adImage = adImage ?? conversation!.adImage;
+    }
   }
 
   Map<String, dynamic> toJson() {

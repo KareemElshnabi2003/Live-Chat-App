@@ -21,6 +21,9 @@ import 'package:live_chat/View/Screens/notifications/notifications.dart';
 import 'dart:convert';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:live_chat/View/Widget/PublicWidget/video_call_notification.dart';
+import 'package:live_chat/Controller/Home_navigator_controller.dart';
+import 'package:live_chat/Controller/market_controller.dart';
+import 'package:live_chat/View/Screens/Home/home_view.dart';
 import 'package:live_chat/Core/Constant/app_color.dart';
 import 'package:live_chat/main.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -551,8 +554,36 @@ Future<void> intilizeNotification() async {
         }
       }
 
+      final bool isNotificationsGloballyEnabled =
+          sharedPreferences?.getBool('notificationsEnabled') ?? true;
+      if (!isNotificationsGloballyEnabled) {
+        log("🔇 Notifications are disabled by user in Settings. Skipping local notification and in-app banner.");
+        return;
+      }
+
       void onTapAction() {
-        if (type == "friend_request" && status == "pending") {
+        final isRecharge = type == "recharge" ||
+            type == "charge" ||
+            type == "shipping" ||
+            type == "stars" ||
+            title.contains("شحن") ||
+            body.contains("شحن");
+
+        if (isRecharge) {
+          log("🛒 Opening market screen from in-app notification");
+          if (Get.isRegistered<MarketController>()) {
+            Get.find<MarketController>().fetchUserProfile();
+          }
+          if (Get.isRegistered<HomeNavigationController>()) {
+            final nav = Get.find<HomeNavigationController>();
+            nav.changePage(2);
+            Get.until((route) => route.isFirst);
+          } else {
+            final nav = Get.put(HomeNavigationController());
+            nav.changePage(2);
+            Get.offAll(() => const HomeView());
+          }
+        } else if (type == "friend_request" && status == "pending") {
           Get.to(() => Requests(),
               transition: Transition.leftToRight,
               duration: const Duration(milliseconds: 800),
@@ -1024,6 +1055,32 @@ Future<void> intilizeNotification() async {
             callerImage: callerImage,
             isVideoCall: !isAudio,
           ));
+      return;
+    }
+
+    final notifTitle = remotemess.notification?.title ?? data['title']?.toString() ?? '';
+    final notifBody = remotemess.notification?.body ?? data['body']?.toString() ?? data['message']?.toString() ?? '';
+    final isRecharge = type == "recharge" ||
+        type == "charge" ||
+        type == "shipping" ||
+        type == "stars" ||
+        notifTitle.contains("شحن") ||
+        notifBody.contains("شحن");
+
+    if (isRecharge) {
+      log("🛒 Opening market screen from notification click");
+      if (Get.isRegistered<MarketController>()) {
+        Get.find<MarketController>().fetchUserProfile();
+      }
+      if (Get.isRegistered<HomeNavigationController>()) {
+        final nav = Get.find<HomeNavigationController>();
+        nav.changePage(2);
+        Get.until((route) => route.isFirst);
+      } else {
+        final nav = Get.put(HomeNavigationController());
+        nav.changePage(2);
+        Get.offAll(() => const HomeView());
+      }
       return;
     }
 

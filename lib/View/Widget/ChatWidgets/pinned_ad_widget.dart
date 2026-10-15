@@ -29,6 +29,12 @@ class PinnedAdWidget extends StatelessWidget {
     return url != null && url.trim().isNotEmpty && url.trim() != "null" && url.trim() != "image";
   }
 
+  String _formatImageUrl(String url) {
+    final clean = url.trim();
+    if (clean.startsWith('http')) return clean;
+    return 'https://api.mayo.live/storage/${clean.replaceAll(RegExp(r'^/'), '')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isRtl = Directionality.of(context) == TextDirection.rtl;
@@ -78,7 +84,7 @@ class PinnedAdWidget extends StatelessWidget {
                     topRight: Radius.circular(14),
                   ),
                   image: DecorationImage(
-                    image: CachedNetworkImageProvider(adImage!.trim()),
+                    image: CachedNetworkImageProvider(_formatImageUrl(adImage!)),
                     fit: BoxFit.cover,
                   ),
                 ),

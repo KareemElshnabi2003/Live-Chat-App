@@ -15,6 +15,9 @@ import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
 import 'package:live_chat/main.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
+import 'package:live_chat/Controller/Home_navigator_controller.dart';
+import 'package:live_chat/Controller/market_controller.dart';
+import 'package:live_chat/View/Screens/Home/home_view.dart';
 import 'package:live_chat/generated/l10n.dart';
 
 class Notifications extends StatelessWidget {
@@ -153,15 +156,34 @@ class Notifications extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
-          if (notification.additionalData!['type'] == "friend_request" && notification.additionalData!['status'] == "pending") {
+          final addData = notification.additionalData;
+          final type = (addData != null && addData['type'] != null)
+              ? addData['type'].toString().toLowerCase()
+              : '';
+          final status = (addData != null && addData['status'] != null)
+              ? addData['status'].toString()
+              : '';
+          final notifTitle = notification.title ?? '';
+          final notifContent = notification.content ?? '';
+
+          final isRecharge = type == "recharge" ||
+              type == "charge" ||
+              type == "shipping" ||
+              type == "stars" ||
+              notifTitle.contains("شحن") ||
+              notifContent.contains("شحن");
+
+          if (isRecharge) {
+            _navigateToMarket();
+          } else if (type == "friend_request" && status == "pending") {
             Get.to(() => Requests(), transition: Transition.leftToRight, duration: const Duration(milliseconds: 800));
-          } else if (notification.additionalData!['type'] == "friend_request" && notification.additionalData!['status'] == "accepted") {
+          } else if (type == "friend_request" && status == "accepted") {
             Get.to(() => Friends(), transition: Transition.leftToRight, duration: const Duration(milliseconds: 800));
-          } else if (notification.additionalData!['status'] == "want_to_join_chat") {
+          } else if (status == "want_to_join_chat" && addData != null && addData['conversation'] != null) {
             controller.onPressGroubChat(
-                chatModel: UserChatModel.fromJson(notification.additionalData!['conversation']),
+                chatModel: UserChatModel.fromJson(addData['conversation']),
                 isGust: false,
-                id: notification.additionalData!['conversation']['id']
+                id: addData['conversation']['id']
             );
           }
         },
@@ -262,5 +284,20 @@ class Notifications extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _navigateToMarket() {
+    if (Get.isRegistered<MarketController>()) {
+      Get.find<MarketController>().fetchUserProfile();
+    }
+    if (Get.isRegistered<HomeNavigationController>()) {
+      final nav = Get.find<HomeNavigationController>();
+      nav.changePage(2);
+      Get.until((route) => route.isFirst);
+    } else {
+      final nav = Get.put(HomeNavigationController());
+      nav.changePage(2);
+      Get.offAll(() => const HomeView());
+    }
   }
 }

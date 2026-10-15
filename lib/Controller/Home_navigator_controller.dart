@@ -124,8 +124,13 @@ class HomeNavigationController extends GetxController {
       if (!canEnter) return;
     }
 
-    // 🌟 استكمال بيانات المالك لو ناقصة لضمان ظهور الإعدادات بشكل صحيح
+    // 🌟 استكمال بيانات المالك والإعلان لو ناقصة لضمان ظهور الإعدادات والإعلان بشكل صحيح
     _enrichChatModelOwner(chatModel);
+    if (pinChatModel != null && (pinChatModel!.conversationId == id || pinChatModel!.conversation?.id == id)) {
+      chatModel.adTitle = pinChatModel!.adTitle ?? chatModel.adTitle;
+      chatModel.adLink = pinChatModel!.adLink ?? chatModel.adLink;
+      chatModel.adImage = pinChatModel!.adImage ?? chatModel.adImage;
+    }
 
     final bool effectiveIsGust =
         (sharedPreferences?.getString("id") != null) ? false : isGust;

@@ -240,6 +240,12 @@ class PageStartController extends GetxController {
       if (!canEnter) return;
     }
 
+    if (pinChatModel != null && (pinChatModel!.conversationId == id || pinChatModel!.conversation?.id == id)) {
+      chatModel.adTitle = pinChatModel!.adTitle ?? chatModel.adTitle;
+      chatModel.adLink = pinChatModel!.adLink ?? chatModel.adLink;
+      chatModel.adImage = pinChatModel!.adImage ?? chatModel.adImage;
+    }
+
     print("id >>$id");
     Get.to(
       () => ChatView(
