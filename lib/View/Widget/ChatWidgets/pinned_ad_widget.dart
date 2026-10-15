@@ -1,4 +1,4 @@
-//region PinnedAdWidget - Refined and Crash-Proof
+//region PinnedAdWidget - Collapsible and Crash-Proof
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +10,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class PinnedAdWidget extends StatelessWidget {
+class PinnedAdWidget extends StatefulWidget {
   final String? adTitle;
   final String? adLink;
   final String? adImage;
@@ -22,11 +22,22 @@ class PinnedAdWidget extends StatelessWidget {
     this.adTitle,
     this.adLink,
     this.adImage,
-    this.onTap, required this.pref,
+    this.onTap,
+    required this.pref,
   });
 
+  @override
+  State<PinnedAdWidget> createState() => _PinnedAdWidgetState();
+}
+
+class _PinnedAdWidgetState extends State<PinnedAdWidget> {
+  bool _isCollapsed = false;
+
   bool _isValidImage(String? url) {
-    return url != null && url.trim().isNotEmpty && url.trim() != "null" && url.trim() != "image";
+    return url != null &&
+        url.trim().isNotEmpty &&
+        url.trim() != "null" &&
+        url.trim() != "image";
   }
 
   String _formatImageUrl(String url) {
@@ -38,28 +49,28 @@ class PinnedAdWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isRtl = Directionality.of(context) == TextDirection.rtl;
-    final bool hasValidImage = _isValidImage(adImage);
+    final bool hasValidImage = _isValidImage(widget.adImage);
 
     return GestureDetector(
       onTap: () {
-        if (adLink?.isNotEmpty == true && adLink != "null") {
-          print("Opening ad link: $adLink");
+        if (widget.adLink?.isNotEmpty == true && widget.adLink != "null") {
+          print("Opening ad link: ${widget.adLink}");
           try {
-            final uri = Uri.parse(adLink!);
+            final uri = Uri.parse(widget.adLink!);
             launchUrl(uri, mode: LaunchMode.externalApplication);
           } catch (e) {
             print("Error opening link: $e");
           }
         }
-        onTap?.call();
+        widget.onTap?.call();
       },
       child: Container(
-        margin: EdgeInsets.symmetric(vertical: 1.h, horizontal: 2.w),
+        margin: EdgeInsets.symmetric(vertical: 0.8.h, horizontal: 2.w),
         decoration: BoxDecoration(
-          color: pref ? AppColors.darkcolor : AppColors.whiteColor,
+          color: widget.pref ? AppColors.darkcolor : AppColors.whiteColor,
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
-            if (!pref)
+            if (!widget.pref)
               BoxShadow(
                 color: Colors.black.withOpacity(0.08),
                 blurRadius: 10,
@@ -67,100 +78,192 @@ class PinnedAdWidget extends StatelessWidget {
               ),
           ],
           border: Border.all(
-            color: AppColors.primaryColor.withOpacity(pref ? 0.3 : 0.15),
+            color: AppColors.primaryColor.withOpacity(widget.pref ? 0.3 : 0.15),
             width: 1.5,
           ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 🌟 صورة الإعلان مع إمكانية الطي والتوسيع بسلاسة
             if (hasValidImage)
-              Container(
-                height: 15.h,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(14),
-                    topRight: Radius.circular(14),
-                  ),
-                  image: DecorationImage(
-                    image: CachedNetworkImageProvider(_formatImageUrl(adImage!)),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(14),
-                          topRight: Radius.circular(14),
-                        ),
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.5),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 10,
-                      right: isRtl ? null : 10,
-                      left: isRtl ? 10 : null,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                child: _isCollapsed
+                    ? const SizedBox.shrink()
+                    : Container(
+                        height: 15.h,
+                        width: double.infinity,
                         decoration: BoxDecoration(
-                          color: AppColors.primaryColor,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(14),
+                            topRight: Radius.circular(14),
+                          ),
+                          image: DecorationImage(
+                            image: CachedNetworkImageProvider(
+                                _formatImageUrl(widget.adImage!)),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        child: Stack(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(14),
+                                  topRight: Radius.circular(14),
+                                ),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withOpacity(0.5),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // أيقونة التثبيت (Pin)
+                            Positioned(
+                              top: 10,
+                              right: isRtl ? null : 10,
+                              left: isRtl ? 10 : null,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryColor,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.3),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  LucideIcons.pin,
+                                  color: AppColors.whiteColor,
+                                  size: 4.w,
+                                ),
+                              ),
+                            ),
+                            // 🌟 زر سهم طي الصورة في أعلى الصورة
+                            Positioned(
+                              top: 10,
+                              right: isRtl ? 10 : null,
+                              left: isRtl ? null : 10,
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _isCollapsed = true;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.55),
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.3),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    IconsaxPlusLinear.arrow_up_2,
+                                    color: AppColors.whiteColor,
+                                    size: 4.w,
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        child: Icon(
-                          LucideIcons.pin,
-                          color: AppColors.whiteColor,
-                          size: 4.w,
-                        ),
                       ),
-                    ),
-                  ],
-                ),
               ),
+            // محتوى الإعلان (العنوان والرابط وزر الطي/التوسيع)
             Padding(
               padding: EdgeInsets.all(3.w),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (adTitle?.isNotEmpty == true && adTitle != "null")
-                    Padding(
-                      padding: EdgeInsets.only(bottom: 1.h),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: textNormal(
-                              adTitle!,
-                              pref ? AppColors.whiteColor : AppColors.blackTextColor,
-                              3.8.w,
-                              FontWeight.w700,
-                              maxLines: 2,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // في حالة طي الصورة، نظهر أيقونة الدبوس بجانب العنوان
+                      if (_isCollapsed || !hasValidImage) ...[
+                        Icon(LucideIcons.pin,
+                            color: AppColors.primaryColor, size: 4.5.w),
+                        SizedBox(width: 2.w),
+                      ],
+                      Expanded(
+                        child: textNormal(
+                          widget.adTitle?.isNotEmpty == true &&
+                                  widget.adTitle != "null"
+                              ? widget.adTitle!
+                              : (isRtl ? "إعلان مثبت" : "Pinned Ad"),
+                          widget.pref
+                              ? AppColors.whiteColor
+                              : AppColors.blackTextColor,
+                          3.8.w,
+                          FontWeight.w700,
+                          maxLines: 1,
+                        ),
+                      ),
+                      // 🌟 زر السهم لرفع / إرجاع الصورة
+                      if (hasValidImage)
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _isCollapsed = !_isCollapsed;
+                            });
+                          },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 2.2.w, vertical: 0.6.h),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: AppColors.primaryColor.withOpacity(0.3),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                textNormal(
+                                  _isCollapsed
+                                      ? (isRtl ? "عرض الصورة" : "Show image")
+                                      : (isRtl ? "تصغير" : "Collapse"),
+                                  AppColors.primaryColor,
+                                  2.8.w,
+                                  FontWeight.w600,
+                                ),
+                                SizedBox(width: 1.w),
+                                Icon(
+                                  _isCollapsed
+                                      ? IconsaxPlusLinear.arrow_down_1
+                                      : IconsaxPlusLinear.arrow_up_2,
+                                  size: 3.8.w,
+                                  color: AppColors.primaryColor,
+                                ),
+                              ],
                             ),
                           ),
-                          if (!hasValidImage)
-                            Icon(LucideIcons.pin, color: AppColors.primaryColor, size: 4.5.w)
-                        ],
-                      ),
-                    ),
-                  if (adLink?.isNotEmpty == true && adLink != "null")
+                        ),
+                    ],
+                  ),
+                  if (widget.adLink?.isNotEmpty == true &&
+                      widget.adLink != "null") ...[
+                    SizedBox(height: 1.h),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
                       decoration: BoxDecoration(
                         color: AppColors.primaryColor.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(10),
@@ -182,7 +285,7 @@ class PinnedAdWidget extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 textNormal(
-                                  _getDomainFromUrl(adLink!),
+                                  _getDomainFromUrl(widget.adLink!),
                                   AppColors.primaryColor,
                                   3.2.w,
                                   FontWeight.w600,
@@ -191,7 +294,9 @@ class PinnedAdWidget extends StatelessWidget {
                                 SizedBox(height: 0.2.h),
                                 textNormal(
                                   S.of(context).clickHereToVisit,
-                                  pref ? AppColors.inActiveColor : Colors.grey.shade600,
+                                  widget.pref
+                                      ? AppColors.inActiveColor
+                                      : Colors.grey.shade600,
                                   2.8.w,
                                   FontWeight.w400,
                                 ),
@@ -199,13 +304,16 @@ class PinnedAdWidget extends StatelessWidget {
                             ),
                           ),
                           Icon(
-                            isRtl ? IconsaxPlusLinear.arrow_left_2 : IconsaxPlusLinear.arrow_right_2,
+                            isRtl
+                                ? IconsaxPlusLinear.arrow_left_2
+                                : IconsaxPlusLinear.arrow_right_2,
                             size: 4.w,
                             color: AppColors.primaryColor,
                           ),
                         ],
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
