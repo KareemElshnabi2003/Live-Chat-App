@@ -36,7 +36,9 @@ showBottomSheetmore({
   } else {
     capabilityController = Get.put(CapabilitiesController());
   }
-  marketController.closeEnergy.value = active == "Active" ? false : true;
+  final activeLower = active.toLowerCase().trim();
+  final isActivePower = activeLower == "active" || activeLower == "1" || activeLower == "true";
+  marketController.closeEnergy.value = isActivePower ? false : true;
   final isRtl = Directionality.of(context) == TextDirection.rtl;
 
   return showModalBottomSheet(

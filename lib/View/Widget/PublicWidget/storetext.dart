@@ -896,7 +896,6 @@ class _PowerTextWidgetState extends State<PowerTextWidget>
     if (type == 'move_vertical' || type == 'move_horizontal') {
       return Container(
         height: type == 'move_vertical' ? _getContainerHeight() : null,
-        width: type == 'move_horizontal' ? double.infinity : null,
         alignment: Alignment.center,
         child: ClipRect(
           child: _slideAnimation != null
@@ -906,7 +905,7 @@ class _PowerTextWidgetState extends State<PowerTextWidget>
                     offset: Offset(
                       _slideAnimation!.value.dx *
                           (type == 'move_horizontal'
-                              ? MediaQuery.of(context).size.width
+                              ? 15.0
                               : 0),
                       _slideAnimation!.value.dy *
                           (type == 'move_vertical' ? _getContainerHeight() : 0),
@@ -1114,7 +1113,6 @@ class _PowerTextWidgetState extends State<PowerTextWidget>
     if (type == 'move_vertical' || type == 'move_horizontal') {
       return Container(
         height: type == 'move_vertical' ? _getBioContainerHeight() : null,
-        width: type == 'move_horizontal' ? double.infinity : null,
         alignment: Alignment.center,
         child: ClipRect(
           child: _bioSlideAnimation != null
@@ -1124,7 +1122,7 @@ class _PowerTextWidgetState extends State<PowerTextWidget>
                     offset: Offset(
                       _bioSlideAnimation!.value.dx *
                           (type == 'move_horizontal'
-                              ? MediaQuery.of(context).size.width
+                              ? 15.0
                               : 0),
                       _bioSlideAnimation!.value.dy *
                           (type == 'move_vertical'
@@ -1315,10 +1313,12 @@ class _PowerTextWidgetState extends State<PowerTextWidget>
     Power? power = widget.powerModel.effects?.power;
     return IntrinsicWidth(
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               _buildGifImage(power?.leftGif, isLeft: true),
               Flexible(

@@ -530,9 +530,10 @@ class _cardPersonState extends State<_cardPerson>
   Widget _buildUserInfo(bool isRtl) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: 65.w,
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 65.w),
           child: widget.power.toString() != "null"
               ? PowerTextWidget(
                   powerModel: widget.power!, displyText: widget.ttitle)
@@ -545,7 +546,7 @@ class _cardPersonState extends State<_cardPerson>
         ),
         if (!widget.isNeedAccept)
           Padding(
-            padding: EdgeInsets.only(right: 3.5.w, left: 3.5.w),
+            padding: EdgeInsets.symmetric(horizontal: 1.w),
             child: textNormal(
               _getUserRoleText(),
               AppColors.inActiveColor,

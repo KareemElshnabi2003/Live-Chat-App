@@ -19,7 +19,7 @@ class PowerModel {
   PowerModel.fromJson(Map<String, dynamic> json) {
     id = json['id'];
     isPurches = json['is_purchased'];
-    active = json['active'] ?? "";
+    active = json['active']?.toString() ?? "";
     powerId = json['power_id'];
     price = json['price'];
     expireAt = json['expire_at'] ?? "";
