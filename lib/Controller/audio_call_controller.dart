@@ -619,6 +619,13 @@ userNamesMap: ${userNamesMap.toString()}
     _isEndingCall = true;
 
     debugPrint('🔴 Remote ended audio call, closing view and staying in chat...');
+    if (_engine != null) {
+      try {
+        await _engine!.leaveChannel();
+      } catch (e) {
+        debugPrint("Error leaving audio channel on remote ended: $e");
+      }
+    }
     if (Get.context != null && Get.context!.mounted) {
       Get.back();
     }
@@ -630,6 +637,13 @@ userNamesMap: ${userNamesMap.toString()}
     _isEndingCall = true;
 
     debugPrint('🔴 Remote user is busy, exiting audio call and ending on server without sending CALL_ENDED message...');
+    if (_engine != null) {
+      try {
+        await _engine!.leaveChannel();
+      } catch (e) {
+        debugPrint("Error leaving audio channel on busy: $e");
+      }
+    }
     if (Get.context != null && Get.context!.mounted) {
       Get.back();
     }
@@ -654,7 +668,8 @@ userNamesMap: ${userNamesMap.toString()}
     final isOneOnOneCall = !isGroupCall.value;
     bool shouldEndCall = false;
     if (isOneOnOneCall) {
-      shouldEndCall = isCaller;
+      // 🌟 في المكالمة الفردية: إذا أنهى المتصل الأصلي المكالمة، أو إذا لم يبقَ أحد في المكالمة
+      shouldEndCall = isCaller || remoteUid.value == null;
     } else {
       int otherParticipantsCount =
           participantsList.where((p) => p.uid != uId).length;
@@ -664,13 +679,24 @@ userNamesMap: ${userNamesMap.toString()}
     debugPrint('🔚 endCall: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall');
 
     if (shouldEndCall) {
-      endCallApi();
+      await endCallApi();
     }
 
+    // 1. مغادرة القناة بسلاسة قبل غلق الشاشة
+    if (_engine != null) {
+      try {
+        await _engine!.leaveChannel();
+      } catch (e) {
+        debugPrint("Error leaving audio channel: $e");
+      }
+    }
+
+    // 2. إغلاق الشاشة فوراً
     if (Get.context != null && Get.context!.mounted) {
       Get.back();
     }
 
+    // 3. تنظيف محرك Agora
     await _disposeEngine();
   }
 
@@ -742,12 +768,19 @@ userNamesMap: ${userNamesMap.toString()}
     await _initializeCall();
   }
 
+  bool _isDisposingEngine = false;
   Future<void> _disposeEngine() async {
-    if (_engine != null) {
+    if (_isDisposingEngine) return;
+    _isDisposingEngine = true;
+    debugPrint('🧹 Disposing audio engine...');
+
+    final engineToDispose = _engine;
+    _engine = null;
+
+    if (engineToDispose != null) {
       try {
-        await _engine!.leaveChannel();
-        await _engine!.release();
-        _engine = null;
+        await engineToDispose.leaveChannel();
+        await engineToDispose.release();
         debugPrint('✅ Engine disposed successfully');
       } catch (e) {
         debugPrint('Engine disposal error: $e');

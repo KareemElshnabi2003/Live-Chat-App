@@ -93,8 +93,13 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         print("🔇 [BACKGROUND] Ignoring call notification: I am the caller ($myId == $callerId)");
         return;
       }
+      final activeCalls = await FlutterCallkitIncoming.activeCalls();
+      if (activeCalls.isNotEmpty) {
+        print("🔇 [BACKGROUND] Already have an active CallKit call. Ignoring incoming call.");
+        return;
+      }
     } catch (e) {
-      print("Error checking myId in background: $e");
+      print("Error checking myId or active calls in background: $e");
     }
 
     final callerName = data['caller_name'] ?? 'Unknown';
@@ -473,16 +478,22 @@ Future<void> intilizeNotification() async {
           return;
         }
 
-        // 🛡️ 2. إذا كان المستخدم في نفس المكالمة الجارية بالفعل، نتجاهل الإشعار المكرر
+        // 🛡️ 2. إذا كان المستخدم في مكالمة جارية بالفعل، نتجاهل الإشعار المكرر
         final bool isAlreadyInCall = Get.isRegistered<AudioCallController>() ||
             Get.isRegistered<VideoCallController>();
-        final callingChatId = data['conversation_id']?.toString() ?? "";
+        final callingChatId = data['conversation_id']?.toString() ??
+            data['chat_id']?.toString() ??
+            data['conversationId']?.toString() ??
+            "";
         String currentCallChatId = VideoCallController.chatId.isNotEmpty
             ? VideoCallController.chatId
             : AudioCallController.chatId;
 
-        if (isAlreadyInCall && callingChatId == currentCallChatId) {
-          log("🔇 [FOREGROUND] Already in this active call, ignoring duplicate notification");
+        if (isAlreadyInCall &&
+            (callingChatId.isEmpty ||
+                callingChatId == currentCallChatId ||
+                currentCallChatId.isEmpty)) {
+          log("🔇 [FOREGROUND] Already in active call, ignoring duplicate notification");
           return;
         }
 

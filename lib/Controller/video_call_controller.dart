@@ -463,6 +463,14 @@ class VideoCallController extends GetxController {
     _userEndedCall = true;
 
     debugPrint('🔴 Remote ended video call, closing view and staying in chat...');
+    if (_engine != null) {
+      try {
+        await _engine!.stopPreview();
+        await _engine!.leaveChannel();
+      } catch (e) {
+        debugPrint("Error leaving channel on remote ended: $e");
+      }
+    }
     if (Get.context != null && Get.context!.mounted) {
       Get.back();
     }
@@ -475,6 +483,14 @@ class VideoCallController extends GetxController {
     _userEndedCall = true;
 
     debugPrint('🔴 Remote user is busy, exiting call and ending on server without sending CALL_ENDED message...');
+    if (_engine != null) {
+      try {
+        await _engine!.stopPreview();
+        await _engine!.leaveChannel();
+      } catch (e) {
+        debugPrint("Error leaving channel on busy: $e");
+      }
+    }
     if (Get.context != null && Get.context!.mounted) {
       Get.back();
     }
@@ -499,27 +515,37 @@ class VideoCallController extends GetxController {
 
     final isOneOnOneCall = !isGroubCall;
 
-    // 🌟 في المكالمة الفردية: فقط من أنشأ المكالمة (isCaller) هو من ينهي المكالمة على السيرفر
-    // المشترك (subscriber) فقط يغادر محلياً ليعود للشات ويستطيع إعادة الانضمام
+    // 🌟 في المكالمة الفردية: إذا أنهى المتصل الأصلي المكالمة، أو إذا لم يبقَ أحد في المكالمة
+    // في المكالمة الجماعية: تنتهي فقط عند خروج آخر شخص متبقٍ في المكالمة
     bool shouldEndCall = false;
     if (isOneOnOneCall) {
-      shouldEndCall = isCaller;
+      shouldEndCall = isCaller || _remoteUsers.isEmpty;
     } else {
       shouldEndCall = _remoteUsers.isEmpty;
     }
 
-    debugPrint('🔴 User ending video call: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall');
+    debugPrint('🔴 User ending video call: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall, remoteCount=${_remoteUsers.length}');
 
     if (shouldEndCall) {
-      endCallApi();
+      await endCallApi();
     }
 
-    // 1. إغلاق شاشة المكالمة فوراً ليعود المستخدم للشات دون تأخير ويمنع أي خروج خاطئ من الشات
+    // 1. إيقاف القنوات والمعاينة قبل الرجوع لمنع أي تعليق في الواجهة
+    if (_engine != null) {
+      try {
+        await _engine!.stopPreview();
+        await _engine!.leaveChannel();
+      } catch (e) {
+        debugPrint("Error stopping preview or leaving channel: $e");
+      }
+    }
+
+    // 2. إغلاق شاشة المكالمة فوراً ليعود المستخدم للشات دون تأخير
     if (Get.context != null && Get.context!.mounted) {
       Get.back();
     }
 
-    // 2. تنظيف محرك Agora
+    // 3. تنظيف محرك Agora بأمان بعد خروج الشاشة
     await _disposeEngine();
   }
 
@@ -620,15 +646,20 @@ class VideoCallController extends GetxController {
     }
   }
 
+  bool _isDisposingEngine = false;
   Future<void> _disposeEngine() async {
+    if (_isDisposingEngine) return;
+    _isDisposingEngine = true;
     debugPrint('🧹 Disposing video engine...');
 
-    if (_engine != null) {
+    final engineToDispose = _engine;
+    _engine = null;
+
+    if (engineToDispose != null) {
       try {
-        await _engine!.stopPreview();
-        await _engine!.leaveChannel();
-        await _engine!.release();
-        _engine = null;
+        await engineToDispose.stopPreview();
+        await engineToDispose.leaveChannel();
+        await engineToDispose.release();
         debugPrint("✅ Engine disposed successfully");
       } catch (e) {
         debugPrint("❌ Engine disposal error: $e");

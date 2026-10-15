@@ -327,6 +327,33 @@ class ChatController extends GetxController {
 
       statuesRequest = handlingData(response);
 
+      // 🌟 إذا رد السيرفر بأن هناك مكالمة جارية بالفعل، ننضم إليها كـ subscriber فوراً
+      if (statuesRequest != StatuesRequest.success) {
+        final serverMsg = (Api.serverMessage ??
+                (response is Map
+                    ? (response['message']?.toString() ??
+                        response['msg']?.toString() ??
+                        '')
+                    : ''))
+            .toLowerCase();
+
+        final isAlreadyActive = serverMsg.contains('جارية') ||
+            serverMsg.contains('active') ||
+            serverMsg.contains('already') ||
+            serverMsg.contains('exist');
+
+        if (isAlreadyActive) {
+          log("🔄 Call already active on server. Automatically joining as subscriber...");
+          type = "subscriber";
+          response = await _chatsRemoteData.getTokenCall(
+              callType: audio ? "audio" : "video",
+              isGroub: isGroub,
+              role: "subscriber",
+              chatId: int.parse(chatId));
+          statuesRequest = handlingData(response);
+        }
+      }
+
       if (statuesRequest == StatuesRequest.success) {
         final responseBody = response['data'];
         if (responseBody != null) {
@@ -347,15 +374,10 @@ class ChatController extends GetxController {
 
           // 🌟 إرسال رسائل التتبع للمكالمات: فقط من أنشأ المكالمة هو من يرسل رسالة البدء
           if (isCaller) {
-            if (isGroub) {
-              messageController.text =
-                  "|||GROUP_CALL_START|||${audio ? 'audio' : 'video'}";
-              sendTextMessage();
-            } else {
-              messageController.text =
-                  "|||PRIVATE_CALL_START|||${audio ? 'audio' : 'video'}";
-              sendTextMessage();
-            }
+            final startMsg = isGroub
+                ? "|||GROUP_CALL_START|||${audio ? 'audio' : 'video'}"
+                : "|||PRIVATE_CALL_START|||${audio ? 'audio' : 'video'}";
+            sendSystemMessage(startMsg, targetChatId: chatId);
           }
 
           // Reset status before navigating so chat is clean when user returns
@@ -563,7 +585,7 @@ class ChatController extends GetxController {
       }
       if (content.startsWith('|||PRIVATE_CALL_START|||') ||
           content.startsWith('|||GROUP_CALL_START|||')) {
-        isIncomingCallActive = !msg.isFromSender;
+        isIncomingCallActive = true;
         break;
       }
     }
