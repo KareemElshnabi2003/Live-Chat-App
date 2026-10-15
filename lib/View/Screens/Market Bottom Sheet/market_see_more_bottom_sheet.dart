@@ -248,13 +248,39 @@ void showBottomSheetMarketMoreWidget({
                               );
 
                               final responseData = jsonDecode(response.body);
-                              if (response.statusCode == 200 &&
-                                  responseData['status'] == 'success') {
+                              log("🛒 Buy power response [${response.statusCode}]: $responseData");
+
+                              final bool isHttpSuccess =
+                                  response.statusCode == 200 ||
+                                      response.statusCode == 201;
+                              final rawStatus = responseData is Map
+                                  ? responseData['status']
+                                  : null;
+                              final rawCode = responseData is Map
+                                  ? responseData['code']
+                                  : null;
+                              final rawMessage = responseData is Map
+                                  ? (responseData['message'] ?? '').toString()
+                                  : '';
+
+                              final bool isSuccess = isHttpSuccess &&
+                                  (rawStatus == 'success' ||
+                                      rawStatus == true ||
+                                      rawStatus == 'true' ||
+                                      rawStatus == 1 ||
+                                      rawCode == 200 ||
+                                      rawCode == 201 ||
+                                      rawMessage.contains('بنجاح') ||
+                                      rawMessage.toLowerCase().contains('success'));
+
+                              if (isSuccess) {
                                 final double requiredStars =
-                                    double.parse(price.split(' ').first);
+                                    double.tryParse(price.split(' ').first) ?? 0.0;
                                 final int requiredStarsInt =
                                     requiredStars.toInt();
-                                marketController.numOfStars -= requiredStarsInt;
+                                if (marketController.numOfStars.value >= requiredStarsInt) {
+                                  marketController.numOfStars.value -= requiredStarsInt;
+                                }
                                 Get.back();
                                 messageSuccessPayment(context);
                                 c.sheetMarket = "firstPage";
@@ -264,8 +290,10 @@ void showBottomSheetMarketMoreWidget({
                               } else {
                                 Get.snackbar(
                                   S.of(context).error,
-                                  responseData['message'] ??
-                                      S.of(context).purchaseFailed,
+                                  (responseData is Map &&
+                                          responseData['message'] != null)
+                                      ? responseData['message'].toString()
+                                      : S.of(context).purchaseFailed,
                                   backgroundColor: AppColors.redColor,
                                   colorText: AppColors.whiteColor,
                                   snackPosition: SnackPosition.BOTTOM,
