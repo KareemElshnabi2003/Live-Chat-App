@@ -155,22 +155,6 @@ class FirebaseNotification {
   static bool isAnsweringNotificationCall = false;
   final firebaseMessagin = FirebaseMessaging.instance;
 Future<void> intilizeNotification() async {
-    final prefs = sharedPreferences ?? await SharedPreferences.getInstance();
-    final bool isNotificationsGloballyEnabled =
-        prefs.getBool('notificationsEnabled') ?? true;
-
-    if (!isNotificationsGloballyEnabled) {
-      log("🔇 [INIT] Notifications are globally disabled by user preference. Skipping setup.");
-      try {
-        await flutterLocalNotificationsPlugin.cancelAll();
-        // ⚠️ لا نمسح التوكن هنا عشان نقدر نشغل الإشعارات تاني بدون مشاكل مع الباك إند
-        // الباك إند محتاج التوكن ده عشان يقدر يبعت إشعارات لما يتفعل تاني
-      } catch (e) {
-        log("Error in init disabled: $e");
-      }
-      return;
-    }
-
     // 🌟 1. طلب الصلاحيات أولاً (عشان فايربيز يفتح البوابات)
     await checkAndRequestNotificationPermission(showDialogIfPermanentlyDenied: false);
 
