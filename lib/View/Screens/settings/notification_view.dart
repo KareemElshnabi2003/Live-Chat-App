@@ -32,6 +32,7 @@ class NotificationController extends GetxController {
   void toggleNotification(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     if (value) {
+      // ✅ تفعيل الإشعارات
       final isGranted =
           await FirebaseNotification().checkAndRequestNotificationPermission(
         showDialogIfPermanentlyDenied: true,
@@ -45,25 +46,27 @@ class NotificationController extends GetxController {
       await prefs.setBool('notificationsEnabled', true);
       try {
         await FirebaseMessaging.instance.setAutoInitEnabled(true);
+        // احصل على توكن جديد أو نفس التوكن القديم
         final token = await FirebaseMessaging.instance.getToken();
         if (token != null) {
           await prefs.setString("deviceToken", token);
           sharedPreferences?.setString("deviceToken", token);
         }
+        // أعد تهيئة مستمعات الإشعارات
         await FirebaseNotification().intilizeNotification();
       } catch (e) {
         debugPrint("Error enabling notifications: $e");
       }
     } else {
+      // 🔕 تعطيل الإشعارات
       isNotificationEnabled.value = false;
       await prefs.setBool('notificationsEnabled', false);
       try {
+        // فقط نمنع الإشعارات المحلية، لا نمسح التوكن حتى يعمل الـ re-enable بدون مشاكل
         await flutterLocalNotificationsPlugin.cancelAll();
         await FlutterCallkitIncoming.endAllCalls();
-        await FirebaseMessaging.instance.setAutoInitEnabled(false);
-        await FirebaseMessaging.instance.deleteToken();
-        await prefs.remove('deviceToken');
-        sharedPreferences?.remove('deviceToken');
+        // ⚠️ لا نستدعي deleteToken() هنا لأن الباك إند محتاجه لما تشغل الإشعارات تاني
+        // بدلاً من كده بنعتمد على SharedPreferences فقط لمنع عرض الإشعارات
       } catch (e) {
         debugPrint("Error turning off notifications: $e");
       }

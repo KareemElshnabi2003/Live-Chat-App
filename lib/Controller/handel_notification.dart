@@ -163,12 +163,10 @@ Future<void> intilizeNotification() async {
       log("🔇 [INIT] Notifications are globally disabled by user preference. Skipping setup.");
       try {
         await flutterLocalNotificationsPlugin.cancelAll();
-        await firebaseMessagin.setAutoInitEnabled(false);
-        await firebaseMessagin.deleteToken();
-        await prefs.remove('deviceToken');
-        sharedPreferences?.remove('deviceToken');
+        // ⚠️ لا نمسح التوكن هنا عشان نقدر نشغل الإشعارات تاني بدون مشاكل مع الباك إند
+        // الباك إند محتاج التوكن ده عشان يقدر يبعت إشعارات لما يتفعل تاني
       } catch (e) {
-        log("Error disabling token in init: $e");
+        log("Error in init disabled: $e");
       }
       return;
     }
