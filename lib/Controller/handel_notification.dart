@@ -51,6 +51,19 @@ const AndroidNotificationChannel highImportanceChannel =
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // 🛡️ فحص ما إذا كان المستخدم قد أوقف الإشعارات من إعدادات التطبيق
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final bool isEnabled = prefs.getBool('notificationsEnabled') ?? true;
+    if (!isEnabled) {
+      print("🔇 [BACKGROUND] Notifications are turned OFF by user. Ignoring message completely.");
+      return;
+    }
+  } catch (e) {
+    print("Error checking notification preferences in background: $e");
+  }
+
   print("==================================================");
   print("📩 [BACKGROUND] Notification Received!");
   print("Message ID: ${message.messageId}");
@@ -142,6 +155,24 @@ class FirebaseNotification {
   static bool isAnsweringNotificationCall = false;
   final firebaseMessagin = FirebaseMessaging.instance;
 Future<void> intilizeNotification() async {
+    final prefs = sharedPreferences ?? await SharedPreferences.getInstance();
+    final bool isNotificationsGloballyEnabled =
+        prefs.getBool('notificationsEnabled') ?? true;
+
+    if (!isNotificationsGloballyEnabled) {
+      log("🔇 [INIT] Notifications are globally disabled by user preference. Skipping setup.");
+      try {
+        await flutterLocalNotificationsPlugin.cancelAll();
+        await firebaseMessagin.setAutoInitEnabled(false);
+        await firebaseMessagin.deleteToken();
+        await prefs.remove('deviceToken');
+        sharedPreferences?.remove('deviceToken');
+      } catch (e) {
+        log("Error disabling token in init: $e");
+      }
+      return;
+    }
+
     // 🌟 1. طلب الصلاحيات أولاً (عشان فايربيز يفتح البوابات)
     await checkAndRequestNotificationPermission(showDialogIfPermanentlyDenied: false);
 
@@ -209,6 +240,9 @@ Future<void> intilizeNotification() async {
 
     // تجديد التوكن لو اتغير
     FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+      final bool isEnabled =
+          sharedPreferences?.getBool('notificationsEnabled') ?? true;
+      if (!isEnabled) return;
       sharedPreferences!.setString("deviceToken", newToken);
       print("🔄 Device token refreshed :::>>> $newToken");
     });
@@ -417,6 +451,14 @@ Future<void> intilizeNotification() async {
   // handle foreground messages
   Future<void> handleForGround() async {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // 🛡️ إذا كانت الإشعارات ملغاة من الإعدادات، يتم تجاهل الرسالة بالكامل فوراً
+      final bool isNotificationsGloballyEnabled =
+          sharedPreferences?.getBool('notificationsEnabled') ?? true;
+      if (!isNotificationsGloballyEnabled) {
+        log("🔇 [FOREGROUND] Notifications are disabled by user in Settings. Ignoring incoming message completely.");
+        return;
+      }
+
       final data = message.data;
       final notification = message.notification;
 
@@ -554,12 +596,6 @@ Future<void> intilizeNotification() async {
         }
       }
 
-      final bool isNotificationsGloballyEnabled =
-          sharedPreferences?.getBool('notificationsEnabled') ?? true;
-      if (!isNotificationsGloballyEnabled) {
-        log("🔇 Notifications are disabled by user in Settings. Skipping local notification and in-app banner.");
-        return;
-      }
 
       void onTapAction() {
         final isRecharge = type == "recharge" ||
@@ -768,6 +804,12 @@ Future<void> intilizeNotification() async {
     // App opened from TERMINATED state
     firebaseMessagin.getInitialMessage().then((message) {
       if (message != null) {
+        final bool isNotificationsGloballyEnabled =
+            sharedPreferences?.getBool('notificationsEnabled') ?? true;
+        if (!isNotificationsGloballyEnabled) {
+          log("🔇 [TERMINATED OPEN] Notifications are disabled by user. Ignoring.");
+          return;
+        }
         print(
             "🚀 [TERMINATED OPEN] App opened by tapping notification: ${message.data}");
         handelMassage(message);
@@ -776,6 +818,12 @@ Future<void> intilizeNotification() async {
 
     // App opened from BACKGROUND state
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      final bool isNotificationsGloballyEnabled =
+          sharedPreferences?.getBool('notificationsEnabled') ?? true;
+      if (!isNotificationsGloballyEnabled) {
+        log("🔇 [BACKGROUND OPEN] Notifications are disabled by user. Ignoring.");
+        return;
+      }
       print(
           "📲 [BACKGROUND OPEN] App opened by tapping notification: ${message.data}");
       handelMassage(message);

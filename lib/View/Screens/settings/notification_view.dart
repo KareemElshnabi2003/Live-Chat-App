@@ -1,4 +1,6 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:get/get.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 import 'package:live_chat/Core/Constant/app_color.dart';
@@ -30,7 +32,8 @@ class NotificationController extends GetxController {
   void toggleNotification(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     if (value) {
-      final isGranted = await FirebaseNotification().checkAndRequestNotificationPermission(
+      final isGranted =
+          await FirebaseNotification().checkAndRequestNotificationPermission(
         showDialogIfPermanentlyDenied: true,
       );
       if (!isGranted) {
@@ -40,9 +43,30 @@ class NotificationController extends GetxController {
       }
       isNotificationEnabled.value = true;
       await prefs.setBool('notificationsEnabled', true);
+      try {
+        await FirebaseMessaging.instance.setAutoInitEnabled(true);
+        final token = await FirebaseMessaging.instance.getToken();
+        if (token != null) {
+          await prefs.setString("deviceToken", token);
+          sharedPreferences?.setString("deviceToken", token);
+        }
+        await FirebaseNotification().intilizeNotification();
+      } catch (e) {
+        debugPrint("Error enabling notifications: $e");
+      }
     } else {
       isNotificationEnabled.value = false;
       await prefs.setBool('notificationsEnabled', false);
+      try {
+        await flutterLocalNotificationsPlugin.cancelAll();
+        await FlutterCallkitIncoming.endAllCalls();
+        await FirebaseMessaging.instance.setAutoInitEnabled(false);
+        await FirebaseMessaging.instance.deleteToken();
+        await prefs.remove('deviceToken');
+        sharedPreferences?.remove('deviceToken');
+      } catch (e) {
+        debugPrint("Error turning off notifications: $e");
+      }
     }
   }
 }
@@ -131,60 +155,6 @@ class NotificationView extends StatelessWidget {
                             : AppColors.buttoncolor,
                       )),
                 ],
-              ),
-              SizedBox(height: 3.h),
-              InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => openAppSettings(),
-                child: Container(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.5.h),
-                  decoration: BoxDecoration(
-                    color: pref! ? AppColors.darkcolor : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: pref! ? Colors.white12 : Colors.grey.shade200,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    textDirection:
-                        isRtl ? TextDirection.rtl : TextDirection.ltr,
-                    children: [
-                      Row(
-                        textDirection:
-                            isRtl ? TextDirection.rtl : TextDirection.ltr,
-                        children: [
-                          Icon(
-                            IconsaxPlusLinear.setting_2,
-                            size: 5.w,
-                            color: pref!
-                                ? AppColors.whiteColor
-                                : AppColors.blackColor,
-                          ),
-                          SizedBox(width: 2.w),
-                          textNormal(
-                            isRtl
-                                ? "إعدادات إشعارات الهاتف"
-                                : "Phone Notification Settings",
-                            pref!
-                                ? AppColors.whiteColor
-                                : AppColors.blackTextColor,
-                            3.5.w,
-                            FontWeight.w400,
-                          ),
-                        ],
-                      ),
-                      Icon(
-                        isRtl
-                            ? IconsaxPlusLinear.arrow_left_2
-                            : IconsaxPlusLinear.arrow_right_3,
-                        size: 4.5.w,
-                        color: AppColors.inActiveColor,
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ],
           ),
