@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:live_chat/Core/Class/api.dart';
 import 'package:live_chat/Core/class/status_request.dart';
-import 'package:live_chat/Core/function/handling_data.dart';
 import 'package:live_chat/Data/DataSource/chats_source.dart';
 import 'package:live_chat/Controller/chat_controller.dart';
 import 'package:live_chat/generated/l10n.dart';
@@ -400,20 +399,18 @@ userNamesMap: ${userNamesMap.toString()}
     });
 
     if (!isGroupCall.value) {
-      if (!isCaller) {
-        debugPrint("🔚 Creator left audio call -> leaving call screen");
-        if (!_isDisposed && !_isEndingCall) {
+      debugPrint("🔚 Remote user left 1-on-1 audio call -> closing call screen");
+      if (!_isDisposed && !_isEndingCall) {
+        onRemoteEndedCall();
+        Future.delayed(const Duration(milliseconds: 300), () {
           Get.snackbar(
             "المكالمة",
-            "تم إنهاء المكالمة من قِبل المتصل",
+            "تم إنهاء المكالمة",
             backgroundColor: Colors.grey[900],
             colorText: Colors.white,
             duration: const Duration(seconds: 2),
           );
-          onRemoteEndedCall();
-        }
-      } else {
-        debugPrint("⏳ Subscriber left audio call -> waiting for rejoin or manual end");
+        });
       }
     }
   }
@@ -614,6 +611,27 @@ userNamesMap: ${userNamesMap.toString()}
     debugPrint('📞 Call mode switched to: ${toGroupCall ? 'GROUP' : 'SINGLE'}');
   }
 
+  void _safeCloseView() {
+    try {
+      if (Get.isSnackbarOpen == true) {
+        Get.closeAllSnackbars();
+      }
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+      if (Get.context != null && Get.context!.mounted) {
+        Navigator.of(Get.context!).pop();
+      } else {
+        Get.back();
+      }
+    } catch (e) {
+      debugPrint("Error in _safeCloseView: $e");
+      try {
+        Get.back();
+      } catch (_) {}
+    }
+  }
+
   void onRemoteEndedCall() async {
     if (_isEndingCall || _isDisposed) return;
     _isEndingCall = true;
@@ -626,9 +644,7 @@ userNamesMap: ${userNamesMap.toString()}
         debugPrint("Error leaving audio channel on remote ended: $e");
       }
     }
-    if (Get.context != null && Get.context!.mounted) {
-      Get.back();
-    }
+    _safeCloseView();
     await _disposeEngine();
   }
 
@@ -636,7 +652,7 @@ userNamesMap: ${userNamesMap.toString()}
     if (_isEndingCall || _isDisposed) return;
     _isEndingCall = true;
 
-    debugPrint('🔴 Remote user is busy, exiting audio call and ending on server without sending CALL_ENDED message...');
+    debugPrint('🔴 Remote user is busy, exiting audio call...');
     if (_engine != null) {
       try {
         await _engine!.leaveChannel();
@@ -644,21 +660,20 @@ userNamesMap: ${userNamesMap.toString()}
         debugPrint("Error leaving audio channel on busy: $e");
       }
     }
-    if (Get.context != null && Get.context!.mounted) {
-      Get.back();
-    }
+    _safeCloseView();
     await _disposeEngine();
-    // 🌟 إنهاء المكالمة على السيرفر لتفريغ الجلسة مع منع إرسال رسالة CALL_ENDED لأن الطرف الآخر أرسل CALL_BUSY بالفعل
     await endCallApi(sendEndedMessage: false);
 
-    Get.snackbar(
-      "المكالمة",
-      "المستخدم في مكالمة أخرى حالياً",
-      backgroundColor: Colors.red[900],
-      colorText: Colors.white,
-      duration: const Duration(seconds: 3),
-      snackPosition: SnackPosition.TOP,
-    );
+    Future.delayed(const Duration(milliseconds: 300), () {
+      Get.snackbar(
+        "المكالمة",
+        "المستخدم في مكالمة أخرى حالياً",
+        backgroundColor: Colors.red[900],
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+        snackPosition: SnackPosition.TOP,
+      );
+    });
   }
 
   Future<void> endCall() async {
@@ -668,8 +683,8 @@ userNamesMap: ${userNamesMap.toString()}
     final isOneOnOneCall = !isGroupCall.value;
     bool shouldEndCall = false;
     if (isOneOnOneCall) {
-      // 🌟 في المكالمة الفردية: إذا أنهى المتصل الأصلي المكالمة، أو إذا لم يبقَ أحد في المكالمة
-      shouldEndCall = isCaller || remoteUid.value == null;
+      // 🌟 في المكالمة الفردية: إنهاء المكالمة دائماً إذا خرج أي من الطرفين
+      shouldEndCall = true;
     } else {
       int otherParticipantsCount =
           participantsList.where((p) => p.uid != uId).length;
@@ -691,10 +706,8 @@ userNamesMap: ${userNamesMap.toString()}
       }
     }
 
-    // 2. إغلاق الشاشة فوراً
-    if (Get.context != null && Get.context!.mounted) {
-      Get.back();
-    }
+    // 2. إغلاق الشاشة فوراً وبأمان
+    _safeCloseView();
 
     // 3. تنظيف محرك Agora
     await _disposeEngine();
@@ -709,28 +722,26 @@ userNamesMap: ${userNamesMap.toString()}
     }
     log('🔚 Calling endCallApi for chatId: $chatId');
 
+    // 🌟 إرسال إشعار إنهاء المكالمة فوراً عبر بوشر بدون تعليق أو انتظار رد السيرفر
+    if (sendEndedMessage) {
+      final endMsg = isGroupCall.value ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||";
+      try {
+        if (Get.isRegistered<ChatController>()) {
+          Get.find<ChatController>().sendSystemMessage(endMsg, targetChatId: chatId);
+        } else {
+          _chatsRemoteData.sendMessages(
+              chatId: chatId, 
+              message: endMsg
+          );
+        }
+      } catch (e) {
+        log('❌ Error sending endMsg: $e');
+      }
+    }
+
     try {
       var response = await _chatsRemoteData.endCall(id: chatId);
       log('📞 End call response: ${response.toString()}');
-
-      final status = handlingData(response);
-      final isSuccess = status == StatuesRequest.success ||
-          (response is Map && (response['status'] == 'success' || response['code'] == 200));
-
-      if (isSuccess) {
-        log('✅ End call successful');
-        if (sendEndedMessage) {
-          final endMsg = isGroupCall.value ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||";
-          if (Get.isRegistered<ChatController>()) {
-            Get.find<ChatController>().sendSystemMessage(endMsg, targetChatId: chatId);
-          } else {
-            _chatsRemoteData.sendMessages(
-                chatId: chatId, 
-                message: endMsg
-            );
-          }
-        }
-      }
     } catch (e) {
       log('❌ Exception in endCallApi: $e');
     }

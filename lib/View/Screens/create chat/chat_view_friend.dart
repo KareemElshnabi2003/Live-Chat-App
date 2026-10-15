@@ -51,6 +51,8 @@ class _ChatViewState extends State<ChatViewFriend> {
   void initState() {
     super.initState();
     final controller = Get.put(ChatController());
+    controller.isPublicChat = false;
+    controller.userChatModel = widget.userChatModel;
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
               _scrollController.position.maxScrollExtent - 50 &&
@@ -179,6 +181,8 @@ class _ChatViewState extends State<ChatViewFriend> {
                                   final isFirstInGroup = _isFirstMessageInGroup(
                                       controller.messages, index);
                                   return ChatBubbleWidget(
+                                    key: ValueKey(
+                                        "${message.messageId}_${message.isRead}_${message.isPending}"),
                                     name: message.senderName?.toString() ?? '',
                                     img: message.imageUrl?.toString() ?? 'null',
                                     message: message,
@@ -1159,15 +1163,25 @@ class ChatBubbleWidget extends StatelessWidget {
                           message.isFromSender,
                         ),
                         const SizedBox(height: 5),
-                        Text(
-                          message.timestamp.toString(),
-                          style: TextStyle(
-                            color: message.isFromSender
-                                ? AppColors.whiteColor
-                                : AppColors.blackTextColor,
-                            fontSize: 2.5.w,
-                            fontWeight: FontWeight.w400,
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          textDirection: TextDirection.ltr,
+                          children: [
+                            Text(
+                              message.timestamp.toString(),
+                              style: TextStyle(
+                                color: message.isFromSender
+                                    ? AppColors.whiteColor.withOpacity(0.85)
+                                    : AppColors.blackTextColor.withOpacity(0.65),
+                                fontSize: 2.5.w,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                            if (message.isFromSender) ...[
+                              SizedBox(width: 1.w),
+                              _buildMessageStatusIcon(message),
+                            ],
+                          ],
                         ),
                       ],
                     ),
@@ -1375,6 +1389,28 @@ class ChatBubbleWidget extends StatelessWidget {
       } else {
         return BorderRadius.circular(12);
       }
+    }
+  }
+
+  Widget _buildMessageStatusIcon(ChatMessage message) {
+    if (message.isPending) {
+      return Icon(
+        Icons.access_time_rounded,
+        size: 3.2.w,
+        color: Colors.white70,
+      );
+    } else if (message.isRead) {
+      return Icon(
+        Icons.done_all_rounded,
+        size: 3.8.w,
+        color: const Color(0xFF34B7F1), // اللون الأزرق المميز للصحين مثل الواتساب
+      );
+    } else {
+      return Icon(
+        Icons.check_rounded,
+        size: 3.5.w,
+        color: Colors.white70,
+      );
     }
   }
 }

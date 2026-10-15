@@ -69,7 +69,13 @@ void showUserFriendlyError(StatuesRequest status, {String? customMessage}) {
       bgColor = Colors.redAccent.shade700;
       iconData = Icons.error_outline_rounded;
       title = "تنبيه";
-      message = customMessage ?? Api.serverMessage ?? "البيانات المدخلة غير صحيحة، يرجى مراجعتها.";
+      String? rawMsg = customMessage ?? Api.serverMessage;
+      if (rawMsg != null &&
+          (rawMsg.trim().toLowerCase() == "validation failed" ||
+              rawMsg.trim().toLowerCase() == "the given data was invalid.")) {
+        rawMsg = "البيانات المدخلة غير صحيحة، يرجى مراجعتها والتأكد من صحتها.";
+      }
+      message = rawMsg ?? "البيانات المدخلة غير صحيحة، يرجى مراجعتها.";
       Api.serverMessage = null; 
       break;
 

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:live_chat/Core/Class/api.dart';
 import 'package:live_chat/Core/class/status_request.dart';
-import 'package:live_chat/Core/function/handling_data.dart';
 import 'package:live_chat/Data/DataSource/chats_source.dart';
 import 'package:live_chat/Controller/chat_controller.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -299,24 +298,18 @@ class VideoCallController extends GetxController {
     });
 
     if (!isGroubCall) {
-      if (!isCaller) {
-        // إذا كنت أنا المشترك، والشخص الآخر (الذي أنشأ المكالمة) غادر:
-        // تنتهي المكالمة بالنسبة لي ونرجع للشات فوراً
-        debugPrint("🔚 Creator left the 1-on-1 call -> leaving call screen");
-        if (!_userEndedCall && !_isEndingCall) {
+      debugPrint("🔚 Remote user left 1-on-1 video call -> closing call screen");
+      if (!_userEndedCall && !_isEndingCall) {
+        onRemoteEndedCall();
+        Future.delayed(const Duration(milliseconds: 300), () {
           Get.snackbar(
             "المكالمة",
-            "تم إنهاء المكالمة من قِبل المتصل",
+            "تم إنهاء المكالمة",
             backgroundColor: Colors.grey[900],
             colorText: Colors.white,
             duration: const Duration(seconds: 2),
           );
-          onRemoteEndedCall();
-        }
-      } else {
-        // إذا كنت أنا من أنشأ المكالمة، والمشترك هو من غادر:
-        // لا ننهي المكالمة على السيرفر! ننتظره ليعود أو ننهيها نحن يدوياً
-        debugPrint("⏳ Subscriber left the 1-on-1 call -> waiting for rejoin or manual end");
+        });
       }
     }
   }
@@ -457,6 +450,27 @@ class VideoCallController extends GetxController {
     }
   }
 
+  void _safeCloseView() {
+    try {
+      if (Get.isSnackbarOpen == true) {
+        Get.closeAllSnackbars();
+      }
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+      if (Get.context != null && Get.context!.mounted) {
+        Navigator.of(Get.context!).pop();
+      } else {
+        Get.back();
+      }
+    } catch (e) {
+      debugPrint("Error in _safeCloseView: $e");
+      try {
+        Get.back();
+      } catch (_) {}
+    }
+  }
+
   void onRemoteEndedCall() async {
     if (_isEndingCall || _isDisposed) return;
     _isEndingCall = true;
@@ -471,9 +485,7 @@ class VideoCallController extends GetxController {
         debugPrint("Error leaving channel on remote ended: $e");
       }
     }
-    if (Get.context != null && Get.context!.mounted) {
-      Get.back();
-    }
+    _safeCloseView();
     await _disposeEngine();
   }
 
@@ -482,7 +494,7 @@ class VideoCallController extends GetxController {
     _isEndingCall = true;
     _userEndedCall = true;
 
-    debugPrint('🔴 Remote user is busy, exiting call and ending on server without sending CALL_ENDED message...');
+    debugPrint('🔴 Remote user is busy, exiting call...');
     if (_engine != null) {
       try {
         await _engine!.stopPreview();
@@ -491,21 +503,20 @@ class VideoCallController extends GetxController {
         debugPrint("Error leaving channel on busy: $e");
       }
     }
-    if (Get.context != null && Get.context!.mounted) {
-      Get.back();
-    }
+    _safeCloseView();
     await _disposeEngine();
-    // 🌟 إنهاء المكالمة على السيرفر لتفريغ الجلسة مع منع إرسال رسالة CALL_ENDED لأن الطرف الآخر أرسل CALL_BUSY بالفعل
     await endCallApi(sendEndedMessage: false);
 
-    Get.snackbar(
-      "المكالمة",
-      "المستخدم في مكالمة أخرى حالياً",
-      backgroundColor: Colors.red[900],
-      colorText: Colors.white,
-      duration: const Duration(seconds: 3),
-      snackPosition: SnackPosition.TOP,
-    );
+    Future.delayed(const Duration(milliseconds: 300), () {
+      Get.snackbar(
+        "المكالمة",
+        "المستخدم في مكالمة أخرى حالياً",
+        backgroundColor: Colors.red[900],
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+        snackPosition: SnackPosition.TOP,
+      );
+    });
   }
 
   Future<void> endCall() async {
@@ -515,11 +526,11 @@ class VideoCallController extends GetxController {
 
     final isOneOnOneCall = !isGroubCall;
 
-    // 🌟 في المكالمة الفردية: إذا أنهى المتصل الأصلي المكالمة، أو إذا لم يبقَ أحد في المكالمة
+    // 🌟 في المكالمة الفردية: إنهاء المكالمة دائماً إذا خرج أي من الطرفين
     // في المكالمة الجماعية: تنتهي فقط عند خروج آخر شخص متبقٍ في المكالمة
     bool shouldEndCall = false;
     if (isOneOnOneCall) {
-      shouldEndCall = isCaller || _remoteUsers.isEmpty;
+      shouldEndCall = true;
     } else {
       shouldEndCall = _remoteUsers.isEmpty;
     }
@@ -540,10 +551,8 @@ class VideoCallController extends GetxController {
       }
     }
 
-    // 2. إغلاق شاشة المكالمة فوراً ليعود المستخدم للشات دون تأخير
-    if (Get.context != null && Get.context!.mounted) {
-      Get.back();
-    }
+    // 2. إغلاق شاشة المكالمة فوراً وبأمان
+    _safeCloseView();
 
     // 3. تنظيف محرك Agora بأمان بعد خروج الشاشة
     await _disposeEngine();
@@ -555,30 +564,27 @@ class VideoCallController extends GetxController {
       return;
     }
 
+    // 🌟 إرسال إشعار إنهاء المكالمة فوراً عبر بوشر بدون تعليق أو انتظار رد السيرفر
+    if (sendEndedMessage) {
+      final endMsg = isGroubCall ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||";
+      try {
+        if (Get.isRegistered<ChatController>()) {
+          Get.find<ChatController>().sendSystemMessage(endMsg, targetChatId: chatId);
+        } else {
+          _chatsRemoteData.sendMessages(
+              chatId: chatId, 
+              message: endMsg
+          );
+        }
+      } catch (e) {
+        log('❌ Error sending video endMsg: $e');
+      }
+    }
+
     try {
       log("📡 Calling end call API for chatId: $chatId");
-
       var response = await _chatsRemoteData.endCall(id: chatId);
       log("📥 End call API response: $response");
-
-      final status = handlingData(response);
-      final isSuccess = status == StatuesRequest.success ||
-          (response is Map && (response['status'] == 'success' || response['code'] == 200));
-
-      if (isSuccess) {
-        log("✅ Call ended successfully: ${response is Map ? response['data'] : ''}");
-        if (sendEndedMessage) {
-          final endMsg = isGroubCall ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||";
-          if (Get.isRegistered<ChatController>()) {
-            Get.find<ChatController>().sendSystemMessage(endMsg, targetChatId: chatId);
-          } else {
-            _chatsRemoteData.sendMessages(
-                chatId: chatId, 
-                message: endMsg
-            );
-          }
-        }
-      }
     } catch (e) {
       log("❌ Exception in endCallApi: $e");
     }

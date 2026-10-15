@@ -65,8 +65,28 @@ class ChatController extends GetxController {
   bool isImagePickerActive = false;
   TokenCallModel? tokenCallModel;
 
-  bool isPublicChat = true; // 🌟 هيتحدد من الشاشة
+  bool isPublicChat = false; // 🌟 هيتحدد من الشاشة
   UserChatModel? userChatModel;
+  bool get isGroupChat {
+    if (userChatModel != null) {
+      final status = userChatModel!.status?.toLowerCase();
+      // إذا كان الشات أصدقاء أو شات فردي فهو فردي قطعاً
+      if (status == 'friends' || status == 'not friend' || status == 'friend') {
+        return false;
+      }
+      if (status == 'public') {
+        return true;
+      }
+      if (status == 'private') {
+        // غرف الدردشة الخاصة الجماعية يكون لها أدمنز أو عدد أعضاء أكثر من 2 أو ثيم
+        final bool isGroupRoom = (userChatModel!.chatAdmins != null && userChatModel!.chatAdmins!.isNotEmpty) ||
+            (userChatModel!.membersCount != null && userChatModel!.membersCount! > 2) ||
+            userChatModel!.themeId != null;
+        return isGroupRoom;
+      }
+    }
+    return isPublicChat;
+  }
 
   late final AudioPlayer audioPlayer;
   bool music1 = false, music2 = false, music3 = false;
@@ -136,21 +156,69 @@ class ChatController extends GetxController {
             if (!Get.isRegistered<ChatController>()) return;
             final ctrl = Get.find<ChatController>();
 
-            if (event.data.toString() == "{}" || event.data == null) return;
+            dynamic eventData = {};
+            if (event.data != null) {
+              if (event.data is Map) {
+                eventData = event.data;
+              } else if (event.data.toString().isNotEmpty &&
+                  event.data.toString() != "{}") {
+                try {
+                  eventData = jsonDecode(event.data.toString());
+                  if (eventData is String) eventData = jsonDecode(eventData);
+                } catch (e) {
+                  log("⚠️ Pusher jsonDecode: $e");
+                  eventData = {};
+                }
+              }
+            }
+
+            final eventNameLower = event.eventName.toLowerCase();
+
+            // 👁️ استقبال حدث قراءة الرسائل (message-read / message.read / seen) لتحويل الصحين لأزرق
+            if (eventNameLower.contains("read") ||
+                eventNameLower.contains("seen") ||
+                (eventData is Map &&
+                    (eventData['status'] == 'read' ||
+                        eventData['status'] == 'seen' ||
+                        eventData['event']
+                                ?.toString()
+                                .toLowerCase()
+                                .contains('read') ==
+                            true ||
+                        eventData['type']
+                                ?.toString()
+                                .toLowerCase()
+                                .contains('read') ==
+                            true))) {
+              log("👁️ [PUSHER] Read event received: ${event.eventName} with data: $eventData");
+              ctrl.handleMessageReadEvent(eventData);
+            }
 
             try {
-              var eventData = jsonDecode(event.data.toString());
-              if (eventData is String) eventData = jsonDecode(eventData);
-
               if (event.eventName.contains("message-created")) {
-                final msgData = eventData;
+                final msgData = eventData is Map ? eventData : {};
+                if (msgData.isEmpty) return;
                 final myId = sharedPreferences!.getString("id") ??
                     sharedPreferences!.getString("idGust") ??
                     "";
 
                 bool isMe = msgData['sender_id'].toString() == myId.toString();
 
-                if (!isMe) {
+                if (isMe) {
+                  // تحديث حالة رسالتي عند تأكيد الإنشاء على السيرفر (صح مفرد رمادي)
+                  final serverId = msgData['id']?.toString();
+                  final msgText = decodeHtmlEntities(msgData['message'] ?? '');
+                  final idx = ctrl.messages.indexWhere((m) =>
+                      m.isFromSender &&
+                      (m.messageId == serverId || (m.isPending && m.message == msgText)));
+                  if (idx != -1) {
+                    ctrl.messages[idx] = ctrl.messages[idx].copyWith(
+                      messageId: serverId ?? ctrl.messages[idx].messageId,
+                      isPending: false,
+                    );
+                    ctrl.messages.refresh();
+                  }
+                } else {
                   String messageType = msgData['message_type'] ?? 'text';
                   String messageContent = decodeHtmlEntities(msgData['message'] ?? '');
 
@@ -164,11 +232,21 @@ class ChatController extends GetxController {
                     messageId: msgData['id'].toString(),
                     isPending: false,
                     isFromSender: false,
+                    isRead: false,
                     timestamp: DateFormat('h:mm a').format(DateTime.now()),
                   );
 
                   // 🌟 تحسين الأداء: الإضافة والـ Refresh في خطوة واحدة
                   ctrl.messages.insert(0, newMsg);
+
+                  // 👁️ وصول رسالة من الطرف الآخر يؤكد أنه شاهد الرسائل السابقة ورد عليها
+                  if (!ctrl.isGroupChat) {
+                    ctrl.syncReadStatusForPassedMessages();
+                    // إشعار السيرفر في الخلفية ليقوم أيضاً ببث message-read للطرف الآخر
+                    Future.microtask(() {
+                      ctrl._chatsRemoteData.getMessages(idChat: ctrl.chatId, page: 1);
+                    });
+                  }
 
                   // 🔔 Handle incoming call via Pusher in real-time
                   if (messageContent.startsWith('|||PRIVATE_CALL_START|||') ||
@@ -267,6 +345,8 @@ class ChatController extends GetxController {
                     ctrl.update();
                     if (ctrl.isIncomingCallScreenShowing) {
                       ctrl.isIncomingCallScreenShowing = false;
+                      IncomingCallScreen.isShowing = false;
+                      if (Get.isDialogOpen == true) Get.back();
                       Get.back();
                       Get.snackbar(
                         "المكالمة",
@@ -277,16 +357,15 @@ class ChatController extends GetxController {
                         colorText: Colors.white,
                         duration: const Duration(seconds: 2),
                       );
-                    } else {
-                      // 🌟 إغلاق شاشة المكالمة للمشترك إذا كان المتصل هو من أنهى المكالمة
-                      if (Get.isRegistered<VideoCallController>()) {
-                        final videoCtrl = Get.find<VideoCallController>();
-                        videoCtrl.onRemoteEndedCall();
-                      }
-                      if (Get.isRegistered<AudioCallController>()) {
-                        final audioCtrl = Get.find<AudioCallController>();
-                        audioCtrl.onRemoteEndedCall();
-                      }
+                    }
+                    // 🌟 إغلاق شاشة المكالمة للمشترك/المتصل إذا أنهى الطرف الآخر المكالمة
+                    if (Get.isRegistered<VideoCallController>()) {
+                      final videoCtrl = Get.find<VideoCallController>();
+                      videoCtrl.onRemoteEndedCall();
+                    }
+                    if (Get.isRegistered<AudioCallController>()) {
+                      final audioCtrl = Get.find<AudioCallController>();
+                      audioCtrl.onRemoteEndedCall();
                     }
                   }
                 }
@@ -308,6 +387,91 @@ class ChatController extends GetxController {
       subscribedChannels.add(targetChannel);
     }
     await pusher.connect();
+  }
+
+  void syncReadStatusForPassedMessages() {
+    if (isGroupChat) return;
+
+    // في قائمة الرسائل (index 0 هي أحدث رسالة، و index length-1 هي أقدم رسالة)
+    // نبحث عن أحدث رسالة أرسلها الطرف الآخر (أول رسالة حيث !isFromSender)
+    int firstOtherIndex = -1;
+    for (int i = 0; i < messages.length; i++) {
+      if (!messages[i].isFromSender) {
+        firstOtherIndex = i;
+        break;
+      }
+    }
+
+    // إذا وُجدت رسالة من الطرف الآخر:
+    // كل رسالة تسبقها (أي index > firstOtherIndex) أرسلتُها أنا تُعتبر مقروءة حتماً (isRead = true)
+    // لأن الطرف الآخر شاهدها وتخطاها وقام بالرد عليها.
+    if (firstOtherIndex != -1) {
+      bool updated = false;
+      for (int i = firstOtherIndex + 1; i < messages.length; i++) {
+        if (messages[i].isFromSender && !messages[i].isRead) {
+          messages[i] = messages[i].copyWith(isRead: true);
+          updated = true;
+        }
+      }
+      if (updated) {
+        log("✅ [SYNC] Marked all messages older than other's reply as read (✓✓)");
+        messages.refresh();
+        update();
+      }
+    }
+  }
+
+  void handleMessageReadEvent(dynamic eventData) {
+    try {
+      log("👁️ [PUSHER] handleMessageReadEvent: isGroupChat=$isGroupChat, chatStatus=${userChatModel?.status}, data=$eventData");
+      // 🌟 ميزة الصحين للقراءة مخصصة فقط للشات الفردي (شات الأصدقاء / الخاص)
+      // في الشات الجماعي تكتفي بصح واحد دائم لوصول الرسالة
+      if (isGroupChat) {
+        log("👥 [PUSHER] message-read ignored because this is a group chat");
+        return;
+      }
+
+      final myId = sharedPreferences!.getString("id") ??
+          sharedPreferences!.getString("idGust") ??
+          "";
+
+      dynamic effectiveData = eventData;
+      if (effectiveData is Map) {
+        if (effectiveData['data'] is Map) {
+          effectiveData = effectiveData['data'];
+        } else if (effectiveData['message'] is Map) {
+          effectiveData = effectiveData['message'];
+        }
+      }
+
+      // إذا كان الإيفنت يحدد بوضوح أن القارئ هو المستخدم الحالي نفسه (مثلاً عند فتحه للشات)، نتجاهله
+      if (effectiveData is Map) {
+        final readerId =
+            (effectiveData['reader_id'] ?? effectiveData['read_by'])?.toString();
+        if (readerId != null && readerId.isNotEmpty && readerId == myId) {
+          log("👁️ [PUSHER] Ignored read event because current user is the reader: $readerId");
+          return;
+        }
+      }
+
+      // 👁️ في الشات الفردي، وصول حدث القراءة يعني أن الطرف الآخر فتح الشات أو شاهد الرسائل
+      // نقوم بتحويل كافة رسائل المستخدم غير المقروءة إلى مقروءة فوراً (صحين أزرق ✓✓)
+      bool updated = false;
+      for (int i = 0; i < messages.length; i++) {
+        if (messages[i].isFromSender && !messages[i].isRead) {
+          messages[i] = messages[i].copyWith(isRead: true);
+          updated = true;
+        }
+      }
+
+      if (updated) {
+        log("✅ [PUSHER] Successfully marked sent messages as read (✓✓)!");
+        messages.refresh();
+        update();
+      }
+    } catch (e) {
+      log("❌ Error handling message-read event: $e");
+    }
   }
 
   call(
@@ -550,6 +714,7 @@ class ChatController extends GetxController {
             messageId: e.id.toString(),
             isPending: false,
             isFromSender: isMe,
+            isRead: e.isRead ?? false,
             timestamp:
                 DateFormat('h:mm a').format(DateTime.parse(e.createdAt!)),
           );
@@ -562,6 +727,7 @@ class ChatController extends GetxController {
         } else {
           messages.addAll(newChatMessages);
         }
+        syncReadStatusForPassedMessages();
         currentPage = page;
       }
     } else {

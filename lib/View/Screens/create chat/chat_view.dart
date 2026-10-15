@@ -58,9 +58,8 @@ class _ChatViewState extends State<ChatView> {
       }
     }
     
-    // 🌟 تحديد نوع الشات عشان نمنع الـ APIs اللي ملهاش لازمة في الشات الخاص (بين شخصين)
-    // غرف الدردشة بيبقى الـ status بتاعها Public أو Private، أما شات الأصدقاء مبيكونش كده
-    controller.isPublicChat = widget.userChatModel?.status == 'Public' || widget.userChatModel?.status == 'Private';
+    // 🌟 تحديد نوع الشات: غرف الدردشة العامة فقط هي الـ Public
+    controller.isPublicChat = widget.userChatModel?.status?.toLowerCase() == 'public';
     controller.userChatModel = widget.userChatModel;
 
     _scrollController.addListener(() {
@@ -141,7 +140,7 @@ class _ChatViewState extends State<ChatView> {
                                 final isFirstInGroup = index == controller.messages.length - 1 || controller.messages[index].senderName != controller.messages[index + 1].senderName;
 
                                 return ChatBubbleWidget(
-                                  key: ValueKey(message.messageId),
+                                  key: ValueKey("${message.messageId}_${message.isRead}_${message.isPending}"),
                                   pref: pref!,
                                   name: message.senderName?.toString() ?? '',
                                   img: message.imageUrl,
@@ -149,6 +148,7 @@ class _ChatViewState extends State<ChatView> {
                                   showAvatar: isFirstInGroup,
                                   isFirstInGroup: isFirstInGroup,
                                   isLastInGroup: isLastInGroup,
+                                  isGroup: controller.isGroupChat,
                                   onLongPress: () => ChatHelpers.showReactionBottomSheet(context, index, controller),
                                 );
                               },

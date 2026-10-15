@@ -10,6 +10,7 @@ class MessageModel {
   String? messageType;
   List<MessageReactions>? messageReactions;
   String? createdAt;
+  bool? isRead;
 
   MessageModel({
     this.id,
@@ -21,6 +22,7 @@ class MessageModel {
     this.messageType,
     this.messageReactions,
     this.createdAt,
+    this.isRead,
   });
 
   MessageModel.fromJson(Map<String, dynamic> json) {
@@ -38,6 +40,12 @@ class MessageModel {
       });
     }
     createdAt = json['created_at'];
+    isRead = json['is_read'] == 1 ||
+        json['is_read'] == true ||
+        json['read_at'] != null ||
+        json['status'] == 'read' ||
+        json['seen'] == 1 ||
+        json['seen'] == true;
   }
 
   Map<String, dynamic> toJson() {

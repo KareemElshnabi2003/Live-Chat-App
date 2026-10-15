@@ -31,11 +31,15 @@ class Api extends GetxService {
 
   Map<String, String> _getHeaders(Map<String, String>? customHeaders) {
     String? token = sharedPreferences!.getString("token");
+    final lang = sharedPreferences!.getString("local") == "en" ? "en" : "ar";
 
     Map<String, String> headers = {
       "Accept": "application/json",
       "Content-Type": "application/json; charset=UTF-8",
-      "Lang": sharedPreferences!.getString("local") == "en" ? "en" : "ar",
+      "Accept-Language": lang,
+      "Lang": lang,
+      "lang": lang,
+      "X-Localization": lang,
     };
     //
     if (token != null && token.isNotEmpty && token != "null") {
@@ -49,37 +53,110 @@ class Api extends GetxService {
     return headers;
   }
 
-  // 🌟 استخراج رسالة الخطأ من الباك إند
+  // 🌟 استخراج وترجمة رسالة الخطأ من الباك إند مع دعم الـ Validation Errors والتعريب
   void _extractServerMessage(String body) {
     try {
       final decodedData = jsonDecode(body);
       if (decodedData is Map) {
-        if (decodedData['message'] != null &&
-            decodedData['message'].toString().trim().isNotEmpty) {
-          serverMessage = decodedData['message'].toString().trim();
-        } else if (decodedData['msg'] != null &&
-            decodedData['msg'].toString().trim().isNotEmpty) {
-          serverMessage = decodedData['msg'].toString().trim();
-        } else if (decodedData['error'] != null &&
-            decodedData['error'].toString().trim().isNotEmpty) {
-          serverMessage = decodedData['error'].toString().trim();
-        } else if (decodedData['errors'] != null) {
-          final errors = decodedData['errors'];
-          if (errors is Map && errors.isNotEmpty) {
-            final firstVal = errors.values.first;
+        String? extractedMsg;
+
+        // 1. إعطاء الأولوية القصوى لأخطاء التحقق المفصلة (validation_errors أو errors)
+        final valErrors = decodedData['validation_errors'] ?? decodedData['errors'];
+        if (valErrors != null) {
+          if (valErrors is Map && valErrors.isNotEmpty) {
+            final firstVal = valErrors.values.first;
             if (firstVal is List && firstVal.isNotEmpty) {
-              serverMessage = firstVal.first.toString();
-            } else {
-              serverMessage = firstVal.toString();
+              extractedMsg = firstVal.first.toString();
+            } else if (firstVal != null) {
+              extractedMsg = firstVal.toString();
             }
-          } else if (errors is List && errors.isNotEmpty) {
-            serverMessage = errors.first.toString();
+          } else if (valErrors is List && valErrors.isNotEmpty) {
+            extractedMsg = valErrors.first.toString();
+          } else if (valErrors is String && valErrors.trim().isNotEmpty) {
+            extractedMsg = valErrors.trim();
           }
         }
+
+        // 2. إذا لم توجد أخطاء تحقق مفصلة، نأخذ رسائل السيرفر العامة
+        if (extractedMsg == null || extractedMsg.trim().isEmpty) {
+          final raw = decodedData['message'] ?? decodedData['msg'] ?? decodedData['error'];
+          if (raw != null && raw.toString().trim().isNotEmpty) {
+            extractedMsg = raw.toString().trim();
+          }
+        }
+
+        // 3. ترجمة وتعريب نصوص الأخطاء الإنجليزية الشائعة (مثل Laravel Validation)
+        serverMessage = _localizeErrorMessage(extractedMsg);
       }
     } catch (e) {
       serverMessage = null;
     }
+  }
+
+  static String? _localizeErrorMessage(String? msg) {
+    if (msg == null || msg.trim().isEmpty) return null;
+    final isArabic = (sharedPreferences?.getString("local") ?? "ar") != "en";
+    final lower = msg.trim().toLowerCase();
+
+    if (isArabic) {
+      // 1. أخطاء البريد الإلكتروني
+      if (lower.contains("selected email is invalid") ||
+          lower.contains("email does not exist") ||
+          lower.contains("user not found") ||
+          lower.contains("no user found")) {
+        return "البريد الإلكتروني المدخل غير مسجل لدينا، يرجى إنشاء حساب جديد.";
+      }
+      if (lower.contains("email has already been taken") ||
+          lower.contains("email already exists") ||
+          lower.contains("email is already registered")) {
+        return "هذا البريد الإلكتروني مسجل بالفعل، يرجى تسجيل الدخول أو استخدام بريد آخر.";
+      }
+      if (lower.contains("must be a valid email") ||
+          lower.contains("valid email address") ||
+          (lower.contains("email") && lower.contains("invalid"))) {
+        return "يرجى إدخال عنوان بريد إلكتروني صالح (مثال: name@example.com).";
+      }
+      if (lower.contains("email field is required") || lower == "the email is required.") {
+        return "يرجى إدخال عنوان البريد الإلكتروني.";
+      }
+
+      // 2. أخطاء اسم المستخدم
+      if (lower.contains("username has already been taken") ||
+          lower.contains("user name has already been taken") ||
+          lower.contains("username already exists")) {
+        return "اسم المستخدم محجوز بالفعل، يرجى اختيار اسم مستخدم آخر.";
+      }
+      if (lower.contains("username field is required") || lower == "the username is required.") {
+        return "يرجى إدخال اسم المستخدم.";
+      }
+
+      // 3. أخطاء التحقق العامة من لارافيل
+      if (lower == "validation failed" || lower == "the given data was invalid.") {
+        return "البيانات المدخلة غير صحيحة، يرجى مراجعتها والمحاولة مرة أخرى.";
+      }
+      if (lower.contains("credentials do not match") || lower.contains("incorrect password")) {
+        return "بيانات الاعتماد غير صحيحة، يرجى التحقق من البريد أو كلمة المرور.";
+      }
+      if (lower.contains("otp is invalid") || lower.contains("invalid otp") || lower.contains("code is invalid")) {
+        return "رمز التحقق غير صحيح، يرجى التأكد من الرمز المدخل.";
+      }
+      if (lower.contains("otp has expired") || lower.contains("code has expired")) {
+        return "انتهت صلاحية رمز التحقق، يرجى طلب رمز جديد.";
+      }
+      if (lower.contains("too many requests") || lower.contains("too many attempts")) {
+        return "محاولات كثيرة جداً، يرجى الانتظار قليلاً والمحاولة لاحقاً.";
+      }
+    } else {
+      // باللغة الإنجليزية: جعل الرسائل الغامضة أكثر وضوحاً
+      if (lower == "validation failed" || lower == "the given data was invalid.") {
+        return "Invalid input data. Please check and try again.";
+      }
+      if (lower.contains("selected email is invalid")) {
+        return "The entered email is not registered. Please create a new account.";
+      }
+    }
+
+    return msg;
   }
 
   Either<StatuesRequest, dynamic> _handleResponse(http.Response response) {
