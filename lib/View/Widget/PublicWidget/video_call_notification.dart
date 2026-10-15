@@ -262,7 +262,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
                                     child: widget.groubImg.toString() == "" ||
                                             widget.groubImg.toString() == "null"
                                         ? textNormal(
-                                            widget.groubName[0],
+                                            widget.groubName.isNotEmpty ? widget.groubName[0] : "G",
                                             AppColors.blackColor,
                                             10.w,
                                             FontWeight.bold)
@@ -283,7 +283,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
                                                 widget.callerImage.toString() ==
                                                     "null"
                                             ? textNormal(
-                                                widget.callerName[0],
+                                                widget.callerName.isNotEmpty ? widget.callerName[0] : "U",
                                                 AppColors.blackColor,
                                                 10.w,
                                                 FontWeight.bold)

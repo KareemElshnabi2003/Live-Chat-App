@@ -89,7 +89,11 @@ class _ChatViewState extends State<ChatView> {
       onPopInvoked: (didPop) { 
         if (didPop) return;
         Future.microtask(() {
-          widget.isGust ? Get.back() : Get.offAll(() => const HomeView()); 
+          if (Navigator.of(context).canPop()) {
+            Get.back();
+          } else {
+            Get.offAll(() => const HomeView());
+          }
         });
       },
       child: Scaffold(

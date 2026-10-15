@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:live_chat/Core/Class/api.dart';
 import 'package:live_chat/Core/class/status_request.dart';
+import 'package:live_chat/Core/function/handling_data.dart';
 import 'package:live_chat/Data/DataSource/chats_source.dart';
 import 'package:live_chat/Controller/chat_controller.dart';
 import 'package:live_chat/generated/l10n.dart';
@@ -65,6 +66,7 @@ class AudioCallController extends GetxController {
   // Group call observables
   final RxBool isGroupCall = false.obs;
   final RxList<Participant> participantsList = <Participant>[].obs;
+  final RxSet<int> _remoteUids = <int>{}.obs;
   final RxBool isSpeaking = false.obs;
   final RxInt activeSpeakerUid = 0.obs;
   final RxMap<int, int> userVolumeMap = <int, int>{}.obs;
@@ -80,6 +82,7 @@ class AudioCallController extends GetxController {
   bool _isDisposed = false;
   bool isCaller = false;
   bool _isEndingCall = false;
+  int? callStartTime;
   final ChatsRemoteData _chatsRemoteData =
       ChatsRemoteData(api: Get.find<Api>());
   @override
@@ -87,6 +90,12 @@ class AudioCallController extends GetxController {
     super.onInit();
     _isDisposed = false;
     _isEndingCall = false;
+    callStartTime = Get.arguments?['CallStartTime'] as int?;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final fromTap = callStartTime != null ? "${now - callStartTime!}ms" : "N/A";
+    debugPrint(
+        "⏱️ [CALL PERF - AUDIO] AudioCallController initialized at +$fromTap from tap");
+
     isCaller = Get.arguments?['isCaller'] ?? false;
 
     token = Get.arguments?['Token'] ?? '';
@@ -122,6 +131,15 @@ userNamesMap: ${userNamesMap.toString()}
   void onClose() {
     _isDisposed = true;
     _disposeEngine();
+    ChatController.isOutgoingCallInProgress = false;
+    ChatController.isCurrentCallPublisher = false;
+    ChatController.activeOutgoingChatId = "";
+    if (Get.isRegistered<ChatController>()) {
+      final ctrl = Get.find<ChatController>();
+      ctrl.isIncomingCallActive = false;
+      ctrl.updateCallActiveStatus();
+      ctrl.update();
+    }
     super.onClose();
   }
 
@@ -200,7 +218,11 @@ userNamesMap: ${userNamesMap.toString()}
       if (token.isEmpty) throw Exception('Agora token is required');
       if (channelName.isEmpty) throw Exception('Channel name is required');
 
-      debugPrint('📱 Initializing call with:');
+      final initStart = DateTime.now().millisecondsSinceEpoch;
+      final fromTap =
+          callStartTime != null ? "${initStart - callStartTime!}ms" : "N/A";
+      debugPrint(
+          '⏱️ [CALL PERF - AUDIO] Initializing audio call at +$fromTap with:');
       debugPrint('  - App ID: ${appId.substring(0, 8)}...');
       debugPrint('  - Channel: $channelName');
       debugPrint('  - UID: $uId');
@@ -209,36 +231,35 @@ userNamesMap: ${userNamesMap.toString()}
       debugPrint('  - Remote User Name: ${remoteUserName.value}');
       debugPrint('  - User Names Map: ${userNamesMap.toString()}');
 
-      await _checkPermissions();
-    } catch (e) {
-      debugPrint('Initialization error: $e');
-      _safeUpdate(() {
-        permissionStatus.value = 'Initialization error: $e';
-        isInitializing.value = false;
-      });
-    }
-  }
+      _safeUpdate(() => permissionStatus.value =
+          'Initializing Agora and checking permissions...');
 
-  Future<void> _checkPermissions() async {
-    try {
-      var micStatus = await Permission.microphone.status;
-      _safeUpdate(
-        () => permissionStatus.value = 'Microphone: ${micStatus.name}',
+      // 🚀 تشغيل فحص صلاحية الميكروفون وتهيئة Agora engine بالتوازي
+      final micStatusFuture = Permission.microphone.status;
+
+      _engine = createAgoraRtcEngine();
+      final agoraInitFuture = _engine!.initialize(
+        RtcEngineContext(
+          appId: appId,
+          channelProfile: ChannelProfileType.channelProfileCommunication,
+        ),
       );
-      debugPrint('Initial Microphone Permission: ${micStatus.name}');
+
+      final results = await Future.wait([micStatusFuture, agoraInitFuture]);
+      var micStatus = results[0] as PermissionStatus;
+
+      final parallelElapsed = DateTime.now().millisecondsSinceEpoch - initStart;
+      debugPrint(
+          "⏱️ [CALL PERF - AUDIO] Parallel mic permission & Agora engine init completed in ${parallelElapsed}ms");
 
       if (!micStatus.isGranted) {
-        PermissionStatus status = await Permission.microphone.request();
-        debugPrint('Microphone permission request result: ${status.name}');
-        _safeUpdate(
-          () => permissionStatus.value =
-              'After request - Microphone: ${status.name}',
-        );
-        micStatus = status;
+        micStatus = await Permission.microphone.request();
       }
 
       if (micStatus.isGranted) {
-        await _initializeAgora();
+        _registerEventHandlers();
+        await _configureAudioSettings();
+        await _joinChannel();
       } else {
         _safeUpdate(() {
           permissionStatus.value =
@@ -250,35 +271,9 @@ userNamesMap: ${userNamesMap.toString()}
         }
       }
     } catch (e) {
-      debugPrint('Permission error: $e');
+      debugPrint('❌ Initialization error: $e');
       _safeUpdate(() {
-        permissionStatus.value = 'Permission error: $e';
-        isInitializing.value = false;
-      });
-    }
-  }
-
-  Future<void> _initializeAgora() async {
-    try {
-      _safeUpdate(() => permissionStatus.value = 'Initializing Agora...');
-
-      _engine = createAgoraRtcEngine();
-      await _engine!.initialize(
-        RtcEngineContext(
-          appId: appId,
-          channelProfile: isGroupCall.value
-              ? ChannelProfileType.channelProfileLiveBroadcasting
-              : ChannelProfileType.channelProfileCommunication,
-        ),
-      );
-
-      await _configureAudioSettings();
-      _registerEventHandlers();
-      await _joinChannel();
-    } catch (e) {
-      debugPrint('❌ AGORA INIT ERROR: $e');
-      _safeUpdate(() {
-        permissionStatus.value = 'Agora initialization error: $e';
+        permissionStatus.value = 'Initialization error: $e';
         isInitializing.value = false;
       });
     }
@@ -312,15 +307,18 @@ userNamesMap: ${userNamesMap.toString()}
   }
 
   Future<void> _joinChannel() async {
-    debugPrint('🔗 Joining audio channel: $channelName');
+    final joinStart = DateTime.now().millisecondsSinceEpoch;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final fromTap = callStartTime != null ? "${now - callStartTime!}ms" : "N/A";
+    debugPrint(
+        '⏱️ [CALL PERF - AUDIO] Joining audio channel: $channelName at +$fromTap from tap');
+
     await _engine!.joinChannel(
       token: token,
       channelId: channelName,
       uid: uId!,
-      options: ChannelMediaOptions(
-        channelProfile: isGroupCall.value
-            ? ChannelProfileType.channelProfileLiveBroadcasting
-            : ChannelProfileType.channelProfileCommunication,
+      options: const ChannelMediaOptions(
+        channelProfile: ChannelProfileType.channelProfileCommunication,
         clientRoleType: ClientRoleType.clientRoleBroadcaster,
         publishCameraTrack: false,
         publishMicrophoneTrack: true,
@@ -330,10 +328,17 @@ userNamesMap: ${userNamesMap.toString()}
     );
 
     _safeUpdate(() => permissionStatus.value = 'Joining audio channel...');
+    final joinTime = DateTime.now().millisecondsSinceEpoch - joinStart;
+    debugPrint("⏱️ [CALL PERF - AUDIO] joinChannel invoked in ${joinTime}ms");
   }
 
   void _onJoinChannelSuccess(RtcConnection connection, int elapsed) {
-    debugPrint('✅ JOIN SUCCESS: local user ${connection.localUid} joined');
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final totalElapsed =
+        callStartTime != null ? "${now - callStartTime!}ms" : "${elapsed}ms";
+    debugPrint(
+        '✅ ⏱️ [CALL PERF - AUDIO] JOIN SUCCESS: local user ${connection.localUid} joined in +$totalElapsed TOTAL since tap! (Agora internal: ${elapsed}ms)');
+    uId = connection.localUid;
     _safeUpdate(() {
       localUserJoined.value = true;
       isJoined.value = true;
@@ -351,6 +356,7 @@ userNamesMap: ${userNamesMap.toString()}
   void _onUserJoined(RtcConnection connection, int remoteUid, int elapsed) {
     final userName = getUserName(remoteUid);
     debugPrint('✅ REMOTE USER JOINED: $remoteUid, Name: $userName');
+    _remoteUids.add(remoteUid);
 
     _safeUpdate(() {
       if (isGroupCall.value) {
@@ -388,6 +394,7 @@ userNamesMap: ${userNamesMap.toString()}
       RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
     debugPrint(
         '❌ REMOTE USER LEFT: $remoteUid, Name: ${getUserName(remoteUid)}, reason: ${reason.name}');
+    _remoteUids.remove(remoteUid);
     _safeUpdate(() {
       if (isGroupCall.value) {
         participantsList.removeWhere((p) => p.uid == remoteUid);
@@ -399,7 +406,8 @@ userNamesMap: ${userNamesMap.toString()}
     });
 
     if (!isGroupCall.value) {
-      debugPrint("🔚 Remote user left 1-on-1 audio call -> closing call screen");
+      debugPrint(
+          "🔚 Remote user left 1-on-1 audio call -> closing call screen");
       if (!_isDisposed && !_isEndingCall) {
         onRemoteEndedCall();
         Future.delayed(const Duration(milliseconds: 300), () {
@@ -488,10 +496,33 @@ userNamesMap: ${userNamesMap.toString()}
     _safeUpdate(() => activeSpeakerUid.value = uid);
   }
 
+  Future<void> _renewToken() async {
+    try {
+      final cId = int.tryParse(chatId);
+      if (cId == null || _engine == null || _isDisposed) return;
+      debugPrint("🔄 Requesting new Agora audio token for channel: $channelName");
+      var response = await _chatsRemoteData.getTokenCall(
+        chatId: cId,
+        role: "subscriber",
+        callType: "audio",
+        isGroub: isGroupCall.value,
+      );
+      if (response != null && response['data'] != null) {
+        final newToken = response['data']['token']?.toString() ?? '';
+        if (newToken.isNotEmpty) {
+          token = newToken;
+          await _engine!.renewToken(newToken);
+          debugPrint("✅ Agora audio token renewed successfully!");
+        }
+      }
+    } catch (e) {
+      debugPrint("❌ Failed to renew audio token: $e");
+    }
+  }
+
   void _onTokenPrivilegeWillExpire(RtcConnection connection, String token) {
-    debugPrint('⚠️ TOKEN WILL EXPIRE SOON! Please renew token.');
-    _safeUpdate(
-        () => permissionStatus.value = 'Token expiring soon - please renew!');
+    debugPrint("⚠️ TOKEN WILL EXPIRE SOON! Automatically renewing token...");
+    _renewToken();
   }
 
   Future<void> toggleMute() async {
@@ -636,7 +667,8 @@ userNamesMap: ${userNamesMap.toString()}
     if (_isEndingCall || _isDisposed) return;
     _isEndingCall = true;
 
-    debugPrint('🔴 Remote ended audio call, closing view and staying in chat...');
+    debugPrint(
+        '🔴 Remote ended audio call, closing view and staying in chat...');
     if (_engine != null) {
       try {
         await _engine!.leaveChannel();
@@ -686,12 +718,12 @@ userNamesMap: ${userNamesMap.toString()}
       // 🌟 في المكالمة الفردية: إنهاء المكالمة دائماً إذا خرج أي من الطرفين
       shouldEndCall = true;
     } else {
-      int otherParticipantsCount =
-          participantsList.where((p) => p.uid != uId).length;
-      shouldEndCall = otherParticipantsCount == 0;
+      // 🌟 في المكالمة الجماعية: تنتهي المكالمة إذا لم يبق أي مشارك بعيد آخر في المكالمة
+      shouldEndCall = _remoteUids.isEmpty;
     }
 
-    debugPrint('🔚 endCall: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall');
+    debugPrint(
+        '🔚 endCall: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall, remoteCount=${_remoteUids.length}');
 
     if (shouldEndCall) {
       await endCallApi();
@@ -720,28 +752,47 @@ userNamesMap: ${userNamesMap.toString()}
       log('⚠️ Cannot end call: chatId is empty');
       return;
     }
-    log('🔚 Calling endCallApi for chatId: $chatId');
-
-    // 🌟 إرسال إشعار إنهاء المكالمة فوراً عبر بوشر بدون تعليق أو انتظار رد السيرفر
-    if (sendEndedMessage) {
-      final endMsg = isGroupCall.value ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||";
-      try {
-        if (Get.isRegistered<ChatController>()) {
-          Get.find<ChatController>().sendSystemMessage(endMsg, targetChatId: chatId);
-        } else {
-          _chatsRemoteData.sendMessages(
-              chatId: chatId, 
-              message: endMsg
-          );
-        }
-      } catch (e) {
-        log('❌ Error sending endMsg: $e');
-      }
-    }
+    log('🔚 Calling endCallApi for chatId: $chatId, isCaller: $isCaller');
 
     try {
       var response = await _chatsRemoteData.endCall(id: chatId);
-      log('📞 End call response: ${response.toString()}');
+      final statues = handlingData(response);
+      final bool isSuccess = (statues == StatuesRequest.success) ||
+          (response is Map &&
+              (response['status'] == 'success' ||
+                  response['code'] == 200 ||
+                  response['code'] == '200'));
+
+      log('📞 [END_CALL_API] Response: $response | isSuccess: $isSuccess | isCaller: $isCaller');
+
+      // 🌟 لا يتم إرسال رسالة "تم إنهاء المكالمة" للشات إلا بعد التأكد من نجاح الـ API فعلياً على السيرفر
+      if (isSuccess) {
+        if (sendEndedMessage) {
+          final endMsg =
+              isGroupCall.value ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||";
+          try {
+            if (Get.isRegistered<ChatController>()) {
+              Get.find<ChatController>()
+                  .sendSystemMessage(endMsg, targetChatId: chatId);
+            } else {
+              _chatsRemoteData.sendMessages(chatId: chatId, message: endMsg);
+            }
+          } catch (e) {
+            log('❌ Error sending endMsg: $e');
+          }
+        }
+      } else {
+        log('⚠️ [END_CALL_API] Server did NOT end call! response: $response (caller: $isCaller)');
+        if (Get.context != null && Get.context!.mounted) {
+          Get.snackbar(
+            "تنبيه",
+            "تعذر إنهاء جلسة المكالمة على السيرفر (${response is Map ? (response['message'] ?? '') : ''})",
+            backgroundColor: Colors.orange[800],
+            colorText: Colors.white,
+            duration: const Duration(seconds: 3),
+          );
+        }
+      }
     } catch (e) {
       log('❌ Exception in endCallApi: $e');
     }

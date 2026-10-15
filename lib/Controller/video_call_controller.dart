@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:live_chat/Core/Class/api.dart';
 import 'package:live_chat/Core/class/status_request.dart';
+import 'package:live_chat/Core/function/handling_data.dart';
 import 'package:live_chat/Data/DataSource/chats_source.dart';
 import 'package:live_chat/Controller/chat_controller.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -48,9 +49,11 @@ class VideoCallController extends GetxController {
   bool _userEndedCall = false;
   bool isCaller = false;
   bool _isEndingCall = false;
+  int? callStartTime;
 
   // التعديل هنا: استخدام Get.find
-  final ChatsRemoteData _chatsRemoteData = ChatsRemoteData(api: Get.find<Api>());
+  final ChatsRemoteData _chatsRemoteData =
+      ChatsRemoteData(api: Get.find<Api>());
   StatuesRequest statuesRequest = StatuesRequest.none;
 
   // Getters
@@ -70,8 +73,8 @@ class VideoCallController extends GetxController {
   bool get isWaiting => _isJoined.value && _remoteUsers.isEmpty;
   bool get hasError =>
       _permissionStatus.value.contains('error') ||
-          _permissionStatus.value.contains('denied') ||
-          _permissionStatus.value.contains('Error');
+      _permissionStatus.value.contains('denied') ||
+      _permissionStatus.value.contains('Error');
   bool get canSwitchCamera => _cameraEnabled.value && !_isVideoStopped.value;
 
   @override
@@ -80,6 +83,12 @@ class VideoCallController extends GetxController {
     _isDisposed = false;
     _userEndedCall = false;
     _isEndingCall = false;
+    callStartTime = Get.arguments?["CallStartTime"] as int?;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final fromTap = callStartTime != null ? "${now - callStartTime!}ms" : "N/A";
+    debugPrint(
+        "⏱️ [CALL PERF - VIDEO] VideoCallController initialized at +$fromTap from tap");
+
     isCaller = Get.arguments?["isCaller"] ?? false;
     token = Get.arguments?["Token"] ?? '';
     isGroubCall = Get.arguments?["IsGroupCall"] ?? false;
@@ -110,6 +119,15 @@ class VideoCallController extends GetxController {
     _isDisposed = true;
     _statusWorker?.dispose();
     _disposeEngine();
+    ChatController.isOutgoingCallInProgress = false;
+    ChatController.isCurrentCallPublisher = false;
+    ChatController.activeOutgoingChatId = "";
+    if (Get.isRegistered<ChatController>()) {
+      final ctrl = Get.find<ChatController>();
+      ctrl.isIncomingCallActive = false;
+      ctrl.updateCallActiveStatus();
+      ctrl.update();
+    }
     super.onClose();
   }
 
@@ -123,7 +141,7 @@ class VideoCallController extends GetxController {
   void _setupWorkers() {
     _statusWorker = debounce(
       _permissionStatus,
-          (status) => debugPrint("Status updated: $status"),
+      (status) => debugPrint("Status updated: $status"),
       time: const Duration(milliseconds: 300),
     );
   }
@@ -134,93 +152,97 @@ class VideoCallController extends GetxController {
       if (token.isEmpty) throw Exception("Agora token is required");
       if (channelName.isEmpty) throw Exception("Channel name is required");
 
-      debugPrint("📹 Initializing video call with:");
+      final initStart = DateTime.now().millisecondsSinceEpoch;
+      final fromTap =
+          callStartTime != null ? "${initStart - callStartTime!}ms" : "N/A";
+      debugPrint(
+          "⏱️ [CALL PERF - VIDEO] Initializing video call at +$fromTap with:");
       debugPrint("  - App ID: ${appId.substring(0, 8)}...");
       debugPrint("  - Channel: $channelName");
       debugPrint("  - UID: $uId");
       debugPrint("  - Local User: $localUserName");
 
-      await _checkPermissions();
-    } catch (e) {
-      debugPrint("Video call initialization error: $e");
-      _permissionStatus.value = "Initialization error: $e";
-      _isInitializing.value = false;
-    }
-  }
-
-  Future<void> _checkPermissions() async {
-    try {
-      final cameraStatus = await Permission.camera.status;
-      final micStatus = await Permission.microphone.status;
-
       _permissionStatus.value =
-      "Camera: ${cameraStatus.name}, Mic: ${micStatus.name}";
-      debugPrint(
-          "Initial permissions - Camera: ${cameraStatus.name}, Mic: ${micStatus.name}");
+          "Initializing Agora and checking permissions...";
 
-      if (!cameraStatus.isGranted || !micStatus.isGranted) {
-        final statuses =
-        await [Permission.camera, Permission.microphone].request();
-        _permissionStatus.value =
-        "After request - Camera: ${statuses[Permission.camera]!.name}, Mic: ${statuses[Permission.microphone]!.name}";
+      // 🚀 تشغيل فحص الصلاحيات وتهيئة محرك Agora بالتوازي لتسريع الانضمام
+      final permissionsFuture = Future.wait([
+        Permission.camera.status,
+        Permission.microphone.status,
+      ]);
 
-        if (statuses[Permission.camera]!.isGranted &&
-            statuses[Permission.microphone]!.isGranted) {
-          await _initializeAgora();
-        } else {
-          _permissionStatus.value =
-          "Permissions denied! Please enable in settings.";
-          _showPermissionDialog();
-        }
-      } else {
-        await _initializeAgora();
-      }
-    } catch (e) {
-      debugPrint("Permission error: $e");
-      _permissionStatus.value = "Permission error: $e";
-      _isInitializing.value = false;
-    }
-  }
-
-  Future<void> _initializeAgora() async {
-    try {
-      _permissionStatus.value = "Initializing Agora...";
       _engine = createAgoraRtcEngine();
-      await _engine!.initialize(
+      final agoraInitFuture = _engine!.initialize(
         RtcEngineContext(
           appId: appId,
           channelProfile: ChannelProfileType.channelProfileCommunication,
         ),
       );
-      await _configureMediaSettings();
-      _registerEventHandlers();
-      await _enableMediaAndJoin();
+
+      final results = await Future.wait([permissionsFuture, agoraInitFuture]);
+      final permStatuses = results[0] as List<PermissionStatus>;
+      var cameraStatus = permStatuses[0];
+      var micStatus = permStatuses[1];
+
+      final parallelElapsed = DateTime.now().millisecondsSinceEpoch - initStart;
+      debugPrint(
+          "⏱️ [CALL PERF - VIDEO] Parallel permissions & Agora engine init completed in ${parallelElapsed}ms");
+
+      // إذا لم تكن الصلاحيات ممنوحة مسبقاً، نطلبها الآن
+      if (!cameraStatus.isGranted || !micStatus.isGranted) {
+        final statuses =
+            await [Permission.camera, Permission.microphone].request();
+        cameraStatus = statuses[Permission.camera] ?? PermissionStatus.denied;
+        micStatus = statuses[Permission.microphone] ?? PermissionStatus.denied;
+      }
+
+      if (cameraStatus.isGranted && micStatus.isGranted) {
+        _registerEventHandlers();
+        await _configureMediaSettings();
+        await _enableMediaAndJoin();
+      } else {
+        _permissionStatus.value =
+            "Permissions denied! Please enable in settings.";
+        _isInitializing.value = false;
+        _showPermissionDialog();
+      }
     } catch (e) {
-      debugPrint("❌ AGORA INIT ERROR: $e");
-      _permissionStatus.value = "Agora initialization error: $e";
+      debugPrint("❌ Video call initialization error: $e");
+      _permissionStatus.value = "Initialization error: $e";
       _isInitializing.value = false;
     }
   }
 
   Future<void> _configureMediaSettings() async {
-    await _engine!.setVideoEncoderConfiguration(
-      const VideoEncoderConfiguration(
-        dimensions: VideoDimensions(width: 1280, height: 720),
-        frameRate: 30,
-        bitrate: 2000,
-        orientationMode: OrientationMode.orientationModeAdaptive,
-        degradationPreference: DegradationPreference.maintainQuality,
+    // 🌟 إعدادات متكيفة حسب نوع المكالمة (فردي vs جماعي) لتقليل استهلاك البطارية والإنترنت ومنع التعليق
+    final videoConfig = isGroubCall
+        ? const VideoEncoderConfiguration(
+            dimensions: VideoDimensions(width: 480, height: 360),
+            frameRate: 15,
+            bitrate: 400,
+            orientationMode: OrientationMode.orientationModeAdaptive,
+            degradationPreference: DegradationPreference.maintainFramerate,
+          )
+        : const VideoEncoderConfiguration(
+            dimensions: VideoDimensions(width: 848, height: 480),
+            frameRate: 24,
+            bitrate: 800,
+            orientationMode: OrientationMode.orientationModeAdaptive,
+            degradationPreference: DegradationPreference.maintainFramerate,
+          );
+
+    await Future.wait([
+      _engine!.setVideoEncoderConfiguration(videoConfig),
+      _engine!.setAudioProfile(
+        profile: AudioProfileType.audioProfileSpeechStandard,
+        scenario: AudioScenarioType.audioScenarioChatroom,
       ),
-    );
-    await _engine!.setAudioProfile(
-      profile: AudioProfileType.audioProfileMusicHighQuality,
-      scenario: AudioScenarioType.audioScenarioGameStreaming,
-    );
-    await _engine!.enableAudioVolumeIndication(
-      interval: 250,
-      smooth: 3,
-      reportVad: true,
-    );
+      _engine!.enableAudioVolumeIndication(
+        interval: 250,
+        smooth: 3,
+        reportVad: true,
+      ),
+    ]);
   }
 
   void _registerEventHandlers() {
@@ -243,10 +265,17 @@ class VideoCallController extends GetxController {
   }
 
   Future<void> _enableMediaAndJoin() async {
+    final joinStart = DateTime.now().millisecondsSinceEpoch;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final fromTap = callStartTime != null ? "${now - callStartTime!}ms" : "N/A";
+    debugPrint(
+        "⏱️ [CALL PERF - VIDEO] Enabling media and joining channel at +$fromTap from tap");
+
     await _engine!.enableAudio();
     await _engine!.enableVideo();
     await _engine!.startPreview();
-    await Future.delayed(const Duration(milliseconds: 500));
+
+    // 🚀 تم إزالة التأخير الاصطناعي Future.delayed(500ms) - startPreview غير معطلة ولا تحتاج للانتظار قبل joinChannel
     await _engine!.joinChannel(
       token: token,
       channelId: channelName,
@@ -261,10 +290,17 @@ class VideoCallController extends GetxController {
       ),
     );
     _permissionStatus.value = "Joining video channel...";
+    final joinTime = DateTime.now().millisecondsSinceEpoch - joinStart;
+    debugPrint("⏱️ [CALL PERF - VIDEO] joinChannel invoked in ${joinTime}ms");
   }
 
   void _onJoinChannelSuccess(RtcConnection connection, int elapsed) {
-    debugPrint("✅ JOIN SUCCESS: local user ${connection.localUid} joined");
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final totalElapsed =
+        callStartTime != null ? "${now - callStartTime!}ms" : "${elapsed}ms";
+    debugPrint(
+        "✅ ⏱️ [CALL PERF - VIDEO] JOIN SUCCESS: local user ${connection.localUid} joined in +$totalElapsed TOTAL since tap! (Agora internal: ${elapsed}ms)");
+    uId = connection.localUid;
     _batchUpdate(() {
       _localUserJoined.value = true;
       _isJoined.value = true;
@@ -291,6 +327,8 @@ class VideoCallController extends GetxController {
     debugPrint(
         "❌ REMOTE USER LEFT: $remoteUid, Name: $userName, reason: ${reason.name}");
 
+    _remoteVideoControllers.remove(remoteUid)?.dispose();
+
     _batchUpdate(() {
       _remoteUsers.remove(remoteUid);
       _remoteVideoStates.remove(remoteUid);
@@ -298,7 +336,8 @@ class VideoCallController extends GetxController {
     });
 
     if (!isGroubCall) {
-      debugPrint("🔚 Remote user left 1-on-1 video call -> closing call screen");
+      debugPrint(
+          "🔚 Remote user left 1-on-1 video call -> closing call screen");
       if (!_userEndedCall && !_isEndingCall) {
         onRemoteEndedCall();
         Future.delayed(const Duration(milliseconds: 300), () {
@@ -348,7 +387,7 @@ class VideoCallController extends GetxController {
       _isInitializing.value = false;
       if (err == ErrorCodeType.errInvalidToken) {
         _permissionStatus.value =
-        "Token expired! Generate a new token from Agora Console";
+            "Token expired! Generate a new token from Agora Console";
       } else {
         _permissionStatus.value = "Agora Error: $err - $msg";
       }
@@ -364,14 +403,38 @@ class VideoCallController extends GetxController {
       List<AudioVolumeInfo> speakers, int speakerNumber, int totalVolume) {
     for (var speaker in speakers) {
       final speakerName =
-      speaker.uid == 0 ? 'Local' : getUserName(speaker.uid!);
+          speaker.uid == 0 ? 'Local' : getUserName(speaker.uid!);
       debugPrint("$speakerName volume: ${speaker.volume}");
     }
   }
 
+  Future<void> _renewToken() async {
+    try {
+      final cId = int.tryParse(chatId);
+      if (cId == null || _engine == null || _isDisposed) return;
+      debugPrint("🔄 Requesting new Agora video token for channel: $channelName");
+      var response = await _chatsRemoteData.getTokenCall(
+        chatId: cId,
+        role: "subscriber",
+        callType: "video",
+        isGroub: isGroubCall,
+      );
+      if (response != null && response['data'] != null) {
+        final newToken = response['data']['token']?.toString() ?? '';
+        if (newToken.isNotEmpty) {
+          token = newToken;
+          await _engine!.renewToken(newToken);
+          debugPrint("✅ Agora video token renewed successfully!");
+        }
+      }
+    } catch (e) {
+      debugPrint("❌ Failed to renew video token: $e");
+    }
+  }
+
   void _onTokenPrivilegeWillExpire(RtcConnection connection, String token) {
-    debugPrint("⚠️ TOKEN WILL EXPIRE SOON! Please renew token.");
-    _permissionStatus.value = "Token expiring soon - please renew!";
+    debugPrint("⚠️ TOKEN WILL EXPIRE SOON! Automatically renewing token...");
+    _renewToken();
   }
 
   void _onNetworkQuality(RtcConnection connection, int remoteUid,
@@ -476,7 +539,8 @@ class VideoCallController extends GetxController {
     _isEndingCall = true;
     _userEndedCall = true;
 
-    debugPrint('🔴 Remote ended video call, closing view and staying in chat...');
+    debugPrint(
+        '🔴 Remote ended video call, closing view and staying in chat...');
     if (_engine != null) {
       try {
         await _engine!.stopPreview();
@@ -535,7 +599,8 @@ class VideoCallController extends GetxController {
       shouldEndCall = _remoteUsers.isEmpty;
     }
 
-    debugPrint('🔴 User ending video call: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall, remoteCount=${_remoteUsers.length}');
+    debugPrint(
+        '🔴 User ending video call: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall, remoteCount=${_remoteUsers.length}');
 
     if (shouldEndCall) {
       await endCallApi();
@@ -564,27 +629,46 @@ class VideoCallController extends GetxController {
       return;
     }
 
-    // 🌟 إرسال إشعار إنهاء المكالمة فوراً عبر بوشر بدون تعليق أو انتظار رد السيرفر
-    if (sendEndedMessage) {
-      final endMsg = isGroubCall ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||";
-      try {
-        if (Get.isRegistered<ChatController>()) {
-          Get.find<ChatController>().sendSystemMessage(endMsg, targetChatId: chatId);
-        } else {
-          _chatsRemoteData.sendMessages(
-              chatId: chatId, 
-              message: endMsg
+    try {
+      log("📡 Calling end call API for chatId: $chatId, isCaller: $isCaller");
+      var response = await _chatsRemoteData.endCall(id: chatId);
+      final statues = handlingData(response);
+      final bool isSuccess = (statues == StatuesRequest.success) ||
+          (response is Map &&
+              (response['status'] == 'success' ||
+                  response['code'] == 200 ||
+                  response['code'] == '200'));
+
+      log("📥 [END_CALL_API] response: $response | isSuccess: $isSuccess | isCaller: $isCaller");
+
+      // 🌟 لا يتم إرسال رسالة "تم إنهاء المكالمة" للشات إلا بعد التأكد من نجاح الـ API فعلياً على السيرفر
+      if (isSuccess) {
+        if (sendEndedMessage) {
+          final endMsg =
+              isGroubCall ? "|||GROUP_CALL_ENDED|||" : "|||CALL_ENDED|||";
+          try {
+            if (Get.isRegistered<ChatController>()) {
+              Get.find<ChatController>()
+                  .sendSystemMessage(endMsg, targetChatId: chatId);
+            } else {
+              _chatsRemoteData.sendMessages(chatId: chatId, message: endMsg);
+            }
+          } catch (e) {
+            log('❌ Error sending video endMsg: $e');
+          }
+        }
+      } else {
+        log('⚠️ [END_CALL_API] Server did NOT end call! response: $response (caller: $isCaller)');
+        if (Get.context != null && Get.context!.mounted) {
+          Get.snackbar(
+            "تنبيه",
+            "تعذر إنهاء جلسة المكالمة على السيرفر (${response is Map ? (response['message'] ?? '') : ''})",
+            backgroundColor: Colors.orange[800],
+            colorText: Colors.white,
+            duration: const Duration(seconds: 3),
           );
         }
-      } catch (e) {
-        log('❌ Error sending video endMsg: $e');
       }
-    }
-
-    try {
-      log("📡 Calling end call API for chatId: $chatId");
-      var response = await _chatsRemoteData.endCall(id: chatId);
-      log("📥 End call API response: $response");
     } catch (e) {
       log("❌ Exception in endCallApi: $e");
     }
@@ -630,6 +714,36 @@ class VideoCallController extends GetxController {
 
   RtcEngine? get engine => _engine;
 
+  VideoViewController? _localVideoController;
+  final Map<int, VideoViewController> _remoteVideoControllers = {};
+
+  VideoViewController? get localVideoController {
+    if (_engine == null || !_localUserJoined.value) return null;
+    _localVideoController ??= VideoViewController(
+      rtcEngine: _engine!,
+      canvas: const VideoCanvas(
+        uid: 0,
+        renderMode: RenderModeType.renderModeHidden,
+      ),
+    );
+    return _localVideoController;
+  }
+
+  VideoViewController? getRemoteVideoController(int uid) {
+    if (_engine == null) return null;
+    if (!_remoteVideoControllers.containsKey(uid)) {
+      _remoteVideoControllers[uid] = VideoViewController.remote(
+        rtcEngine: _engine!,
+        canvas: VideoCanvas(
+          uid: uid,
+          renderMode: RenderModeType.renderModeHidden,
+        ),
+        connection: RtcConnection(channelId: channelName),
+      );
+    }
+    return _remoteVideoControllers[uid];
+  }
+
   String get statusText {
     if (_isDisposed) return "Call ended";
 
@@ -656,7 +770,14 @@ class VideoCallController extends GetxController {
   Future<void> _disposeEngine() async {
     if (_isDisposingEngine) return;
     _isDisposingEngine = true;
-    debugPrint('🧹 Disposing video engine...');
+    debugPrint('🧹 Disposing video engine and video view controllers...');
+
+    for (var controller in _remoteVideoControllers.values) {
+      controller.dispose();
+    }
+    _remoteVideoControllers.clear();
+    _localVideoController?.dispose();
+    _localVideoController = null;
 
     final engineToDispose = _engine;
     _engine = null;
@@ -685,23 +806,23 @@ class VideoCallController extends GetxController {
   Map<String, dynamic> get debugInfo => _isDisposed
       ? {}
       : {
-    'appId': '${appId.substring(0, 8)}...',
-    'channelName': channelName,
-    'uId': uId,
-    'isConnected': isConnected,
-    'isWaiting': isWaiting,
-    'hasError': hasError,
-    'networkQuality': networkQuality,
-    'cameraEnabled': cameraEnabled,
-    'audioEnabled': audioEnabled,
-    'isMuted': isMuted,
-    'isVideoStopped': isVideoStopped,
-    'remoteUserCount': remoteUserCount,
-    'remoteUsers': _remoteUsers,
-    'localUserName': localUserName,
-    'remoteUserName': remoteUserName,
-    'userNamesMap': userNamesMap,
-    'isGroupCall': isGroubCall,
-    'userEndedCall': _userEndedCall,
-  };
+          'appId': '${appId.substring(0, 8)}...',
+          'channelName': channelName,
+          'uId': uId,
+          'isConnected': isConnected,
+          'isWaiting': isWaiting,
+          'hasError': hasError,
+          'networkQuality': networkQuality,
+          'cameraEnabled': cameraEnabled,
+          'audioEnabled': audioEnabled,
+          'isMuted': isMuted,
+          'isVideoStopped': isVideoStopped,
+          'remoteUserCount': remoteUserCount,
+          'remoteUsers': _remoteUsers,
+          'localUserName': localUserName,
+          'remoteUserName': remoteUserName,
+          'userNamesMap': userNamesMap,
+          'isGroupCall': isGroubCall,
+          'userEndedCall': _userEndedCall,
+        };
 }

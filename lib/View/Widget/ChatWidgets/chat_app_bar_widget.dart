@@ -49,7 +49,11 @@ class ChatAppBarWidget extends StatelessWidget {
             children: [
               GestureDetector(
                 onTap: () {
-                  isGust ? Get.back() : Get.offAll(() => const HomeView());
+                  if (Navigator.of(context).canPop()) {
+                    Get.back();
+                  } else {
+                    Get.offAll(() => const HomeView());
+                  }
                 },
                 child: Icon(
                   isRtl
@@ -307,24 +311,24 @@ class ChatAppBarWidget extends StatelessWidget {
 
   Widget _buildAudioCallIcon() => GetBuilder<ChatController>(
         builder: (ctrl) {
-          final isBlocked = ctrl.isIncomingCallActive;
+          final isCallActive = ctrl.isIncomingCallActive;
           return GestureDetector(
             onTap: () => _initCall(true),
             child: Icon(IconsaxPlusLinear.call_calling,
                 size: 5.5.w,
-                color: isBlocked ? Colors.grey : AppColors.blackColor),
+                color: isCallActive ? Colors.green : (pref! ? AppColors.whiteColor : AppColors.blackColor)),
           );
         },
       );
 
   Widget _buildVideoCallIcon() => GetBuilder<ChatController>(
         builder: (ctrl) {
-          final isBlocked = ctrl.isIncomingCallActive;
+          final isCallActive = ctrl.isIncomingCallActive;
           return GestureDetector(
             onTap: () => _initCall(false),
             child: Icon(IconsaxPlusLinear.video,
                 size: 5.5.w,
-                color: isBlocked ? Colors.grey : AppColors.blackColor),
+                color: isCallActive ? Colors.green : (pref! ? AppColors.whiteColor : AppColors.blackColor)),
           );
         },
       );
@@ -345,7 +349,7 @@ class ChatAppBarWidget extends StatelessWidget {
             }
           : {},
       usernameFriend: isGroup ? "" : userChatModel.name,
-      isJoin: controller.isIncomingCallActive,
+      isJoin: false,
     );
   }
 }

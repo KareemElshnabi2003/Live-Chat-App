@@ -50,7 +50,17 @@ class ChatController extends GetxController {
   final Set<String> subscribedChannels = {};
   FlutterSoundRecorder? _recorder;
   bool isRecording = false;
+  bool _isRecorderInitialized = false;
   static bool _pusherInitialized = false;
+
+  static bool isOutgoingCallInProgress = false;
+  static bool isCurrentCallPublisher = false;
+  static String activeOutgoingChatId = "";
+
+  void updateCallActiveStatus() {
+    update();
+  }
+
   String? currentlyPlaying;
   StatuesRequest statuesRequest = StatuesRequest.none;
   MessageModel? messageModel;
@@ -131,13 +141,15 @@ class ChatController extends GetxController {
     }
 
     audioPlayer = AudioPlayer();
-    _recorder = FlutterSoundRecorder();
-    _initRecorder(); // نقلناها لدالة منفصلة لأمان التهيئة
+    // 🎙️ FlutterSoundRecorder سيتم تهيئته عند الحاجة فقط (Lazy initialization) داخل startRecording
   }
 
-  Future<void> _initRecorder() async {
+  Future<void> _ensureRecorderInitialized() async {
+    if (_isRecorderInitialized) return;
     try {
+      _recorder ??= FlutterSoundRecorder();
       await _recorder!.openRecorder();
+      _isRecorderInitialized = true;
     } catch (e) {
       log("Error opening recorder: $e");
     }
@@ -479,6 +491,9 @@ class ChatController extends GetxController {
       required type,
       required Map<int, String> groubUsersNames,
       required usernameFriend}) async {
+    final int callStartTime = DateTime.now().millisecondsSinceEpoch;
+    debugPrint("⏱️ [CALL PERF] User tapped call button (audio: $audio, isGroub: $isGroub, type: $type)");
+
     statuesRequest = StatuesRequest.loading;
     update();
 
@@ -488,6 +503,9 @@ class ChatController extends GetxController {
           isGroub: isGroub,
           role: type,
           chatId: int.parse(chatId));
+
+      final int tokenDuration = DateTime.now().millisecondsSinceEpoch - callStartTime;
+      debugPrint("⏱️ [CALL PERF] Got token from API in ${tokenDuration}ms");
 
       statuesRequest = handlingData(response);
 
@@ -524,6 +542,17 @@ class ChatController extends GetxController {
           tokenCallModel = TokenCallModel.fromJson(responseBody);
 
           final bool isCaller = (type == 'publisher');
+          isOutgoingCallInProgress = isCaller;
+          isCurrentCallPublisher = isCaller;
+          activeOutgoingChatId = chatId;
+
+          // تهيئة chatId في الكنترولرات مباشرة قبل إرسال أي إشعار
+          if (audio) {
+            AudioCallController.chatId = chatId;
+          } else {
+            VideoCallController.chatId = chatId;
+          }
+
           final callArgs = {
             "ChannelName": tokenCallModel!.channel,
             "Token": tokenCallModel!.token,
@@ -534,6 +563,7 @@ class ChatController extends GetxController {
             "UserNamesMap": groubUsersNames,
             "LocalUserName": sharedPreferences!.getString("name") ?? "",
             "isCaller": isCaller,
+            "CallStartTime": callStartTime,
           };
 
           // 🌟 إرسال رسائل التتبع للمكالمات: فقط من أنشأ المكالمة هو من يرسل رسالة البدء
@@ -548,9 +578,17 @@ class ChatController extends GetxController {
           statuesRequest = StatuesRequest.none;
           update();
 
-          audio
-              ? Get.to(() => const AudioCallPage(), arguments: callArgs)
-              : Get.to(() => const VideoCallPage(), arguments: callArgs);
+          if (audio) {
+            await Get.to(() => const AudioCallPage(), arguments: callArgs);
+          } else {
+            await Get.to(() => const VideoCallPage(), arguments: callArgs);
+          }
+          isOutgoingCallInProgress = false;
+          isCurrentCallPublisher = false;
+          activeOutgoingChatId = "";
+          isIncomingCallActive = false;
+          updateCallActiveStatus();
+          update();
           return;
         } else {
           showUserFriendlyError(StatuesRequest.serverError);
@@ -605,19 +643,8 @@ class ChatController extends GetxController {
             return;
           }
 
-          // 🌟 إذا كانت هناك مكالمة جارية بالفعل وضغط المستخدم على أيقونة الاتصال، ينضم إليها كمشترك ولا ينشئ مكالمة جديدة
-          if (!isJoin && isActive) {
-            Get.snackbar(
-              "تنبيه",
-              isGroub
-                  ? "يوجد مكالمة جماعية جارية بالفعل، جاري الانضمام إليها..."
-                  : "يوجد مكالمة جارية بالفعل مع هذا الشخص، جاري الانضمام إليها...",
-              backgroundColor: Colors.blueGrey,
-              colorText: Colors.white,
-            );
-          }
-
-          String type = (isJoin || isActive) ? "subscriber" : "publisher";
+          // 🌟 إذا كانت هناك مكالمة جارية بالفعل وضغط المستخدم على زر الانضمام، ينضم كمشترك. أما إذا ضغط على اتصال، فيطلب دور ناشر أولاً لتجنب الجلسات القديمة العالقة
+          String type = isJoin ? "subscriber" : "publisher";
 
           // Check if there is an active call of a different type
           if (isActive && responseBody['call_type'] != null) {
@@ -853,12 +880,12 @@ class ChatController extends GetxController {
         ));
     update();
 
-    statuesRequest = StatuesRequest.loading;
+    // 🌟 إرسال رسائل النظام في الخلفية دون تغيير statuesRequest حتى لا يظهر overlay التحميل أو التعليق في الشات
     var response = await _chatsRemoteData.sendMessages(
         chatId: effectiveChatId, message: finalMessage);
 
-    statuesRequest = handlingData(response);
-    final isSuccess = statuesRequest == StatuesRequest.success ||
+    final reqStatus = handlingData(response);
+    final isSuccess = reqStatus == StatuesRequest.success ||
         (response is Map && (response['status'] == 'success' || response['code'] == 200));
 
     if (isSuccess) {
@@ -985,6 +1012,7 @@ class ChatController extends GetxController {
 
   Future<void> startRecording() async {
     if (await Permission.microphone.request().isGranted) {
+      await _ensureRecorderInitialized();
       final tempDir = await getTemporaryDirectory();
       path =
           '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';

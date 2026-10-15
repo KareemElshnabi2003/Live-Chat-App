@@ -108,7 +108,12 @@ class _ChatViewState extends State<ChatViewFriend> {
     return PopScope(
       canPop: false,
       onPopInvoked: (didPop) {
-        widget.isGust ? Get.back() : Get.offAll(() => const HomeView());
+        if (didPop) return;
+        if (Navigator.of(context).canPop()) {
+          Get.back();
+        } else {
+          Get.offAll(() => const HomeView());
+        }
       },
       child: Scaffold(
         backgroundColor: pref! ? AppColors.blackColor : AppColors.bgColor,
@@ -288,9 +293,11 @@ class _ChatViewState extends State<ChatViewFriend> {
                 children: [
                   GestureDetector(
                     onTap: () {
-                      widget.isGust
-                          ? Get.back()
-                          : Get.offAll(() => const HomeView());
+                      if (Navigator.of(context).canPop()) {
+                        Get.back();
+                      } else {
+                        Get.offAll(() => const HomeView());
+                      }
                     },
                     child: Icon(
                       isRtl

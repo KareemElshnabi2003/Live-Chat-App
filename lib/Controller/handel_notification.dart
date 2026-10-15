@@ -15,6 +15,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:live_chat/Controller/audio_call_controller.dart';
 import 'package:live_chat/Controller/video_call_controller.dart';
 import 'package:live_chat/Controller/chat_controller.dart';
+import 'package:live_chat/View/Screens/create%20chat/audio_call_view.dart';
+import 'package:live_chat/View/Screens/create%20chat/video_call_view.dart';
+import 'package:live_chat/Data/Model/token_call_model.dart';
+import 'package:live_chat/Core/function/handling_data.dart';
+import 'package:live_chat/Core/class/status_request.dart';
+import 'package:live_chat/Core/function/call_data_helper.dart';
 import 'package:live_chat/View/Screens/friends/friends.dart';
 import 'package:live_chat/View/Screens/friends/requests.dart';
 import 'package:live_chat/View/Screens/notifications/notifications.dart';
@@ -57,7 +63,8 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final prefs = await SharedPreferences.getInstance();
     final bool isEnabled = prefs.getBool('notificationsEnabled') ?? true;
     if (!isEnabled) {
-      print("🔇 [BACKGROUND] Notifications are turned OFF by user. Ignoring message completely.");
+      print(
+          "🔇 [BACKGROUND] Notifications are turned OFF by user. Ignoring message completely.");
       return;
     }
   } catch (e) {
@@ -82,39 +89,57 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       data['call_type'] != null;
 
   if (isCall) {
+    final callInfo =
+        CallDataHelper.normalizeCallData(data, source: "BACKGROUND_FCM");
     try {
       final prefs = await SharedPreferences.getInstance();
       final myId = prefs.getString("id") ?? "";
-      final callerId = data['caller_id']?.toString() ??
-          data['sender_id']?.toString() ??
-          data['user_id']?.toString() ??
-          "";
-      if (myId.isNotEmpty && callerId.isNotEmpty && myId == callerId) {
-        print("🔇 [BACKGROUND] Ignoring call notification: I am the caller ($myId == $callerId)");
+      final myName = prefs.getString("name") ?? "";
+      final myUsername = prefs.getString("username") ?? "";
+      final callerId = callInfo.callerId;
+      final callerName = callInfo.callerName;
+
+      bool isMeCalling = (myId.isNotEmpty &&
+              callerId.isNotEmpty &&
+              myId == callerId) ||
+          (myName.isNotEmpty &&
+              callerName.isNotEmpty &&
+              myName.trim().toLowerCase() == callerName.trim().toLowerCase()) ||
+          (myUsername.isNotEmpty &&
+              callerName.isNotEmpty &&
+              myUsername.trim().toLowerCase() ==
+                  callerName.trim().toLowerCase()) ||
+          ChatController.isOutgoingCallInProgress;
+
+      if (isMeCalling) {
+        print(
+            "🔇 [BACKGROUND] Ignoring call notification: I am the caller ($callerName / $callerId)");
         return;
       }
       final activeCalls = await FlutterCallkitIncoming.activeCalls();
       if (activeCalls.isNotEmpty) {
-        print("🔇 [BACKGROUND] Already have an active CallKit call. Ignoring incoming call.");
+        print(
+            "🔇 [BACKGROUND] Already have an active CallKit call. Ignoring incoming call.");
         return;
       }
     } catch (e) {
       print("Error checking myId or active calls in background: $e");
     }
 
-    final callerName = data['caller_name'] ?? 'Unknown';
-    final isAudio = data['call_type'] == "audio";
+    final displayName = callInfo.isGroup
+        ? (callInfo.conversationName.isNotEmpty
+            ? "${callInfo.callerName} (${callInfo.conversationName})"
+            : callInfo.callerName)
+        : callInfo.callerName;
 
     CallKitParams callKitParams = CallKitParams(
       id: const Uuid().v4(),
-      nameCaller: callerName,
+      nameCaller: displayName,
       appName: 'Live Chat',
-      avatar: data['caller_image'] ?? '',
-      handle: isAudio ? 'Audio Call' : 'Video Call',
+      avatar: callInfo.callerImage,
+      handle: callInfo.isAudio ? 'Audio Call' : 'Video Call',
       type: 0,
       duration: 30000,
-
-      // Removed textAccept and textDecline since they are not in CallKitParams directly
       missedCallNotification: const NotificationParams(
         showNotification: true,
         isShowCallback: true,
@@ -159,9 +184,10 @@ class FirebaseNotification {
   static bool isHandlingCallLaunch = false;
   static bool isAnsweringNotificationCall = false;
   final firebaseMessagin = FirebaseMessaging.instance;
-Future<void> intilizeNotification() async {
+  Future<void> intilizeNotification() async {
     // 🌟 1. طلب الصلاحيات أولاً (عشان فايربيز يفتح البوابات)
-    await checkAndRequestNotificationPermission(showDialogIfPermanentlyDenied: false);
+    await checkAndRequestNotificationPermission(
+        showDialogIfPermanentlyDenied: false);
 
     // 🌟 2. إعداد طريقة عرض إشعارات الـ Foreground
     try {
@@ -202,8 +228,8 @@ Future<void> intilizeNotification() async {
         },
       );
 
-      final androidPlugin = flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
+      final androidPlugin =
+          flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
       if (androidPlugin != null) {
         await androidPlugin.createNotificationChannel(highImportanceChannel);
@@ -283,18 +309,23 @@ Future<void> intilizeNotification() async {
           final data = event is CallEventActionCallDecline
               ? event.callKitParams.extra
               : null;
-          if (data != null && data['status'] == 'started_call') {
-            final chatId = data['conversation_id'];
-            final isGroup = data['is_group'].toString() == 'true';
-            if (chatId != null && !isGroup) {
-               if (Get.isRegistered<ChatsRemoteData>()) {
-                 final chatsData = Get.find<ChatsRemoteData>();
-                 chatsData.sendMessages(chatId: chatId.toString(), message: "|||CALL_DECLINED|||");
-               } else {
-                 final api = Api();
-                 final chatsData = ChatsRemoteData(api: api);
-                 chatsData.sendMessages(chatId: chatId.toString(), message: "|||CALL_DECLINED|||");
-               }
+          if (data != null &&
+              (data['status'] == 'started_call' ||
+                  data['type'] == 'call' ||
+                  data['call_type'] != null)) {
+            final callInfo = CallDataHelper.normalizeCallData(data,
+                source: "CALLKIT_DECLINE");
+            if (callInfo.chatId.isNotEmpty && !callInfo.isGroup) {
+              if (Get.isRegistered<ChatsRemoteData>()) {
+                final chatsData = Get.find<ChatsRemoteData>();
+                chatsData.sendMessages(
+                    chatId: callInfo.chatId, message: "|||CALL_DECLINED|||");
+              } else {
+                final api = Api();
+                final chatsData = ChatsRemoteData(api: api);
+                chatsData.sendMessages(
+                    chatId: callInfo.chatId, message: "|||CALL_DECLINED|||");
+              }
             }
           }
           break;
@@ -341,46 +372,60 @@ Future<void> intilizeNotification() async {
             isJoin: true,
           );
           return;
-        } else {
-          // إذا كان مسجلاً لشات مختلف، نحذفه لإنشاء كنترولر الشات الجديد
-          Get.delete<ChatController>(force: true);
         }
       }
 
-      // 2. إذا لم يكن مسجلاً أو لشات مختلف، نقوم بفتح ChatView أولاً لتهيئة الشات والـ Pusher والـ Controllers
-      final currentUserId = int.tryParse(sharedPreferences?.getString("id") ?? "0");
-      final chatModel = UserChatModel(
-        id: int.tryParse(chatId),
-        name: isGroub ? (callerName.isNotEmpty ? callerName : 'Group Chat') : callerName,
-        image: callerImage,
-        status: isGroub ? 'Public' : 'Private',
-        accept: '1',
-        user: User(id: currentUserId),
+      // 2. إذا لم يكن المستخدم داخل شات هذه المكالمة، نجلب التوكن وندخل المكالمة مباشرة
+      // دون فتح شاشة ChatView وهمية ودون أي تأخير، ليعود المستخدم لمكانه الأصلي فور انتهاء المكالمة
+      final api = Get.isRegistered<Api>() ? Get.find<Api>() : Api();
+      final chatsData = ChatsRemoteData(api: api);
+      final cId = int.tryParse(chatId);
+      if (cId == null) return;
+
+      final int callStartTime = DateTime.now().millisecondsSinceEpoch;
+      debugPrint(
+          "⏱️ [CALL PERF] Answering incoming call (audio: $isAudio, isGroub: $isGroub)");
+
+      var response = await chatsData.getTokenCall(
+        chatId: cId,
+        role: "subscriber",
+        callType: isAudio ? "audio" : "video",
+        isGroub: isGroub,
       );
 
-      // ⚠️ تنبيه هام: لا نستخدم await هنا لأن Get.to() تُرجع Future يكتمل فقط عند إغلاق الشاشة (Pop)!
-      Get.to(
-        () => ChatView(
-          userChatModel: chatModel,
-          isPin: false,
-          isGust: false,
-        ),
-        arguments: {"chatId": chatId},
-      );
+      final int tokenDuration =
+          DateTime.now().millisecondsSinceEpoch - callStartTime;
+      debugPrint("⏱️ [CALL PERF] Got token for answer in ${tokenDuration}ms");
 
-      // 🌟 تأخير بسيط (400ms) لإعطاء فرصة لـ initState في ChatView لتسجيل ChatController
-      await Future.delayed(const Duration(milliseconds: 400));
+      if (handlingData(response) == StatuesRequest.success &&
+          response['data'] != null) {
+        TokenCallModel tokenModel = TokenCallModel.fromJson(response['data']);
+        final myName = sharedPreferences?.getString("name") ?? "";
+        final myId =
+            int.tryParse(sharedPreferences?.getString("id") ?? "0") ?? 0;
+        final Map<int, String> usersMap = groubUsersNames ?? {myId: myName};
 
-      // 3. الآن تم تسجيل ChatController في الذاكرة ومتاح بشكل كامل
-      if (Get.isRegistered<ChatController>()) {
-        final ctrl = Get.find<ChatController>();
-        ctrl.audio = isAudio;
-        await ctrl.getTokenCall(
-          isGroub: isGroub,
-          groubUsersNames: groubUsersNames ?? {},
-          usernameFriend: isGroub ? "" : callerName,
-          isJoin: true,
-        );
+        final callArgs = {
+          "ChannelName": tokenModel.channel,
+          "Token": tokenModel.token,
+          "UId": tokenModel.uid,
+          "IsGroupCall": isGroub,
+          "chatId": chatId,
+          "RemoteUserName": isGroub ? "" : callerName,
+          "UserNamesMap": usersMap,
+          "LocalUserName": myName,
+          "isCaller": false,
+          "CallStartTime": callStartTime,
+        };
+
+        if (isAudio) {
+          await Get.to(() => const AudioCallPage(), arguments: callArgs);
+        } else {
+          await Get.to(() => const VideoCallPage(), arguments: callArgs);
+        }
+      } else {
+        Get.snackbar("خطأ", "تعذر الانضمام إلى المكالمة أو قد تكون انتهت",
+            backgroundColor: Colors.red, colorText: Colors.white);
       }
     } catch (e) {
       log("❌ [UNIFIED] Error in answerCallThroughChatController: $e");
@@ -395,37 +440,31 @@ Future<void> intilizeNotification() async {
     isAnsweringNotificationCall = true;
 
     try {
-      final isAudio = data['call_type'] == "audio";
-      final isGroub = data['is_group'] == "1" ||
-          data['is_group'] == 1 ||
-          data['is_group'].toString() == 'true';
-      final callerName = data['caller_name'] ??
-          data['sender_name'] ??
-          data['title'] ??
-          'Unknown';
-      final callerImage = (data['caller_image'] ?? '').toString();
+      final callInfo =
+          CallDataHelper.normalizeCallData(data, source: "NOTIFICATION_ANSWER");
 
       Map<int, String> groubUsersNames = {};
-      if (isGroub) {
+      if (callInfo.isGroup) {
         final currentUserIdStr = sharedPreferences?.getString("id") ?? "0";
-        final currentUserName = sharedPreferences?.getString("username") ?? 'You';
+        final currentUserName =
+            sharedPreferences?.getString("username") ?? 'You';
         groubUsersNames = {
           int.tryParse(currentUserIdStr) ?? 0: currentUserName,
         };
-        if (data['caller_id'] != null) {
-          final callerId = int.tryParse(data['caller_id'].toString()) ?? 0;
-          groubUsersNames[callerId] = callerName;
+        if (callInfo.callerId.isNotEmpty) {
+          final callerId = int.tryParse(callInfo.callerId) ?? 0;
+          groubUsersNames[callerId] = callInfo.callerName;
         }
       }
 
-      log("📞 Answering call directly from notification: chatId=${data['conversation_id']}, isAudio=$isAudio");
+      log("📞 Answering call directly from notification: chatId=${callInfo.chatId}, isAudio=${callInfo.isAudio}, isGroup=${callInfo.isGroup}");
 
       await answerCallThroughChatController(
-        chatId: data['conversation_id']?.toString() ?? '',
-        isAudio: isAudio,
-        isGroub: isGroub,
-        callerName: callerName,
-        callerImage: callerImage,
+        chatId: callInfo.chatId,
+        isAudio: callInfo.isAudio,
+        isGroub: callInfo.isGroup,
+        callerName: callInfo.callerName,
+        callerImage: callInfo.callerImage,
         groubUsersNames: groubUsersNames,
       );
     } finally {
@@ -467,33 +506,57 @@ Future<void> intilizeNotification() async {
           data['call_type'] != null;
 
       if (isCallNotification) {
+        final callInfo =
+            CallDataHelper.normalizeCallData(data, source: "FOREGROUND");
+
         // 🛡️ 1. لا تظهر إشعار المكالمة لنفسي لو أنا اللي متصل
         final myId = sharedPreferences?.getString("id") ?? "";
-        final callerId = data['caller_id']?.toString() ??
-            data['sender_id']?.toString() ??
-            data['user_id']?.toString() ??
-            "";
-        if (myId.isNotEmpty && callerId.isNotEmpty && myId == callerId) {
-          log("🔇 [FOREGROUND] Ignoring call notification: I am the caller ($myId == $callerId)");
+        final myName = sharedPreferences?.getString("name") ?? "";
+        final myUsername = sharedPreferences?.getString("username") ?? "";
+        final callerId = callInfo.callerId;
+        final callerName = callInfo.callerName;
+
+        bool isMeCalling =
+            (myId.isNotEmpty && callerId.isNotEmpty && myId == callerId) ||
+                (myName.isNotEmpty &&
+                    callerName.isNotEmpty &&
+                    myName.trim().toLowerCase() ==
+                        callerName.trim().toLowerCase()) ||
+                (myUsername.isNotEmpty &&
+                    callerName.isNotEmpty &&
+                    myUsername.trim().toLowerCase() ==
+                        callerName.trim().toLowerCase()) ||
+                ChatController.isOutgoingCallInProgress ||
+                (ChatController.isCurrentCallPublisher &&
+                    ChatController.activeOutgoingChatId == callInfo.chatId) ||
+                (Get.isRegistered<AudioCallController>() &&
+                    Get.find<AudioCallController>().isCaller &&
+                    AudioCallController.chatId == callInfo.chatId) ||
+                (Get.isRegistered<VideoCallController>() &&
+                    Get.find<VideoCallController>().isCaller &&
+                    VideoCallController.chatId == callInfo.chatId);
+
+        if (isMeCalling) {
+          log("🔇 [FOREGROUND] Ignoring call notification: I am the caller/publisher ($callerName / $callerId)");
           return;
         }
 
-        // 🛡️ 2. إذا كان المستخدم في مكالمة جارية بالفعل، نتجاهل الإشعار المكرر
+        // 🛡️ 2. إذا كان المستخدم في مكالمة جارية بالفعل، لا نسمح بظهور شاشة رنين تعطل المكالمة
         final bool isAlreadyInCall = Get.isRegistered<AudioCallController>() ||
             Get.isRegistered<VideoCallController>();
-        final callingChatId = data['conversation_id']?.toString() ??
-            data['chat_id']?.toString() ??
-            data['conversationId']?.toString() ??
-            "";
+        final callingChatId = callInfo.chatId;
         String currentCallChatId = VideoCallController.chatId.isNotEmpty
             ? VideoCallController.chatId
             : AudioCallController.chatId;
 
-        if (isAlreadyInCall &&
-            (callingChatId.isEmpty ||
-                callingChatId == currentCallChatId ||
-                currentCallChatId.isEmpty)) {
-          log("🔇 [FOREGROUND] Already in active call, ignoring duplicate notification");
+        if (isAlreadyInCall) {
+          if (currentCallChatId.isNotEmpty &&
+              callingChatId.isNotEmpty &&
+              callingChatId == currentCallChatId) {
+            log("🔇 [FOREGROUND] Already in this active call ($callingChatId), ignoring duplicate notification");
+            return;
+          }
+          log("🔇 [FOREGROUND] User is currently in an active call ($currentCallChatId), ignoring incoming call");
           return;
         }
 
@@ -503,43 +566,37 @@ Future<void> intilizeNotification() async {
           return;
         }
 
-        final isAudio = data['call_type'] == "audio";
-        final isGroub =
-            data['is_group'] == "1" || data['is_group'] == 1 ? true : false;
-        final callerName = data['caller_name'] ?? 'Unknown';
-        final callerImage = (data['caller_image'] ?? '').toString();
-
         Map<int, String> groubUsersNames = {};
-        if (isGroub) {
+        if (callInfo.isGroup) {
           groubUsersNames = {
             int.parse(sharedPreferences!.getString("id")!):
                 sharedPreferences!.getString("username") ?? 'You'
           };
-          if (data['caller_id'] != null) {
-            final callerId = int.parse(data['caller_id'].toString());
-            groubUsersNames[callerId] = callerName;
+          if (callInfo.callerId.isNotEmpty) {
+            final cId = int.tryParse(callInfo.callerId) ?? 0;
+            groubUsersNames[cId] = callerName;
           }
         }
 
         Get.to(() => IncomingCallScreen(
-              groubImg: data['conversation_image'] ?? '',
-              groubName: data['conversation_name'] ?? '',
-              isGroub: isGroub,
+              groubImg: callInfo.conversationImage,
+              groubName: callInfo.conversationName,
+              isGroub: callInfo.isGroup,
               onPressAnswer: () {
                 answerCallThroughChatController(
-                  chatId: data['conversation_id']?.toString() ?? '',
-                  isAudio: isAudio,
-                  isGroub: isGroub,
+                  chatId: callInfo.chatId,
+                  isAudio: callInfo.isAudio,
+                  isGroub: callInfo.isGroup,
                   callerName: callerName,
-                  callerImage: callerImage,
+                  callerImage: callInfo.callerImage,
                   groubUsersNames: groubUsersNames,
                 );
               },
               onPressReject: () {
                 final api = Get.isRegistered<Api>() ? Get.find<Api>() : Api();
                 final chatsData = ChatsRemoteData(api: api);
-                final cId = data['conversation_id']?.toString();
-                if (cId != null && cId.isNotEmpty && !isGroub) {
+                final cId = callInfo.chatId;
+                if (cId.isNotEmpty && !callInfo.isGroup) {
                   chatsData.sendMessages(
                     chatId: cId,
                     message: "|||CALL_DECLINED|||",
@@ -547,8 +604,8 @@ Future<void> intilizeNotification() async {
                 }
               },
               callerName: callerName,
-              callerImage: callerImage,
-              isVideoCall: !isAudio,
+              callerImage: callInfo.callerImage,
+              isVideoCall: !callInfo.isAudio,
             ));
         return;
       }
@@ -581,14 +638,12 @@ Future<void> intilizeNotification() async {
               ? 'تم قبول طلب الصداقة من ${data['username'] ?? 'المستخدم'}'
               : '${data['username'] ?? 'User'} accepted your friend request';
         } else if (status == "want_to_join_chat") {
-          title = data['conversation_name'] ??
-              (isArabic ? 'محادثة' : 'Chat');
+          title = data['conversation_name'] ?? (isArabic ? 'محادثة' : 'Chat');
           body = isArabic
               ? 'طلب ${data['username'] ?? ''} الانضمام إلى المحادثة : ${data['conversation_name'] ?? ''}'
               : '${data['username'] ?? ''} requested to join chat : ${data['conversation_name'] ?? ''}';
         }
       }
-
 
       void onTapAction() {
         final isRecharge = type == "recharge" ||
@@ -1012,27 +1067,56 @@ Future<void> intilizeNotification() async {
         data['call_type'] != null;
 
     if (isCallNotification) {
+      final callInfo = CallDataHelper.normalizeCallData(data, source: "ON_TAP");
+
       // 🛡️ 1. لا تظهر إشعار المكالمة لنفسي لو أنا اللي متصل
       final myId = sharedPreferences?.getString("id") ?? "";
-      final callerId = data['caller_id']?.toString() ??
-          data['sender_id']?.toString() ??
-          data['user_id']?.toString() ??
-          "";
-      if (myId.isNotEmpty && callerId.isNotEmpty && myId == callerId) {
-        log("🔇 [TAP] Ignoring call notification: I am the caller ($myId == $callerId)");
+      final myName = sharedPreferences?.getString("name") ?? "";
+      final myUsername = sharedPreferences?.getString("username") ?? "";
+      final callerId = callInfo.callerId;
+      final callerName = callInfo.callerName;
+
+      bool isMeCalling = (myId.isNotEmpty &&
+              callerId.isNotEmpty &&
+              myId == callerId) ||
+          (myName.isNotEmpty &&
+              callerName.isNotEmpty &&
+              myName.trim().toLowerCase() == callerName.trim().toLowerCase()) ||
+          (myUsername.isNotEmpty &&
+              callerName.isNotEmpty &&
+              myUsername.trim().toLowerCase() ==
+                  callerName.trim().toLowerCase()) ||
+          ChatController.isOutgoingCallInProgress ||
+          (ChatController.isCurrentCallPublisher &&
+              ChatController.activeOutgoingChatId == callInfo.chatId) ||
+          (Get.isRegistered<AudioCallController>() &&
+              Get.find<AudioCallController>().isCaller &&
+              AudioCallController.chatId == callInfo.chatId) ||
+          (Get.isRegistered<VideoCallController>() &&
+              Get.find<VideoCallController>().isCaller &&
+              VideoCallController.chatId == callInfo.chatId);
+
+      if (isMeCalling) {
+        log("🔇 [TAP] Ignoring call notification: I am the caller/publisher ($callerName / $callerId)");
         return;
       }
 
       // 🛡️ 2. إذا كان المستخدم في نفس المكالمة الجارية بالفعل، نتجاهل الإشعار المكرر
       final bool isAlreadyInCall = Get.isRegistered<AudioCallController>() ||
           Get.isRegistered<VideoCallController>();
-      final callingChatId = data['conversation_id']?.toString() ?? "";
+      final callingChatId = callInfo.chatId;
       String currentCallChatId = VideoCallController.chatId.isNotEmpty
           ? VideoCallController.chatId
           : AudioCallController.chatId;
 
-      if (isAlreadyInCall && callingChatId == currentCallChatId) {
-        log("🔇 [TAP] Already in this active call, ignoring duplicate notification");
+      if (isAlreadyInCall) {
+        if (currentCallChatId.isNotEmpty &&
+            callingChatId.isNotEmpty &&
+            callingChatId == currentCallChatId) {
+          log("🔇 [TAP] Already in this active call ($callingChatId), ignoring duplicate notification");
+          return;
+        }
+        log("🔇 [TAP] User is currently in an active call ($currentCallChatId), ignoring tap");
         return;
       }
 
@@ -1042,50 +1126,41 @@ Future<void> intilizeNotification() async {
         return;
       }
 
-      final isAudio = data['call_type'] == "audio";
-      final isGroub =
-          data['is_group'] == "1" || data['is_group'] == 1 ? true : false;
-
-      // Extract caller information properly
-      final callerName = data['caller_name'] ?? 'Unknown';
-      final callerImage = (data['caller_image'] ?? '').toString();
-
       // For group calls, prepare user names map
       Map<int, String> groubUsersNames = {};
-      if (isGroub) {
+      if (callInfo.isGroup) {
         groubUsersNames = {
           int.parse(sharedPreferences!.getString("id")!):
               sharedPreferences!.getString("username") ?? 'You'
         };
 
-        // If we have caller info, add it too
-        if (data['caller_id'] != null) {
-          final callerId = int.parse(data['caller_id'].toString());
-          groubUsersNames[callerId] = callerName;
+        if (callInfo.callerId.isNotEmpty) {
+          final cId = int.tryParse(callInfo.callerId) ?? 0;
+          groubUsersNames[cId] = callerName;
         }
       }
 
-      log("📞 Opening call screen: ${isAudio ? 'Audio' : 'Video'}, Group: $isGroub, Caller: $callerName");
+      log("📞 Opening call screen: ${callInfo.isAudio ? 'Audio' : 'Video'}, Group: ${callInfo.isGroup}, Caller: $callerName");
 
       Get.to(() => IncomingCallScreen(
-            groubImg: data['conversation_image'] ?? '',
-            groubName: data['conversation_name'] ?? '',
-            isGroub: isGroub,
+            groubImg: callInfo.conversationImage,
+            groubName: callInfo.conversationName,
+            isGroub: callInfo.isGroup,
             onPressAnswer: () {
               answerCallThroughChatController(
-                chatId: data['conversation_id']?.toString() ?? '',
-                isAudio: isAudio,
-                isGroub: isGroub,
+                chatId: callInfo.chatId,
+                isAudio: callInfo.isAudio,
+                isGroub: callInfo.isGroup,
                 callerName: callerName,
-                callerImage: callerImage,
+                callerImage: callInfo.callerImage,
                 groubUsersNames: groubUsersNames,
               );
             },
             onPressReject: () {
               final api = Get.isRegistered<Api>() ? Get.find<Api>() : Api();
               final chatsData = ChatsRemoteData(api: api);
-              final cId = data['conversation_id']?.toString();
-              if (cId != null && cId.isNotEmpty && !isGroub) {
+              final cId = callInfo.chatId;
+              if (cId.isNotEmpty && !callInfo.isGroup) {
                 chatsData.sendMessages(
                   chatId: cId,
                   message: "|||CALL_DECLINED|||",
@@ -1093,14 +1168,18 @@ Future<void> intilizeNotification() async {
               }
             },
             callerName: callerName,
-            callerImage: callerImage,
-            isVideoCall: !isAudio,
+            callerImage: callInfo.callerImage,
+            isVideoCall: !callInfo.isAudio,
           ));
       return;
     }
 
-    final notifTitle = remotemess.notification?.title ?? data['title']?.toString() ?? '';
-    final notifBody = remotemess.notification?.body ?? data['body']?.toString() ?? data['message']?.toString() ?? '';
+    final notifTitle =
+        remotemess.notification?.title ?? data['title']?.toString() ?? '';
+    final notifBody = remotemess.notification?.body ??
+        data['body']?.toString() ??
+        data['message']?.toString() ??
+        '';
     final isRecharge = type == "recharge" ||
         type == "charge" ||
         type == "shipping" ||
@@ -1480,8 +1559,8 @@ void showInAppNotificationBanner({
                 backgroundColor: AppColors.secondaryColor,
                 foregroundColor: AppColors.primaryColor,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14.0, vertical: 6.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14.0, vertical: 6.0),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 shape: RoundedRectangleBorder(

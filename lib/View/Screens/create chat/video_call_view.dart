@@ -576,18 +576,12 @@ class VideoCallPage extends StatelessWidget {
 
   Widget _renderLocalVideo(
       BuildContext context, VideoCallController controller) {
+    final localCtrl = controller.localVideoController;
     if (controller.localUserJoined &&
-        controller.engine != null &&
+        localCtrl != null &&
         !controller.isVideoStopped) {
       return AgoraVideoView(
-        controller: VideoViewController(
-          rtcEngine: controller.engine!,
-          canvas: const VideoCanvas(
-            uid: 0,
-            renderMode: RenderModeType.renderModeHidden,
-            // Remove mirrorMode here - let Agora handle it automatically
-          ),
-        ),
+        controller: localCtrl,
       );
     } else {
       return Container(
@@ -620,18 +614,12 @@ class VideoCallPage extends StatelessWidget {
 
   Widget _renderLocalVideoInGrid(
       BuildContext context, VideoCallController controller) {
+    final localCtrl = controller.localVideoController;
     if (controller.localUserJoined &&
-        controller.engine != null &&
+        localCtrl != null &&
         !controller.isVideoStopped) {
       return AgoraVideoView(
-        controller: VideoViewController(
-          rtcEngine: controller.engine!,
-          canvas: const VideoCanvas(
-            uid: 0,
-            renderMode: RenderModeType.renderModeHidden,
-            // Remove mirrorMode here too
-          ),
-        ),
+        controller: localCtrl,
       );
     } else {
       return Container(
@@ -678,15 +666,14 @@ class VideoCallPage extends StatelessWidget {
           userName: userName);
     }
 
+    final remoteCtrl = controller.getRemoteVideoController(uid);
+    if (remoteCtrl == null) {
+      return _buildVideoPlaceholder(context, uid, S.of(context).connecting,
+          userName: userName);
+    }
+
     return AgoraVideoView(
-      controller: VideoViewController.remote(
-        rtcEngine: controller.engine!,
-        canvas: VideoCanvas(
-          uid: uid,
-          renderMode: RenderModeType.renderModeHidden,
-        ),
-        connection: RtcConnection(channelId: VideoCallController.channelName),
-      ),
+      controller: remoteCtrl,
     );
   }
 
