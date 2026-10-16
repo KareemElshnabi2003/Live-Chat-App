@@ -130,15 +130,22 @@ userNamesMap: ${userNamesMap.toString()}
   @override
   void onClose() {
     _isDisposed = true;
-    _disposeEngine();
-    ChatController.isOutgoingCallInProgress = false;
-    ChatController.isCurrentCallPublisher = false;
-    ChatController.activeOutgoingChatId = "";
-    if (Get.isRegistered<ChatController>()) {
-      final ctrl = Get.find<ChatController>();
-      ctrl.isIncomingCallActive = false;
-      ctrl.updateCallActiveStatus();
-      ctrl.update();
+    try {
+      _disposeEngine();
+    } catch (e) {
+      debugPrint("Error disposing audio engine in onClose: $e");
+    } finally {
+      ChatController.isOutgoingCallInProgress = false;
+      ChatController.isCurrentCallPublisher = false;
+      ChatController.activeOutgoingChatId = "";
+      if (Get.isRegistered<ChatController>()) {
+        try {
+          final ctrl = Get.find<ChatController>();
+          ctrl.isIncomingCallActive = false;
+          ctrl.updateCallActiveStatus();
+          ctrl.update();
+        } catch (_) {}
+      }
     }
     super.onClose();
   }
@@ -667,34 +674,62 @@ userNamesMap: ${userNamesMap.toString()}
     if (_isEndingCall || _isDisposed) return;
     _isEndingCall = true;
 
-    debugPrint(
-        '🔴 Remote ended audio call, closing view and staying in chat...');
-    if (_engine != null) {
-      try {
-        await _engine!.leaveChannel();
-      } catch (e) {
-        debugPrint("Error leaving audio channel on remote ended: $e");
+    try {
+      debugPrint(
+          '🔴 Remote ended audio call, closing view and staying in chat...');
+      if (_engine != null) {
+        try {
+          await _engine!.leaveChannel();
+        } catch (e) {
+          debugPrint("Error leaving audio channel on remote ended: $e");
+        }
+      }
+      _safeCloseView();
+      await _disposeEngine();
+    } finally {
+      ChatController.isOutgoingCallInProgress = false;
+      ChatController.isCurrentCallPublisher = false;
+      ChatController.activeOutgoingChatId = "";
+      if (Get.isRegistered<ChatController>()) {
+        try {
+          final ctrl = Get.find<ChatController>();
+          ctrl.isIncomingCallActive = false;
+          ctrl.updateCallActiveStatus();
+          ctrl.update();
+        } catch (_) {}
       }
     }
-    _safeCloseView();
-    await _disposeEngine();
   }
 
   void onBusyCall() async {
     if (_isEndingCall || _isDisposed) return;
     _isEndingCall = true;
 
-    debugPrint('🔴 Remote user is busy, exiting audio call...');
-    if (_engine != null) {
-      try {
-        await _engine!.leaveChannel();
-      } catch (e) {
-        debugPrint("Error leaving audio channel on busy: $e");
+    try {
+      debugPrint('🔴 Remote user is busy, exiting audio call...');
+      if (_engine != null) {
+        try {
+          await _engine!.leaveChannel();
+        } catch (e) {
+          debugPrint("Error leaving audio channel on busy: $e");
+        }
+      }
+      _safeCloseView();
+      await _disposeEngine();
+      await endCallApi(sendEndedMessage: false);
+    } finally {
+      ChatController.isOutgoingCallInProgress = false;
+      ChatController.isCurrentCallPublisher = false;
+      ChatController.activeOutgoingChatId = "";
+      if (Get.isRegistered<ChatController>()) {
+        try {
+          final ctrl = Get.find<ChatController>();
+          ctrl.isIncomingCallActive = false;
+          ctrl.updateCallActiveStatus();
+          ctrl.update();
+        } catch (_) {}
       }
     }
-    _safeCloseView();
-    await _disposeEngine();
-    await endCallApi(sendEndedMessage: false);
 
     Future.delayed(const Duration(milliseconds: 300), () {
       Get.snackbar(
@@ -712,37 +747,51 @@ userNamesMap: ${userNamesMap.toString()}
     if (_isEndingCall || _isDisposed) return;
     _isEndingCall = true;
 
-    final isOneOnOneCall = !isGroupCall.value;
-    bool shouldEndCall = false;
-    if (isOneOnOneCall) {
-      // 🌟 في المكالمة الفردية: إنهاء المكالمة دائماً إذا خرج أي من الطرفين
-      shouldEndCall = true;
-    } else {
-      // 🌟 في المكالمة الجماعية: تنتهي المكالمة إذا لم يبق أي مشارك بعيد آخر في المكالمة
-      shouldEndCall = _remoteUids.isEmpty;
-    }
+    try {
+      final isOneOnOneCall = !isGroupCall.value;
+      bool shouldEndCall = false;
+      if (isOneOnOneCall) {
+        // 🌟 في المكالمة الفردية: إنهاء المكالمة دائماً إذا خرج أي من الطرفين
+        shouldEndCall = true;
+      } else {
+        // 🌟 في المكالمة الجماعية: تنتهي المكالمة إذا لم يبق أي مشارك بعيد آخر في المكالمة
+        shouldEndCall = _remoteUids.isEmpty;
+      }
 
-    debugPrint(
-        '🔚 endCall: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall, remoteCount=${_remoteUids.length}');
+      debugPrint(
+          '🔚 endCall: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall, remoteCount=${_remoteUids.length}');
 
-    if (shouldEndCall) {
-      await endCallApi();
-    }
+      if (shouldEndCall) {
+        await endCallApi();
+      }
 
-    // 1. مغادرة القناة بسلاسة قبل غلق الشاشة
-    if (_engine != null) {
-      try {
-        await _engine!.leaveChannel();
-      } catch (e) {
-        debugPrint("Error leaving audio channel: $e");
+      // 1. مغادرة القناة بسلاسة قبل غلق الشاشة
+      if (_engine != null) {
+        try {
+          await _engine!.leaveChannel();
+        } catch (e) {
+          debugPrint("Error leaving audio channel: $e");
+        }
+      }
+
+      // 2. إغلاق الشاشة فوراً وبأمان
+      _safeCloseView();
+
+      // 3. تنظيف محرك Agora
+      await _disposeEngine();
+    } finally {
+      ChatController.isOutgoingCallInProgress = false;
+      ChatController.isCurrentCallPublisher = false;
+      ChatController.activeOutgoingChatId = "";
+      if (Get.isRegistered<ChatController>()) {
+        try {
+          final ctrl = Get.find<ChatController>();
+          ctrl.isIncomingCallActive = false;
+          ctrl.updateCallActiveStatus();
+          ctrl.update();
+        } catch (_) {}
       }
     }
-
-    // 2. إغلاق الشاشة فوراً وبأمان
-    _safeCloseView();
-
-    // 3. تنظيف محرك Agora
-    await _disposeEngine();
   }
 
   StatuesRequest statuesRequest = StatuesRequest.none;
@@ -857,37 +906,52 @@ userNamesMap: ${userNamesMap.toString()}
     });
   }
 
-  bool get isConnected =>
-      !_isDisposed &&
-      localUserJoined.value &&
-      (isGroupCall.value
-          ? participantsList.isNotEmpty
-          : remoteUid.value != null);
+  bool get isConnected {
+    final joined = localUserJoined.value;
+    final group = isGroupCall.value;
+    final hasParticipants = participantsList.isNotEmpty;
+    final hasRemote = remoteUid.value != null;
+    if (_isDisposed) return false;
+    return joined && (group ? hasParticipants : hasRemote);
+  }
 
-  bool get isWaiting =>
-      !_isDisposed &&
-      isJoined.value &&
-      (isGroupCall.value ? participantsList.isEmpty : remoteUid.value == null);
+  bool get isWaiting {
+    final joined = isJoined.value;
+    final group = isGroupCall.value;
+    final noParticipants = participantsList.isEmpty;
+    final noRemote = remoteUid.value == null;
+    if (_isDisposed) return false;
+    return joined && (group ? noParticipants : noRemote);
+  }
 
-  bool get hasError =>
-      !_isDisposed &&
-      (permissionStatus.value.contains('error') ||
-          permissionStatus.value.contains('denied') ||
-          permissionStatus.value.contains('Error'));
+  bool get hasError {
+    final status = permissionStatus.value;
+    if (_isDisposed) return false;
+    return status.contains('error') ||
+        status.contains('denied') ||
+        status.contains('Error');
+  }
 
   String get statusText {
+    final group = isGroupCall.value;
+    final participantsCount = participantsList.length;
+    final remote = remoteUid.value;
+    final remoteName = remoteUserName.value;
+    final joined = isJoined.value;
+
     if (_isDisposed) return 'Call ended';
-    if (isGroupCall.value) {
-      if (participantsList.isEmpty) {
+    if (group) {
+      if (participantsCount == 0) {
         return 'Waiting for others to join...';
       } else {
-        return '${participantsList.length} ${S.of(Get.context!).participantsincall}';
+        final ctx = Get.context;
+        return '$participantsCount ${ctx != null ? S.of(ctx).participantsincall : 'participants in call'}';
       }
     } else {
-      if (remoteUid.value != null) {
-        return 'In call with ${remoteUserName.value}';
-      } else if (isJoined.value) {
-        return 'Waiting for ${remoteUserName.value} to join...';
+      if (remote != null) {
+        return 'In call with $remoteName';
+      } else if (joined) {
+        return 'Waiting for $remoteName to join...';
       } else {
         return 'Connecting...';
       }

@@ -282,77 +282,69 @@ class AudioCallPage extends StatelessWidget {
     required bool isSpeaking,
     required bool isLocal,
   }) {
-    return Obx(() {
-      controller.participantsList.firstWhereOrNull((p) => p.uid == uid);
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        decoration: BoxDecoration(
-          color: Colors.grey[850],
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSpeaking ? Colors.green : Colors.transparent,
-            width: 3,
-          ),
-          boxShadow: isSpeaking
-              ? [
-                  BoxShadow(
-                    color: Colors.green.shade300,
-                    blurRadius: 15,
-                    spreadRadius: 2,
-                  ),
-                ]
-              : [],
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      decoration: BoxDecoration(
+        color: Colors.grey[850],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSpeaking ? Colors.green : Colors.transparent,
+          width: 3,
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildAvatar(isLocal, isMuted),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Text(
-                name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+        boxShadow: isSpeaking
+            ? [
+                BoxShadow(
+                  color: Colors.green.shade300,
+                  blurRadius: 15,
+                  spreadRadius: 2,
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              ]
+            : [],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildAvatar(isLocal, isMuted),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Text(
+              name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 4),
+          if (isMuted) _buildMutedBadge(context),
+          if (controller.isGroupCall.value && !isLocal)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      isMuted ? Icons.mic : Icons.mic_off,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                    onPressed: () =>
+                        controller.muteParticipant(uid, !isMuted),
+                    tooltip:
+                        isMuted ? S.of(context).unmute : S.of(context).mute,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 4),
-            if (isMuted) _buildMutedBadge(context),
-            if (controller.isGroupCall.value && !isLocal)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        isMuted ? Icons.mic : Icons.mic_off,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                      onPressed: () =>
-                          controller.muteParticipant(uid, !isMuted),
-                      tooltip:
-                          isMuted ? S.of(context).unmute : S.of(context).mute,
-                    ),
-                    // IconButton(
-                    //   icon: const Icon(IconsaxPlusLinear.user_remove, size: 16, color: Colors.white),
-                    //   onPressed: () => controller.removeParticipant(uid),
-                    //   tooltip: S.of(context).removeParticipant,
-                    // ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      );
-    });
+        ],
+      ),
+    );
   }
 
   Widget _buildAvatar(bool isLocal, bool isMuted) {
@@ -395,98 +387,96 @@ class AudioCallPage extends StatelessWidget {
   }
 
   Widget _buildLocalUserAvatar(AudioCallController controller) {
-    return Obx(() => AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          width: 120,
-          height: 120,
-          decoration: BoxDecoration(
-            color:
-                controller.isMuted.value ? Colors.red[700] : Colors.blue[700],
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: controller.isMuted.value
-                    ? Colors.red.withOpacity(0.3)
-                    : Colors.blue.withOpacity(0.3),
-                blurRadius: 20,
-                spreadRadius: 2,
-                offset: const Offset(0, 10),
-              ),
-            ],
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      width: 120,
+      height: 120,
+      decoration: BoxDecoration(
+        color:
+            controller.isMuted.value ? Colors.red[700] : Colors.blue[700],
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: controller.isMuted.value
+                ? Colors.red.withOpacity(0.3)
+                : Colors.blue.withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 2,
+            offset: const Offset(0, 10),
           ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: Icon(
-              controller.isMuted.value ? Icons.mic_off : Icons.person,
-              key: ValueKey(controller.isMuted.value),
-              size: 60,
-              color: Colors.white,
-            ),
-          ),
-        ));
+        ],
+      ),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: Icon(
+          controller.isMuted.value ? Icons.mic_off : Icons.person,
+          key: ValueKey(controller.isMuted.value),
+          size: 60,
+          color: Colors.white,
+        ),
+      ),
+    );
   }
 
   Widget _buildStatusText(
       BuildContext context, AudioCallController controller) {
-    return Obx(() => AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: Text(
-            controller.statusText,
-            key: ValueKey(controller.statusText),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w300,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ));
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: Text(
+        controller.statusText,
+        key: ValueKey(controller.statusText),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.w300,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
   }
 
   Widget _buildRemoteUserAvatar(
       BuildContext context, AudioCallController controller) {
-    return Obx(() {
-      if (controller.remoteUid.value != null && !controller.isGroupCall.value) {
-        return Column(
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 500),
-              width: 100,
-              height: 100,
-              margin: const EdgeInsets.only(top: 20),
-              decoration: BoxDecoration(
-                color: Colors.green[700],
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.green, width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.green.withOpacity(0.3),
-                    blurRadius: 15,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.person, size: 50, color: Colors.white),
+    if (controller.remoteUid.value != null && !controller.isGroupCall.value) {
+      return Column(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 500),
+            width: 100,
+            height: 100,
+            margin: const EdgeInsets.only(top: 20),
+            decoration: BoxDecoration(
+              color: Colors.green[700],
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.green, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.3),
+                  blurRadius: 15,
+                  spreadRadius: 2,
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              controller.remoteUserName.value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-              ),
+            child: const Icon(Icons.person, size: 50, color: Colors.white),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            controller.remoteUserName.value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
             ),
-          ],
-        );
-      }
-      return const SizedBox.shrink();
-    });
+          ),
+        ],
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   Widget _buildWaitingIndicator(
       BuildContext context, AudioCallController controller) {
-    return Obx(() => controller.isWaiting
+    return controller.isWaiting
         ? Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -501,7 +491,7 @@ class AudioCallPage extends StatelessWidget {
               ),
             ],
           )
-        : const SizedBox.shrink());
+        : const SizedBox.shrink();
   }
 
   Widget _buildStatusIndicators(
@@ -509,61 +499,61 @@ class AudioCallPage extends StatelessWidget {
     return Positioned(
       top: 20,
       left: 20,
-      child: Obx(() => AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.black54,
-              borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                controller.isMuted.value ? Icons.mic_off : Icons.mic,
+                key: ValueKey(controller.isMuted.value),
+                color: controller.isMuted.value ? Colors.red : Colors.green,
+                size: 16,
+              ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    controller.isMuted.value ? Icons.mic_off : Icons.mic,
-                    key: ValueKey(controller.isMuted.value),
-                    color: controller.isMuted.value ? Colors.red : Colors.green,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    controller.speakerEnabled.value
-                        ? Icons.volume_up
-                        : Icons.phone,
-                    key: ValueKey(controller.speakerEnabled.value),
-                    color: controller.speakerEnabled.value
-                        ? Colors.blue
-                        : Colors.grey,
-                    size: 16,
-                  ),
-                ),
-                if (controller.participants.isNotEmpty ||
-                    controller.remoteUid.value != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.green.withOpacity(0.5),
-                          blurRadius: 4,
-                          spreadRadius: 1,
-                        ),
-                      ],
+            const SizedBox(width: 8),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                controller.speakerEnabled.value
+                    ? Icons.volume_up
+                    : Icons.phone,
+                key: ValueKey(controller.speakerEnabled.value),
+                color: controller.speakerEnabled.value
+                    ? Colors.blue
+                    : Colors.grey,
+                size: 16,
+              ),
+            ),
+            if (controller.participants.isNotEmpty ||
+                controller.remoteUid.value != null) ...[
+              const SizedBox(width: 8),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.5),
+                      blurRadius: 4,
+                      spreadRadius: 1,
                     ),
-                  ),
-                ],
-              ],
-            ),
-          )),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 

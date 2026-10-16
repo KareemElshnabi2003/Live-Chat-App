@@ -118,15 +118,22 @@ class VideoCallController extends GetxController {
   void onClose() {
     _isDisposed = true;
     _statusWorker?.dispose();
-    _disposeEngine();
-    ChatController.isOutgoingCallInProgress = false;
-    ChatController.isCurrentCallPublisher = false;
-    ChatController.activeOutgoingChatId = "";
-    if (Get.isRegistered<ChatController>()) {
-      final ctrl = Get.find<ChatController>();
-      ctrl.isIncomingCallActive = false;
-      ctrl.updateCallActiveStatus();
-      ctrl.update();
+    try {
+      _disposeEngine();
+    } catch (e) {
+      debugPrint("Error disposing video engine in onClose: $e");
+    } finally {
+      ChatController.isOutgoingCallInProgress = false;
+      ChatController.isCurrentCallPublisher = false;
+      ChatController.activeOutgoingChatId = "";
+      if (Get.isRegistered<ChatController>()) {
+        try {
+          final ctrl = Get.find<ChatController>();
+          ctrl.isIncomingCallActive = false;
+          ctrl.updateCallActiveStatus();
+          ctrl.update();
+        } catch (_) {}
+      }
     }
     super.onClose();
   }
@@ -539,18 +546,32 @@ class VideoCallController extends GetxController {
     _isEndingCall = true;
     _userEndedCall = true;
 
-    debugPrint(
-        '🔴 Remote ended video call, closing view and staying in chat...');
-    if (_engine != null) {
-      try {
-        await _engine!.stopPreview();
-        await _engine!.leaveChannel();
-      } catch (e) {
-        debugPrint("Error leaving channel on remote ended: $e");
+    try {
+      debugPrint(
+          '🔴 Remote ended video call, closing view and staying in chat...');
+      if (_engine != null) {
+        try {
+          await _engine!.stopPreview();
+          await _engine!.leaveChannel();
+        } catch (e) {
+          debugPrint("Error leaving channel on remote ended: $e");
+        }
+      }
+      _safeCloseView();
+      await _disposeEngine();
+    } finally {
+      ChatController.isOutgoingCallInProgress = false;
+      ChatController.isCurrentCallPublisher = false;
+      ChatController.activeOutgoingChatId = "";
+      if (Get.isRegistered<ChatController>()) {
+        try {
+          final ctrl = Get.find<ChatController>();
+          ctrl.isIncomingCallActive = false;
+          ctrl.updateCallActiveStatus();
+          ctrl.update();
+        } catch (_) {}
       }
     }
-    _safeCloseView();
-    await _disposeEngine();
   }
 
   void onBusyCall() async {
@@ -558,18 +579,32 @@ class VideoCallController extends GetxController {
     _isEndingCall = true;
     _userEndedCall = true;
 
-    debugPrint('🔴 Remote user is busy, exiting call...');
-    if (_engine != null) {
-      try {
-        await _engine!.stopPreview();
-        await _engine!.leaveChannel();
-      } catch (e) {
-        debugPrint("Error leaving channel on busy: $e");
+    try {
+      debugPrint('🔴 Remote user is busy, exiting call...');
+      if (_engine != null) {
+        try {
+          await _engine!.stopPreview();
+          await _engine!.leaveChannel();
+        } catch (e) {
+          debugPrint("Error leaving channel on busy: $e");
+        }
+      }
+      _safeCloseView();
+      await _disposeEngine();
+      await endCallApi(sendEndedMessage: false);
+    } finally {
+      ChatController.isOutgoingCallInProgress = false;
+      ChatController.isCurrentCallPublisher = false;
+      ChatController.activeOutgoingChatId = "";
+      if (Get.isRegistered<ChatController>()) {
+        try {
+          final ctrl = Get.find<ChatController>();
+          ctrl.isIncomingCallActive = false;
+          ctrl.updateCallActiveStatus();
+          ctrl.update();
+        } catch (_) {}
       }
     }
-    _safeCloseView();
-    await _disposeEngine();
-    await endCallApi(sendEndedMessage: false);
 
     Future.delayed(const Duration(milliseconds: 300), () {
       Get.snackbar(
@@ -588,39 +623,53 @@ class VideoCallController extends GetxController {
     _isEndingCall = true;
     _userEndedCall = true;
 
-    final isOneOnOneCall = !isGroubCall;
+    try {
+      final isOneOnOneCall = !isGroubCall;
 
-    // 🌟 في المكالمة الفردية: إنهاء المكالمة دائماً إذا خرج أي من الطرفين
-    // في المكالمة الجماعية: تنتهي فقط عند خروج آخر شخص متبقٍ في المكالمة
-    bool shouldEndCall = false;
-    if (isOneOnOneCall) {
-      shouldEndCall = true;
-    } else {
-      shouldEndCall = _remoteUsers.isEmpty;
-    }
+      // 🌟 في المكالمة الفردية: إنهاء المكالمة دائماً إذا خرج أي من الطرفين
+      // في المكالمة الجماعية: تنتهي فقط عند خروج آخر شخص متبقٍ في المكالمة
+      bool shouldEndCall = false;
+      if (isOneOnOneCall) {
+        shouldEndCall = true;
+      } else {
+        shouldEndCall = _remoteUsers.isEmpty;
+      }
 
-    debugPrint(
-        '🔴 User ending video call: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall, remoteCount=${_remoteUsers.length}');
+      debugPrint(
+          '🔴 User ending video call: isCaller=$isCaller, isOneOnOne=$isOneOnOneCall, shouldEndCall=$shouldEndCall, remoteCount=${_remoteUsers.length}');
 
-    if (shouldEndCall) {
-      await endCallApi();
-    }
+      if (shouldEndCall) {
+        await endCallApi();
+      }
 
-    // 1. إيقاف القنوات والمعاينة قبل الرجوع لمنع أي تعليق في الواجهة
-    if (_engine != null) {
-      try {
-        await _engine!.stopPreview();
-        await _engine!.leaveChannel();
-      } catch (e) {
-        debugPrint("Error stopping preview or leaving channel: $e");
+      // 1. إيقاف القنوات والمعاينة قبل الرجوع لمنع أي تعليق في الواجهة
+      if (_engine != null) {
+        try {
+          await _engine!.stopPreview();
+          await _engine!.leaveChannel();
+        } catch (e) {
+          debugPrint("Error stopping preview or leaving channel: $e");
+        }
+      }
+
+      // 2. إغلاق شاشة المكالمة فوراً وبأمان
+      _safeCloseView();
+
+      // 3. تنظيف محرك Agora بأمان بعد خروج الشاشة
+      await _disposeEngine();
+    } finally {
+      ChatController.isOutgoingCallInProgress = false;
+      ChatController.isCurrentCallPublisher = false;
+      ChatController.activeOutgoingChatId = "";
+      if (Get.isRegistered<ChatController>()) {
+        try {
+          final ctrl = Get.find<ChatController>();
+          ctrl.isIncomingCallActive = false;
+          ctrl.updateCallActiveStatus();
+          ctrl.update();
+        } catch (_) {}
       }
     }
-
-    // 2. إغلاق شاشة المكالمة فوراً وبأمان
-    _safeCloseView();
-
-    // 3. تنظيف محرك Agora بأمان بعد خروج الشاشة
-    await _disposeEngine();
   }
 
   Future<void> endCallApi({bool sendEndedMessage = true}) async {
@@ -745,16 +794,18 @@ class VideoCallController extends GetxController {
   }
 
   String get statusText {
+    final remoteCount = _remoteUsers.length;
+    final joined = _isJoined.value;
     if (_isDisposed) return "Call ended";
 
-    if (_remoteUsers.isNotEmpty) {
+    if (remoteCount > 0) {
       if (isGroubCall) {
-        return "In call with ${_remoteUsers.length} user${_remoteUsers.length > 1 ? 's' : ''}";
-      } else if (_remoteUsers.length == 1) {
+        return "In call with $remoteCount user${remoteCount > 1 ? 's' : ''}";
+      } else if (remoteCount == 1) {
         return "In call with ${getUserName(_remoteUsers[0])}";
       }
       return "In call";
-    } else if (_isJoined.value) {
+    } else if (joined) {
       if (isGroubCall) {
         return "Waiting for others to join...";
       }
