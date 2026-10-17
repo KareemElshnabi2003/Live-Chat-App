@@ -72,9 +72,12 @@ class FriendsChatContoller extends GetxController {
         // 🌟 تحويل الداتا كلها عشان نفصل الأصدقاء عن الطلبات
         var allItems = responseBody.map((e) => SuggestFreindModel.fromJson(e)).toList();
 
-        // 🌟 جلب الأصدقاء فقط لعرضهم في الشاشة دي
+        // 🌟 جلب الأصدقاء فقط لعرضهم في الشاشة دي (يشمل الأصدقاء العاديين والمحظورين)
         var newFriends = allItems
-            .where((element) => element.requestStatus == "friends")
+            .where((element) =>
+                element.requestStatus == "friends" ||
+                element.requestStatus == "blocked" ||
+                (element.isBlocked != null && element.isBlocked != "None"))
             .toList();
 
         // 🌟 حساب الطلبات المعلقة عشان العداد (Badge)
@@ -112,7 +115,34 @@ class FriendsChatContoller extends GetxController {
     update();
   }
 
-  Future<void> createChatFriend({required int friendID}) async {
+  Future<void> createChatFriend({required int friendID, SuggestFreindModel? friend}) async {
+    // 🌟 لو المستخدم محظور وموجود له conversationId، ندخل الشات مباشرة لعرض الرسائل السابقة وشريط الحظر
+    final bool isBlockedByMe = friend?.isBlocked == "You blocked them";
+    final bool isBlockedByThem = friend?.isBlocked == "They blocked you";
+    final bool isGeneralBlocked =
+        friend?.requestStatus == "blocked" || isBlockedByMe || isBlockedByThem;
+
+    final conversationId = friend?.conversationId;
+
+    if (isGeneralBlocked && conversationId != null && conversationId != 0) {
+      final userChat = UserChatModel(
+        id: conversationId,
+        isBlocked: friend?.isBlocked ?? (isBlockedByThem ? "They blocked you" : "You blocked them"),
+        name: friend?.name ?? friend?.username ?? '',
+        image: friend?.image,
+        status: "Friends",
+        lastMessage: friend?.lastMessage,
+        user: User(
+          id: friend?.id ?? friendID,
+          name: friend?.name,
+          username: friend?.username,
+          image: friend?.image,
+        ),
+      );
+      navigateToChats(userchat: userChat);
+      return;
+    }
+
     statuesRequest = StatuesRequest.loading;
     update();
 
@@ -123,7 +153,15 @@ class FriendsChatContoller extends GetxController {
     statuesRequest = handlingData(response);
 
     if (statuesRequest == StatuesRequest.success) {
-      navigateToChats(userchat: UserChatModel.fromJson(response['data']));
+      final userChat = UserChatModel.fromJson(response['data']);
+      if ((userChat.isBlocked == null || userChat.isBlocked == "None") &&
+          friend?.isBlocked != null) {
+        userChat.isBlocked = friend!.isBlocked;
+      }
+      if (userChat.lastMessage == null && friend?.lastMessage != null) {
+        userChat.lastMessage = friend!.lastMessage;
+      }
+      navigateToChats(userchat: userChat);
     } else {
       showUserFriendlyError(statuesRequest);
     }
@@ -154,14 +192,16 @@ class FriendsChatContoller extends GetxController {
     await getFriends(page: 1);
   }
 
-  void navigateToChats({UserChatModel? userchat}) {
-    Get.to(
-          () => ChatView(isGust: false, isPin: false, userChatModel: userchat),
+  Future<void> navigateToChats({UserChatModel? userchat}) async {
+    await Get.to(
+      () => ChatView(isGust: false, isPin: false, userChatModel: userchat),
       arguments: {"chatId": userchat!.id.toString()},
       transition: Transition.leftToRight,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 250),
       curve: Curves.easeInOut,
     );
+    statuesRequest = StatuesRequest.none;
+    update();
   }
 
   void toggleEdit() => isEditing.value = !isEditing.value;

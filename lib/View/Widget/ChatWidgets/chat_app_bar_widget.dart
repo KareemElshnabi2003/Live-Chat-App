@@ -311,24 +311,54 @@ class ChatAppBarWidget extends StatelessWidget {
 
   Widget _buildAudioCallIcon() => GetBuilder<ChatController>(
         builder: (ctrl) {
+          final isBlocked = userChatModel.isBlocked;
+          final bool isBlockedByMe = isBlocked == "You blocked them";
+          final bool isBlockedByThem = isBlocked == "They blocked you";
+          final bool isGeneralBlocked =
+              isBlockedByMe || isBlockedByThem || isBlocked == "blocked";
+          final bool isGroup = userChatModel.status != "Friends" &&
+              userChatModel.status != "Not Friend";
+          final bool isBlockedSingleChat = !isGroup && isGeneralBlocked;
+
           final isCallActive = ctrl.isIncomingCallActive;
           return GestureDetector(
             onTap: () => _initCall(true),
-            child: Icon(IconsaxPlusLinear.call_calling,
-                size: 5.5.w,
-                color: isCallActive ? Colors.green : (pref! ? AppColors.whiteColor : AppColors.blackColor)),
+            child: Icon(
+              IconsaxPlusLinear.call_calling,
+              size: 5.5.w,
+              color: isBlockedSingleChat
+                  ? (pref! ? Colors.white30 : Colors.black26)
+                  : (isCallActive
+                      ? Colors.green
+                      : (pref! ? AppColors.whiteColor : AppColors.blackColor)),
+            ),
           );
         },
       );
 
   Widget _buildVideoCallIcon() => GetBuilder<ChatController>(
         builder: (ctrl) {
+          final isBlocked = userChatModel.isBlocked;
+          final bool isBlockedByMe = isBlocked == "You blocked them";
+          final bool isBlockedByThem = isBlocked == "They blocked you";
+          final bool isGeneralBlocked =
+              isBlockedByMe || isBlockedByThem || isBlocked == "blocked";
+          final bool isGroup = userChatModel.status != "Friends" &&
+              userChatModel.status != "Not Friend";
+          final bool isBlockedSingleChat = !isGroup && isGeneralBlocked;
+
           final isCallActive = ctrl.isIncomingCallActive;
           return GestureDetector(
             onTap: () => _initCall(false),
-            child: Icon(IconsaxPlusLinear.video,
-                size: 5.5.w,
-                color: isCallActive ? Colors.green : (pref! ? AppColors.whiteColor : AppColors.blackColor)),
+            child: Icon(
+              IconsaxPlusLinear.video,
+              size: 5.5.w,
+              color: isBlockedSingleChat
+                  ? (pref! ? Colors.white30 : Colors.black26)
+                  : (isCallActive
+                      ? Colors.green
+                      : (pref! ? AppColors.whiteColor : AppColors.blackColor)),
+            ),
           );
         },
       );
@@ -336,6 +366,27 @@ class ChatAppBarWidget extends StatelessWidget {
   void _initCall(bool isAudio) async {
     final isGroup =
         userChatModel.status == "Public" || userChatModel.status == "Private";
+    final isBlocked = userChatModel.isBlocked;
+    final bool isBlockedByMe = isBlocked == "You blocked them";
+    final bool isBlockedByThem = isBlocked == "They blocked you";
+    final bool isGeneralBlocked =
+        isBlockedByMe || isBlockedByThem || isBlocked == "blocked";
+
+    if (!isGroup && isGeneralBlocked) {
+      Get.snackbar(
+        S.of(Get.context!).warning,
+        isBlockedByThem
+            ? S.of(Get.context!).msgBlockUser
+            : S.of(Get.context!).msgIBlock,
+        backgroundColor: Colors.orange.shade800,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+        margin: const EdgeInsets.all(12),
+        icon: const Icon(Icons.block, color: Colors.white),
+      );
+      return;
+    }
+
     controller.audio = isAudio;
     final currentUserIdStr = sharedPreferences?.getString("id") ?? "0";
     final currentUserNameStr = sharedPreferences?.getString("name") ?? "";

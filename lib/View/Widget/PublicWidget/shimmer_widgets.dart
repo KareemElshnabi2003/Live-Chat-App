@@ -409,3 +409,109 @@ class PinnedChatShimmer extends StatelessWidget {
     );
   }
 }
+
+/// 7. شيمر فقاعات رسائل الشات عند فتح المحادثة (Chat Messages Skeleton)
+class ChatMessagesShimmer extends StatelessWidget {
+  const ChatMessagesShimmer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isRtl = Directionality.of(Get.context ?? context) == TextDirection.rtl;
+
+    return Shimmer.fromColors(
+      baseColor: shimmerBaseColor,
+      highlightColor: shimmerHighlightColor,
+      child: ListView(
+        reverse: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.symmetric(vertical: 1.h, horizontal: 1.w),
+        children: [
+          _buildBubble(isSender: true, width: 52.w, height: 42, isRtl: isRtl),
+          SizedBox(height: 1.5.h),
+          _buildBubble(isSender: false, width: 68.w, height: 50, isRtl: isRtl, showAvatar: true),
+          SizedBox(height: 1.h),
+          _buildBubble(isSender: false, width: 44.w, height: 38, isRtl: isRtl, showAvatar: false),
+          SizedBox(height: 1.5.h),
+          _buildBubble(isSender: true, width: 70.w, height: 56, isRtl: isRtl),
+          SizedBox(height: 1.5.h),
+          _buildBubble(isSender: false, width: 50.w, height: 40, isRtl: isRtl, showAvatar: true),
+          SizedBox(height: 1.5.h),
+          _buildBubble(isSender: true, width: 36.w, height: 36, isRtl: isRtl),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBubble({
+    required bool isSender,
+    required double width,
+    required double height,
+    required bool isRtl,
+    bool showAvatar = false,
+  }) {
+    final alignment = isRtl
+        ? (isSender ? MainAxisAlignment.start : MainAxisAlignment.end)
+        : (isSender ? MainAxisAlignment.end : MainAxisAlignment.start);
+
+    return Row(
+      mainAxisAlignment: alignment,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+      children: [
+        if (isRtl && isSender && showAvatar) ...[
+          Container(
+            width: 32,
+            height: 32,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        if (!isRtl && !isSender) ...[
+          if (showAvatar)
+            Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+            )
+          else
+            const SizedBox(width: 32),
+          const SizedBox(width: 8),
+        ],
+        Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(isSender ? 16 : 4),
+              bottomRight: Radius.circular(isSender ? 4 : 16),
+            ),
+          ),
+        ),
+        if (isRtl && !isSender) ...[
+          const SizedBox(width: 8),
+          if (showAvatar)
+            Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+            )
+          else
+            const SizedBox(width: 32),
+        ],
+      ],
+    );
+  }
+}
+

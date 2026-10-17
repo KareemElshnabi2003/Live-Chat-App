@@ -34,6 +34,8 @@ Widget FriendsChatCard({
   required VoidCallback onPressImg,
   bool isFriendsSection = false,
   bool isFriend = true,
+  Color? bodyColor,
+  Widget? prefixIcon,
 }) {
   final controller = Get.find<FriendsChatContoller>();
   final isRtl = Directionality.of(Get.context!) == TextDirection.rtl;
@@ -51,7 +53,15 @@ Widget FriendsChatCard({
             children: [
               _buildProfileImage(img, ttitle, imgUrl, isFriendsSection, onPressImg),
               SizedBox(width: 2.w),
-              _buildChatDetails(power, ttitle, body, isFriend, onPressJoin),
+              _buildChatDetails(
+                power,
+                ttitle,
+                body,
+                isFriend,
+                onPressJoin,
+                bodyColor: bodyColor,
+                prefixIcon: prefixIcon,
+              ),
             ],
           ),
         ),
@@ -77,7 +87,15 @@ Widget _buildProfileImage(ImageProvider img, String ttitle, bool imgUrl, bool is
   );
 }
 
-Widget _buildChatDetails(PowerModel? power, String ttitle, String body, bool isFriend, VoidCallback onPressJoin) {
+Widget _buildChatDetails(
+  PowerModel? power,
+  String ttitle,
+  String body,
+  bool isFriend,
+  VoidCallback onPressJoin, {
+  Color? bodyColor,
+  Widget? prefixIcon,
+}) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -85,7 +103,21 @@ Widget _buildChatDetails(PowerModel? power, String ttitle, String body, bool isF
           ? PowerTextWidget(powerModel: power, displyText: ttitle)
           : textNormal(ttitle, pref! ? AppColors.whiteColor : AppColors.blackTextColor, 3.5.w, FontWeight.w400),
       const Spacer(flex: 1),
-      textNormal(body, isFriend ? (pref! ? AppColors.inActiveColor : AppColors.black2TextColor) : AppColors.secondaryColor, 3.w, FontWeight.w500),
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (prefixIcon != null) ...[
+            prefixIcon,
+            SizedBox(width: 1.w),
+          ],
+          textNormal(
+            body,
+            bodyColor ?? (isFriend ? (pref! ? AppColors.inActiveColor : AppColors.black2TextColor) : AppColors.secondaryColor),
+            3.w,
+            FontWeight.w500,
+          ),
+        ],
+      ),
       const Spacer(flex: 2),
       textClick(isFriend ? S.of(Get.context!).correspondent : S.of(Get.context!).cancel, false, onPressJoin, isFriend ? (pref! ? AppColors.secondaryColor : AppColors.primaryColor) : AppColors.redColor, 3.w),
     ],
@@ -275,29 +307,81 @@ class Friends extends StatelessWidget {
     }
 
     final hasValidImg = isValidImage(friend.image);
+    final isRtl = Directionality.of(Get.context!) == TextDirection.rtl;
+
+    // 🌟 فحص وتحديد حالة الحظر والنص واللون تحت الاسم
+    final bool isBlockedByMe = friend.isBlocked == "You blocked them";
+    final bool isBlockedByThem = friend.isBlocked == "They blocked you";
+    final bool isGeneralBlocked =
+        friend.requestStatus == "blocked" || isBlockedByMe || isBlockedByThem;
+
+    String bodyText;
+    Color? bodyColor;
+    Widget? prefixIcon;
+
+    final Color blockedColor =
+        pref! ? const Color(0xFFE57373) : const Color(0xFFB54231);
+
+    if (isBlockedByMe) {
+      bodyText = isRtl ? "لقد حظرت هذا الشخص" : "You blocked this user";
+      bodyColor = blockedColor;
+      prefixIcon = Icon(Icons.block, size: 3.2.w, color: blockedColor);
+    } else if (isBlockedByThem) {
+      bodyText = isRtl
+          ? "لقد حظرت بواسطة هذا الشخص"
+          : "You were blocked by this user";
+      bodyColor = blockedColor;
+      prefixIcon = Icon(Icons.block, size: 3.2.w, color: blockedColor);
+    } else if (friend.requestStatus == "blocked") {
+      bodyText = isRtl ? "مستخدم محظور" : "Blocked user";
+      bodyColor = blockedColor;
+      prefixIcon = Icon(Icons.block, size: 3.2.w, color: blockedColor);
+    } else if (friend.requestStatus == "friends") {
+      bodyText = S.of(Get.context!).friend;
+    } else {
+      bodyText = S.of(Get.context!).requestWaiting;
+    }
+
+    final bool isFriendOrBlocked =
+        friend.requestStatus == "friends" || isGeneralBlocked;
 
     return FriendsChatCard(
       onPressImg: () => dialogImgWidget(
         title: friend.username!,
         img: friend.image,
-        onPressChat: () { if (friend.requestStatus == "friends") controller.createChatFriend(friendID: friend.id!); },
+        onPressChat: () {
+          if (isFriendOrBlocked) {
+            controller.createChatFriend(friendID: friend.id!, friend: friend);
+          }
+        },
         userChatModel: null,
       ),
       imgUrl: hasValidImg,
       power: friend.power,
-      isFriend: friend.requestStatus == "friends",
+      isFriend: isFriendOrBlocked,
+      bodyColor: bodyColor,
+      prefixIcon: prefixIcon,
       isFriendsSection: true,
       onPressRemove: () {
         if (controller.isEditing.value) {
-          if (friend.requestStatus == "friends") controller.removeFriend(friendID: friend.id!);
+          if (isFriendOrBlocked) controller.removeFriend(friendID: friend.id!);
         } else {
-          if (friend.requestStatus == "friends") controller.createChatFriend(friendID: friend.id!);
+          if (isFriendOrBlocked) {
+            controller.createChatFriend(friendID: friend.id!, friend: friend);
+          }
         }
       },
-      img: hasValidImg ? CachedNetworkImageProvider(friend.image!.trim(), maxWidth: 150, maxHeight: 150) : const AssetImage(AppImages.noChatImg),
-      body: friend.requestStatus == "friends" ? S.of(Get.context!).friend : S.of(Get.context!).requestWaiting,
+      img: hasValidImg
+          ? CachedNetworkImageProvider(friend.image!.trim(),
+              maxWidth: 150, maxHeight: 150)
+          : const AssetImage(AppImages.noChatImg),
+      body: bodyText,
       ttitle: friend.username!,
-      onPressJoin: () { if (friend.requestStatus == "friends") controller.createChatFriend(friendID: friend.id!); },
+      onPressJoin: () {
+        if (isFriendOrBlocked) {
+          controller.createChatFriend(friendID: friend.id!, friend: friend);
+        }
+      },
     );
   }
 }

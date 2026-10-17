@@ -13,6 +13,7 @@ import 'package:live_chat/View/Widget/ChatWidgets/chat_helpers.dart';
 import 'package:live_chat/View/Widget/ChatWidgets/chat_input_widget.dart';
 import 'package:live_chat/View/Widget/ChatWidgets/chat_bubble_widget.dart';
 import 'package:live_chat/View/Widget/ChatWidgets/pinned_ad_widget.dart';
+import 'package:live_chat/View/Widget/PublicWidget/shimmer_widgets.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
 import 'package:live_chat/main.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
@@ -61,6 +62,7 @@ class _ChatViewState extends State<ChatView> {
     // 🌟 تحديد نوع الشات: غرف الدردشة العامة فقط هي الـ Public
     controller.isPublicChat = widget.userChatModel?.status?.toLowerCase() == 'public';
     controller.userChatModel = widget.userChatModel;
+    controller.seedInitialData(widget.userChatModel);
 
     _scrollController.addListener(() {
       if (_scrollController.offset > 200) {
@@ -128,6 +130,9 @@ class _ChatViewState extends State<ChatView> {
                       child: Stack(
                         children: [
                           Obx(() {
+                            if (controller.isLoadingInitial.value && controller.messages.isEmpty) {
+                              return const ChatMessagesShimmer();
+                            }
                             return ListView.separated(
                               separatorBuilder: (context, index) {
                                 if (index >= controller.messages.length - 1) return const SizedBox(height: 20);

@@ -5,7 +5,6 @@ import 'package:live_chat/Core/Constant/app_color.dart';
 import 'package:live_chat/Core/function/html_decoder.dart';
 import 'package:live_chat/Data/Model/user_chat_model.dart';
 import 'package:live_chat/View/Widget/ChatWidgets/voice_recording_widgets.dart'; // 🌟 تأكد من استيراد ده
-import 'package:live_chat/View/Widget/PublicWidget/text_click_widget.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
 import 'package:live_chat/main.dart';
 import 'package:live_chat/generated/l10n.dart';
@@ -32,38 +31,88 @@ class ChatInputWidget extends StatelessWidget {
     final hasLastMessage = userChatModel.lastMessage != null;
     bool answer = controller.answer;
 
-    if (isNotFriend && !hasLastMessage && isBlocked == "None") {
+    final bool isBlockedByMe = isBlocked == "You blocked them";
+    final bool isBlockedByThem = isBlocked == "They blocked you";
+    final bool isGeneralBlocked = isBlockedByMe || isBlockedByThem || isBlocked == "blocked";
+
+    if (isNotFriend && !hasLastMessage && (isBlocked == "None" || isBlocked == null)) {
       return _buildMessageInput(context, isRequestArea: true);
-    } else if (isBlocked == "You blocked them" || isBlocked == "They blocked you") {
-      if (isBlocked == "You blocked them") {
+    } else if (isGeneralBlocked) {
+      if (isBlockedByMe || isBlocked == "blocked") {
         return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4.w),
+          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              textNormal(S.of(context).msgIBlock, AppColors.blackColor, 3.5.w, FontWeight.w400),
-              SizedBox(height: 2.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.block, size: 4.w, color: pref! ? const Color(0xFFE57373) : const Color(0xFFB54231)),
+                  SizedBox(width: 2.w),
+                  textNormal(
+                    S.of(context).msgIBlock,
+                    pref! ? AppColors.whiteColor : AppColors.blackColor,
+                    3.5.w,
+                    FontWeight.w500,
+                  ),
+                ],
+              ),
+              SizedBox(height: 1.5.h),
               Container(
                 width: double.infinity,
                 height: 5.h,
-                decoration: BoxDecoration(color: AppColors.redColor, borderRadius: BorderRadius.circular(6)),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    textClick(S.of(context).unBlock, true, () {
-                      final friendId = controller.memberIdToBlock.isNotEmpty
-                          ? controller.memberIdToBlock[0].id
-                          : (userChatModel.user?.id ?? 0);
-                      controller.blockOrUnBlock(friendID: friendId, status: 0);
-                      userChatModel.isBlocked = "None";
-                    }, AppColors.whiteColor, 4.w),
-                  ],
+                decoration: BoxDecoration(
+                  color: pref! ? const Color(0xFFE57373) : const Color(0xFFB54231),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: InkWell(
+                  onTap: () async {
+                    final friendId = controller.memberIdToBlock.isNotEmpty
+                        ? controller.memberIdToBlock[0].id
+                        : (userChatModel.user?.id ?? userChatModel.userId ?? 0);
+                    await controller.blockOrUnBlock(friendID: friendId, status: 0);
+                    userChatModel.isBlocked = "None";
+                    controller.update();
+                  },
+                  child: Center(
+                    child: textNormal(
+                      S.of(context).unBlock,
+                      AppColors.whiteColor,
+                      3.8.w,
+                      FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
         );
       } else {
-        return textNormal(S.of(context).msgBlockUser, AppColors.blackColor, 3.5.w, FontWeight.w400);
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(vertical: 1.5.h, horizontal: 4.w),
+          margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+          decoration: BoxDecoration(
+            color: pref! ? AppColors.darkcolor : const Color(0xFFF0EAE8),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: pref! ? const Color(0xFFE57373).withOpacity(0.3) : const Color(0xFFB54231).withOpacity(0.3),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.block, size: 4.w, color: pref! ? const Color(0xFFE57373) : const Color(0xFFB54231)),
+              SizedBox(width: 2.w),
+              textNormal(
+                S.of(context).msgBlockUser,
+                pref! ? AppColors.whiteColor : AppColors.blackColor,
+                3.5.w,
+                FontWeight.w500,
+              ),
+            ],
+          ),
+        );
       }
     } else if (isNotFriend && hasLastMessage && isBlocked == "None" && answer == false && userChatModel.user!.id.toString() != sharedPreferences!.getString('id')) {
       return _buildAcceptOrCancelArea(context);

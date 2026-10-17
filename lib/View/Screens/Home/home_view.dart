@@ -437,7 +437,7 @@ class HomeView extends StatelessWidget {
           // ==============================
           // 🌟 Pinned Chat Section (يختفي بالكامل لو مفيش محادثة شغالة)
           // ==============================
-          if (controller.statuesRequest == StatuesRequest.loading)
+          if (controller.statuesRequest == StatuesRequest.loading && controller.pinChatModel == null)
             const PinnedChatShimmer()
           else if (controller.pinChatModel != null && controller.pinChatModel!.conversation != null) ...[
             // 🌟 نقلنا العنوان هنا! مش هيتعرض غير لو المحادثة موجودة فعلاً
@@ -689,7 +689,7 @@ class HomeView extends StatelessWidget {
           horizontalPadding: 4.w,
         ),
         SizedBox(height: 2.h),
-        controller.statuesRequest == StatuesRequest.loading
+        (controller.statuesRequest == StatuesRequest.loading && controller.friends.isEmpty)
             ? const UserListShimmer(itemCount: 2, shrinkWrap: true)
             : controller.friends.isEmpty
             ? Center(child: noData(S.of(Get.context!).noChat))
@@ -712,7 +712,7 @@ class HomeView extends StatelessWidget {
           horizontalPadding: 4.w,
         ),
         SizedBox(height: 2.h),
-        controller.statuesRequest == StatuesRequest.loading
+        (controller.statuesRequest == StatuesRequest.loading && controller.friendsSuggestion.isEmpty)
             ? const UserListShimmer(itemCount: 2, shrinkWrap: true)
             : controller.friendsSuggestion.isEmpty
             ? Center(child: noData(S.of(Get.context!).noChat))
@@ -920,73 +920,110 @@ class HomeView extends StatelessWidget {
           right: isRtl ? 4.w : 0,
         ),
         itemBuilder: (context, index) {
+          final friend = controller.friends[index];
+
+          final bool isBlockedByMe = friend.isBlocked == "You blocked them";
+          final bool isBlockedByThem = friend.isBlocked == "They blocked you";
+          final bool isGeneralBlocked =
+              friend.requestStatus == "blocked" || isBlockedByMe || isBlockedByThem;
+
+          String bodyText;
+          Color? bodyColor;
+          Widget? prefixIcon;
+
+          final Color blockedColor =
+              pref! ? const Color(0xFFE57373) : const Color(0xFFB54231);
+
+          if (isBlockedByMe) {
+            bodyText = isRtl ? "لقد حظرت هذا الشخص" : "You blocked this user";
+            bodyColor = blockedColor;
+            prefixIcon = Icon(Icons.block, size: 3.2.w, color: blockedColor);
+          } else if (isBlockedByThem) {
+            bodyText = isRtl
+                ? "لقد حظرت بواسطة هذا الشخص"
+                : "You were blocked by this user";
+            bodyColor = blockedColor;
+            prefixIcon = Icon(Icons.block, size: 3.2.w, color: blockedColor);
+          } else if (friend.requestStatus == "blocked") {
+            bodyText = isRtl ? "مستخدم محظور" : "Blocked user";
+            bodyColor = blockedColor;
+            prefixIcon = Icon(Icons.block, size: 3.2.w, color: blockedColor);
+          } else if (friend.requestStatus == "friends") {
+            bodyText = S.of(context).friend;
+          } else {
+            bodyText = S.of(context).requestWaiting;
+          }
+
+          final bool isFriendOrBlocked =
+              friend.requestStatus == "friends" || isGeneralBlocked;
+
           return chatCardWidget(
               needsAcceptance: false,
-
-              power: controller.friends[index].power,
-              imageUrl: controller.friends[index].image.toString() == "null" ||
-                  controller.friends[index].image == ""
+              power: friend.power,
+              imageUrl: friend.image.toString() == "null" ||
+                  friend.image == ""
                   ? false
                   : true,
               numOfMessage: 0,
               onPressImg: () {
                 dialogImgWidget(
-                    title: controller.friends[index].name!,
-                    img: controller.friends[index].image,
+                    title: friend.name ?? friend.username ?? '',
+                    img: friend.image,
                     userChatModel: null,
                     onPressChat: () {
-                      if (controller.friends[index].requestStatus ==
-                          "friends") {
+                      if (isFriendOrBlocked) {
                         controller.createChatFriend(
-                          index: index,
-                            requestStatus: controller.friends[index].requestStatus!,
-                            friendID: controller.friends[index].id!);
-                      } else {}
+                            index: index,
+                            requestStatus: friend.requestStatus ?? 'friends',
+                            friendID: friend.id!,
+                            friend: friend);
+                      }
                     });
               },
               private: false,
-              img: controller.friends[index].image == "image" ||
-                  controller.friends[index].image.toString() == "null"|| controller.friends[index].image.toString() == ""
+              img: friend.image == "image" ||
+                  friend.image.toString() == "null" ||
+                  friend.image.toString() == ""
                   ? const AssetImage(AppImages.noChatImg)
                   : CachedNetworkImageProvider(
-                  controller.friends[index].image!),
-              body: controller.friends[index].requestStatus == "friends"
-                  ? S.of(context).friend
-                  : S.of(context).requestWaiting,
-              ttitle: controller.friends[index].username!,
+                  friend.image!),
+              body: bodyText,
+              bodyColor: bodyColor,
+              prefixIcon: prefixIcon,
+              ttitle: friend.username!,
               onPressJoin: () {
-                if (controller.friends[index].requestStatus == "friends") {
+                if (isFriendOrBlocked) {
                   controller.createChatFriend(
-                    requestStatus: controller.friends[index].requestStatus! ,
+                      requestStatus: friend.requestStatus ?? 'friends',
                       index: index,
-                      friendID: controller.friends[index].id!);
+                      friendID: friend.id!,
+                      friend: friend);
                 } else {
                   controller.sendFriendRequest(
-                      index: index, friendID: controller.friends[index].id);
+                      index: index, friendID: friend.id);
                 }
               },
               isFriendsSection: isFriendsSection,
-              action: controller.friends[index].requestStatus == "friends"
+              action: isFriendOrBlocked
                   ? S.of(context).correspondent
                   : S.of(context).cancel,
               ontap: () {
-                if (controller.friends[index].requestStatus == "friends") {
+                if (isFriendOrBlocked) {
                   controller.createChatFriend(
-                    index: index,
-                      requestStatus:  controller.friends[index].requestStatus!,
-                      friendID: controller.friends[index].id!);
+                      index: index,
+                      requestStatus: friend.requestStatus ?? 'friends',
+                      friendID: friend.id!,
+                      friend: friend);
                 } else {
                   controller.sendFriendRequest(
-                      index: index, friendID: controller.friends[index].id);
+                      index: index, friendID: friend.id);
                 }
               },
-              isFriend: controller.friends[index].requestStatus == "friends"
-                  ? true
-                  : false);
+              isFriend: isFriendOrBlocked);
         },
         separatorBuilder: (context, index) => SizedBox(height: 2.h),
         itemCount:
-        controller.friends.length > 2 ? 2 : controller.friends.length,
+            controller.friends.length > 2 ? 2 : controller.friends.length,
       ),
     );
   }

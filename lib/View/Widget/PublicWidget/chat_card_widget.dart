@@ -24,7 +24,9 @@ Widget chatCardWidget({
   required VoidCallback ontap,
   required bool imageUrl,
   bool market = false,
- required bool needsAcceptance,
+  required bool needsAcceptance,
+  Color? bodyColor,
+  Widget? prefixIcon,
 }) {
   final isRtl = Directionality.of(Get.context!) == TextDirection.rtl;
 
@@ -124,19 +126,31 @@ Widget chatCardWidget({
                       ),
                       SizedBox(
                         width: double.infinity,
-                        child: textNormal(
-                          body,
-                          isFriendsSection
-                              ? isFriend
-                              ? AppColors.primaryColor
-                              : AppColors.secondaryColor
-                              : pref!
-                              ? AppColors.inActiveColor
-                              : AppColors.inActiveColor,
-                          3.w,
-                          FontWeight.w500,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (prefixIcon != null) ...[
+                              prefixIcon,
+                              SizedBox(width: 1.5.w),
+                            ],
+                            Flexible(
+                              child: textNormal(
+                                body,
+                                bodyColor ??
+                                    (isFriendsSection
+                                        ? isFriend
+                                            ? AppColors.primaryColor
+                                            : AppColors.secondaryColor
+                                        : (pref!
+                                            ? AppColors.inActiveColor
+                                            : AppColors.inActiveColor)),
+                                3.w,
+                                FontWeight.w500,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(

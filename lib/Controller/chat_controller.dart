@@ -107,6 +107,8 @@ class ChatController extends GetxController {
 
   final TextEditingController messageController = TextEditingController();
   final RxList<ChatMessage> messages = <ChatMessage>[].obs;
+  static final Map<String, List<ChatMessage>> _messagesCache = {};
+  final RxBool isLoadingInitial = true.obs;
   bool answer = true;
 
   ChatMessage? replyingToMessage;
@@ -121,6 +123,49 @@ class ChatController extends GetxController {
     update();
   }
 
+  void seedInitialData(UserChatModel? model) {
+    if (model == null) return;
+    userChatModel = model;
+    final effectiveId = (chatId.isNotEmpty ? chatId : model.id?.toString()) ?? '';
+    if (chatId.isEmpty && effectiveId.isNotEmpty) {
+      chatId = effectiveId;
+    }
+
+    // 1. عرض الرسائل المخزنة في الكاش فوراً إن وُجدت (0ms)
+    if (effectiveId.isNotEmpty &&
+        _messagesCache.containsKey(effectiveId) &&
+        _messagesCache[effectiveId]!.isNotEmpty) {
+      messages.assignAll(_messagesCache[effectiveId]!);
+      isLoadingInitial.value = false;
+      return;
+    }
+
+    // 2. إذا لم يكن هناك كاش، نزرع آخر رسالة فوراً لمنع الشاشة البيضاء
+    if (messages.isEmpty && model.lastMessage != null) {
+      final lm = model.lastMessage!;
+      if (lm.message != null && lm.message!.isNotEmpty) {
+        final myIdStr = sharedPreferences?.getString("id");
+        final bool isMe = "${lm.senderId}" == myIdStr?.toString();
+        final initialMsg = ChatMessage(
+          senderName: lm.senderName ?? (isMe ? 'Me' : model.name ?? ''),
+          imageUrl: lm.senderImage,
+          reaction: [],
+          message: decodeHtmlEntities(lm.message ?? ''),
+          messageType: lm.messageType ?? 'text',
+          messageId: lm.id?.toString() ?? 'temp_last',
+          isPending: false,
+          isFromSender: isMe,
+          isRead: true,
+          timestamp: lm.createdAt != null
+              ? DateFormat('h:mm a').format(DateTime.tryParse(lm.createdAt!) ?? DateTime.now())
+              : '',
+        );
+        messages.assignAll([initialMsg]);
+        isLoadingInitial.value = false;
+      }
+    }
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -128,8 +173,13 @@ class ChatController extends GetxController {
     chatId = Get.arguments?['chatId']?.toString() ?? '';
 
     if (chatId.isNotEmpty) {
+      // 🚀 إذا كانت الرسائل موجودة في الكاش نعرضها فوراً بدون انتظار الشبكة
+      if (_messagesCache.containsKey(chatId) && _messagesCache[chatId]!.isNotEmpty) {
+        messages.assignAll(_messagesCache[chatId]!);
+        isLoadingInitial.value = false;
+      }
       initPusher();
-      getMessages(); // تحميل الرسائل فوراً لسرعة العرض
+      getMessages(); // تحميل الرسائل فوراً لسرعة العرض والمزامنة
 
       // تأخير طلبات الـ API غير الأساسية لتسريع فتح الشاشة
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -491,6 +541,27 @@ class ChatController extends GetxController {
       required type,
       required Map<int, String> groubUsersNames,
       required usernameFriend}) async {
+    final isBlocked = userChatModel?.isBlocked;
+    final bool isBlockedByMe = isBlocked == "You blocked them";
+    final bool isBlockedByThem = isBlocked == "They blocked you";
+    final bool isGeneralBlocked =
+        isBlockedByMe || isBlockedByThem || isBlocked == "blocked";
+
+    if (!isGroub && isGeneralBlocked) {
+      Get.snackbar(
+        S.of(Get.context!).warning,
+        isBlockedByThem
+            ? S.of(Get.context!).msgBlockUser
+            : S.of(Get.context!).msgIBlock,
+        backgroundColor: Colors.orange.shade800,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+        margin: const EdgeInsets.all(12),
+        icon: const Icon(Icons.block, color: Colors.white),
+      );
+      return;
+    }
+
     final int callStartTime = DateTime.now().millisecondsSinceEpoch;
     debugPrint("⏱️ [CALL PERF] User tapped call button (audio: $audio, isGroub: $isGroub, type: $type)");
 
@@ -611,6 +682,27 @@ class ChatController extends GetxController {
       required Map<int, String>? groubUsersNames,
       required usernameFriend,
       bool isJoin = false}) async {
+    final isBlocked = userChatModel?.isBlocked;
+    final bool isBlockedByMe = isBlocked == "You blocked them";
+    final bool isBlockedByThem = isBlocked == "They blocked you";
+    final bool isGeneralBlocked =
+        isBlockedByMe || isBlockedByThem || isBlocked == "blocked";
+
+    if (!isGroub && isGeneralBlocked) {
+      Get.snackbar(
+        S.of(Get.context!).warning,
+        isBlockedByThem
+            ? S.of(Get.context!).msgBlockUser
+            : S.of(Get.context!).msgIBlock,
+        backgroundColor: Colors.orange.shade800,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+        margin: const EdgeInsets.all(12),
+        icon: const Icon(Icons.block, color: Colors.white),
+      );
+      return;
+    }
+
     if (statuesRequest == StatuesRequest.loading) return;
     statuesRequest = StatuesRequest.loading;
     update();
@@ -699,7 +791,13 @@ class ChatController extends GetxController {
 
   Future<void> getMessages({int page = 1}) async {
     if (isLoadingMore || !hasMoreMessages) return;
-    if (page > 1) isLoadingMore = true;
+    if (page > 1) {
+      isLoadingMore = true;
+    } else {
+      if (messages.isEmpty) {
+        isLoadingInitial.value = true;
+      }
+    }
     update();
 
     var response = await _chatsRemoteData.getMessages(
@@ -748,20 +846,28 @@ class ChatController extends GetxController {
         }).toList();
 
         if (page == 1) {
-          messages
-              .assignAll(newChatMessages); // 🌟 أسرع بكتير من clear ثم addAll
+          messages.assignAll(newChatMessages); // 🌟 أسرع بكتير من clear ثم addAll
+          if (chatId.isNotEmpty) {
+            _messagesCache[chatId] = List.from(newChatMessages);
+          }
           _updateCallActiveStatus();
         } else {
           messages.addAll(newChatMessages);
+          if (chatId.isNotEmpty) {
+            _messagesCache[chatId] = List.from(messages);
+          }
         }
         syncReadStatusForPassedMessages();
         currentPage = page;
       }
     } else {
       hasMoreMessages = false;
-      showUserFriendlyError(statuesRequest);
+      if (messages.isEmpty) {
+        showUserFriendlyError(statuesRequest);
+      }
     }
     isLoadingMore = false;
+    isLoadingInitial.value = false;
     update();
   }
 
@@ -1390,6 +1496,9 @@ class ChatController extends GetxController {
 
   @override
   void onClose() {
+    if (chatId.isNotEmpty && messages.isNotEmpty) {
+      _messagesCache[chatId] = List.from(messages);
+    }
     audioPlayer.dispose();
     messageController.dispose();
     _recorder?.closeRecorder();
