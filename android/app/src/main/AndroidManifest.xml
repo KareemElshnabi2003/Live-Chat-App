@@ -43,8 +43,8 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data
-                    android:host="ngoumapp.com"
-                    android:scheme="https"/>
+                android:host="mayo.live"
+                android:scheme="https"/>
             </intent-filter>
         </activity>
 

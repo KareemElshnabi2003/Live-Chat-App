@@ -16,7 +16,7 @@ class DynamicLinkService {
   /// Since standard App Links don't require an API call to generate a short link,
   /// we can just return the deep link directly.
   static String createDynamicLink(String chatId) {
-    return 'https://ngoumapp.com/chat?id=$chatId';
+    return 'https://mayo.live/chat?id=$chatId';
   }
 
   static void initDynamicLinks() async {
@@ -44,7 +44,6 @@ class DynamicLinkService {
     if (deepLink.path == '/chat') {
       String? id = deepLink.queryParameters['id'];
       if (id != null) {
-     
         // Navigate to the chat page and pass the ID
         Future.delayed(const Duration(milliseconds: 500), () async {
           // Check if we need to request to join
@@ -98,5 +97,3 @@ class DynamicLinkService {
     }
   }
 }
-
-
