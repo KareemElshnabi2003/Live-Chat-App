@@ -1371,20 +1371,23 @@ class ChatController extends GetxController {
         loadMore: true);
   }
 
-  sendFriendRequest({required friendID}) async {
+  Future<bool> sendFriendRequest({required friendID}) async {
     var response = await _chatsRemoteData.sendFriendRequest(
       friendId: friendID,
     );
     statuesRequestMembers = handlingData(response);
     update();
+    return statuesRequestMembers == StatuesRequest.success;
   }
 
-  blockOrUnBlock({required friendID, required int status}) async {
+  Future<bool> blockOrUnBlock({required friendID, required int status}) async {
     var response = await _chatsRemoteData.blockOrUnBlock(
       status: status,
       id: friendID,
     );
-    if (handlingData(response) == StatuesRequest.success) update();
+    final isSuccess = handlingData(response) == StatuesRequest.success;
+    if (isSuccess) update();
+    return isSuccess;
   }
 
   createChatFriend({required friendID}) async {

@@ -11,6 +11,7 @@ import 'package:live_chat/Data/DataSource/chats_source.dart';
 import 'package:live_chat/Data/Model/friend_suggest_model.dart';
 import 'package:live_chat/Data/Model/user_chat_model.dart';
 import 'package:live_chat/View/Screens/create%20chat/chat_view.dart';
+import 'package:live_chat/View/Widget/PublicWidget/unblock_friend_dialog.dart';
 import 'package:live_chat/generated/l10n.dart';
 import 'package:live_chat/main.dart';
 
@@ -60,6 +61,26 @@ class SuggessionChatController extends GetxController {
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
       );
+      if (Get.context != null) {
+        showUnblockFriendDialog(
+          context: Get.context!,
+          friendId: friendID,
+          onSendRequest: () async {
+            await sendFriendRequest(friendID: friendID, index: index);
+            Get.snackbar(
+              S.of(Get.context!).success,
+              S.of(Get.context!).youSendRequest,
+              backgroundColor: const Color(0xFF2E7D32),
+              colorText: Colors.white,
+              snackPosition: SnackPosition.BOTTOM,
+              margin: const EdgeInsets.all(16),
+              borderRadius: 12,
+              icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+              duration: const Duration(seconds: 3),
+            );
+          },
+        );
+      }
     } else {
       statuesRequest = handlingData(response);
       showUserFriendlyError(statuesRequest);

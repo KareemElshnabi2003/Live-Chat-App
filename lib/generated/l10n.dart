@@ -2959,8 +2959,35 @@ class S {
     return Intl.message('موافق', name: 'ok', desc: '', args: []);
   }
 
+  /// `تم فك الحظر`
+  String get unblockFriendRemovedTitle {
+    return Intl.message(
+      'تم فك الحظر',
+      name: 'unblockFriendRemovedTitle',
+      desc: '',
+      args: [],
+    );
+  }
 
+  /// `لقد تم إزالة الشخص من الأصدقاء، هل تود إرسال طلب صداقة مرة أخرى؟`
+  String get unblockFriendRemovedDesc {
+    return Intl.message(
+      'لقد تم إزالة الشخص من الأصدقاء، هل تود إرسال طلب صداقة مرة أخرى؟',
+      name: 'unblockFriendRemovedDesc',
+      desc: '',
+      args: [],
+    );
+  }
 
+  /// `إرسال طلب`
+  String get sendFriendRequest {
+    return Intl.message(
+      'إرسال طلب',
+      name: 'sendFriendRequest',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

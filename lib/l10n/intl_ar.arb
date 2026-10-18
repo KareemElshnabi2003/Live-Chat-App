@@ -379,20 +379,19 @@
 "finish": "إنهاء",
 "orderUnderReview": "طلبك قيد المراجعة",
 "ok": "موافق",
-"ad": "اعلان"
+"ad": "اعلان",
 "clickHereToVisit": "اضغط هنا للزيارة",
 "adsWithUs": "إعلانات معنا",
-"general_chat":"الدردشة العامة,
-"underReview":"قيد المراجعة",
-"msgYouBlocked":"عذراً، لا يمكنك التواصل مع هذا المستخدم حالياً.",
-"msgIBlocked":"لقد قمت بحظر هذا المستخدم مسبقاً. هل ترغب في إلغاء الحظر للتواصل معه؟",
-
-"msgNotHasPermission":"غير مصرح لك بإجراء هذه العملية حالياً.",
-"cancelBlock":"الغاء الحظر",
-"youSendRequest":"تم إرسال طلب الصداقة"
-
-
-
+"general_chat": "الدردشة العامة",
+"underReview": "قيد المراجعة",
+"msgYouBlocked": "عذراً، لا يمكنك التواصل مع هذا المستخدم حالياً.",
+"msgIBlocked": "لقد قمت بحظر هذا المستخدم مسبقاً. هل ترغب في إلغاء الحظر للتواصل معه؟",
+"msgNotHasPermission": "غير مصرح لك بإجراء هذه العملية حالياً.",
+"cancelBlock": "الغاء الحظر",
+"youSendRequest": "تم إرسال طلب الصداقة",
+"unblockFriendRemovedTitle": "تم فك الحظر",
+"unblockFriendRemovedDesc": "لقد تم إزالة الشخص من الأصدقاء، هل تود إرسال طلب صداقة مرة أخرى؟",
+"sendFriendRequest": "إرسال طلب"
 }
 
 

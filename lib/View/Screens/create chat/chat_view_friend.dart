@@ -20,6 +20,7 @@ import 'package:live_chat/View/Widget/ChatWidgets/voice_recording_widgets.dart';
 import 'package:live_chat/View/Widget/PublicWidget/message_error.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_click_widget.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
+import 'package:live_chat/View/Widget/PublicWidget/unblock_friend_dialog.dart';
 import 'package:live_chat/main.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
@@ -712,12 +713,41 @@ class _ChatViewState extends State<ChatViewFriend> {
               textNormal(S.of(context).msgIBlock, AppColors.blackColor, 3.5.w,
                   FontWeight.w400),
               const SizedBox(width: 20),
-              textClick(S.of(context).unBlock, true, () {
-                controller.blockOrUnBlock(
-                  friendID: controller.memberIdToBlock[0].id,
+              textClick(S.of(context).unBlock, true, () async {
+                final blockId = controller.memberIdToBlock.isNotEmpty
+                    ? controller.memberIdToBlock[0].id
+                    : (widget.userChatModel?.user?.id ?? widget.userChatModel?.userId ?? 0);
+                final success = await controller.blockOrUnBlock(
+                  friendID: blockId,
                   status: 0,
                 );
-                widget.userChatModel!.isBlocked = "None";
+                if (success) {
+                  widget.userChatModel!.isBlocked = "None";
+                  widget.userChatModel!.status = "Not Friend";
+                  controller.update();
+                  if (context.mounted) {
+                    showUnblockFriendDialog(
+                      context: context,
+                      friendId: blockId,
+                      onSendRequest: () async {
+                        final reqSuccess = await controller.sendFriendRequest(friendID: blockId);
+                        if (reqSuccess) {
+                          Get.snackbar(
+                            S.of(context).success,
+                            S.of(context).youSendRequest,
+                            backgroundColor: const Color(0xFF2E7D32),
+                            colorText: Colors.white,
+                            snackPosition: SnackPosition.BOTTOM,
+                            margin: const EdgeInsets.all(16),
+                            borderRadius: 12,
+                            icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                            duration: const Duration(seconds: 3),
+                          );
+                        }
+                      },
+                    );
+                  }
+                }
               }, AppColors.redColor, 3.5.w),
             ],
           ),

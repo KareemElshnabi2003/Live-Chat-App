@@ -11,6 +11,7 @@ import 'package:live_chat/View/Screens/Chat%20Botton%20Sheet/show_bottom_change_
 import 'package:live_chat/View/Screens/Chat%20Botton%20Sheet/show_bottom_sheet_persons_chat.dart';
 import 'package:live_chat/View/Widget/PublicWidget/message_error.dart';
 import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
+import 'package:live_chat/View/Widget/PublicWidget/unblock_friend_dialog.dart';
 import 'package:live_chat/main.dart';
 import 'package:live_chat/generated/l10n.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
@@ -260,6 +261,40 @@ class ChatAppBarWidget extends StatelessWidget {
             },
             S.of(context).block,
           );
+        } else if (value == 'unblock') {
+          final blockId = controller.memberIdToBlock.isNotEmpty
+              ? controller.memberIdToBlock[0].id.toString()
+              : (userChatModel.user?.id?.toString() ??
+                  userChatModel.userId?.toString() ??
+                  '');
+          final success = await controller.blockOrUnBlock(friendID: blockId, status: 0);
+          if (success) {
+            userChatModel.isBlocked = "None";
+            userChatModel.status = "Not Friend";
+            controller.update();
+            if (context.mounted) {
+              showUnblockFriendDialog(
+                context: context,
+                friendId: blockId,
+                onSendRequest: () async {
+                  final reqSuccess = await controller.sendFriendRequest(friendID: blockId);
+                  if (reqSuccess) {
+                    Get.snackbar(
+                      S.of(context).success,
+                      S.of(context).youSendRequest,
+                      backgroundColor: const Color(0xFF2E7D32),
+                      colorText: Colors.white,
+                      snackPosition: SnackPosition.BOTTOM,
+                      margin: const EdgeInsets.all(16),
+                      borderRadius: 12,
+                      icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                      duration: const Duration(seconds: 3),
+                    );
+                  }
+                },
+              );
+            }
+          }
         }
       },
       itemBuilder: (BuildContext context) => [
@@ -285,8 +320,10 @@ class ChatAppBarWidget extends StatelessWidget {
           ),
         if (!isGroup)
           PopupMenuItem(
-            value: 'block',
-            child: _menuItem(S.of(context).block, Icons.block),
+            value: userChatModel.isBlocked == "You blocked them" ? 'unblock' : 'block',
+            child: userChatModel.isBlocked == "You blocked them"
+                ? _menuItem(S.of(context).unBlock, Icons.lock_open_rounded)
+                : _menuItem(S.of(context).block, Icons.block),
           ),
       ],
       child: Icon(

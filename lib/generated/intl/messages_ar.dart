@@ -619,5 +619,10 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "yourFriends": MessageLookupByLibrary.simpleMessage("أصدقاؤك"),
     "yourPrivateChats": MessageLookupByLibrary.simpleMessage("دردشاتك الخاصة"),
+    "unblockFriendRemovedTitle":
+        MessageLookupByLibrary.simpleMessage("تم فك الحظر"),
+    "unblockFriendRemovedDesc": MessageLookupByLibrary.simpleMessage(
+        "لقد تم إزالة الشخص من الأصدقاء، هل تود إرسال طلب صداقة مرة أخرى؟"),
+    "sendFriendRequest": MessageLookupByLibrary.simpleMessage("إرسال طلب"),
   };
 }

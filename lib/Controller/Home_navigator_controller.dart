@@ -23,6 +23,7 @@ import 'package:live_chat/View/Screens/settings/term_condation.dart';
 import 'package:live_chat/View/Screens/settings/ads_with_us.dart';
 import 'package:live_chat/View/Screens/create%20chat/create_chat.dart';
 import 'package:live_chat/View/Screens/friends/friends.dart';
+import 'package:live_chat/View/Widget/PublicWidget/unblock_friend_dialog.dart';
 import 'package:live_chat/View/Screens/settings/capapiltes.dart';
 import 'package:live_chat/View/Screens/settings/language_view.dart';
 import 'package:live_chat/View/Screens/settings/my_account_view.dart';
@@ -742,6 +743,26 @@ class HomeNavigationController extends GetxController {
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
       );
+      if (Get.context != null) {
+        showUnblockFriendDialog(
+          context: Get.context!,
+          friendId: friendID,
+          onSendRequest: () async {
+            await sendFriendRequest(friendID: friendID, index: index);
+            Get.snackbar(
+              S.of(Get.context!).success,
+              S.of(Get.context!).youSendRequest,
+              backgroundColor: const Color(0xFF2E7D32),
+              colorText: Colors.white,
+              snackPosition: SnackPosition.BOTTOM,
+              margin: const EdgeInsets.all(16),
+              borderRadius: 12,
+              icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+              duration: const Duration(seconds: 3),
+            );
+          },
+        );
+      }
     } else {
       statuesRequest = handlingData(response);
       showUserFriendlyError(statuesRequest);

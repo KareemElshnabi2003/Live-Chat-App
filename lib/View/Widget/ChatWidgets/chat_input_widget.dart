@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
 import 'package:live_chat/Controller/chat_controller.dart';
 import 'package:live_chat/Core/Constant/app_color.dart';
@@ -6,6 +7,7 @@ import 'package:live_chat/Core/function/html_decoder.dart';
 import 'package:live_chat/Data/Model/user_chat_model.dart';
 import 'package:live_chat/View/Widget/ChatWidgets/voice_recording_widgets.dart'; // 🌟 تأكد من استيراد ده
 import 'package:live_chat/View/Widget/PublicWidget/text_normal_widget.dart';
+import 'package:live_chat/View/Widget/PublicWidget/unblock_friend_dialog.dart';
 import 'package:live_chat/main.dart';
 import 'package:live_chat/generated/l10n.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
@@ -70,9 +72,34 @@ class ChatInputWidget extends StatelessWidget {
                     final friendId = controller.memberIdToBlock.isNotEmpty
                         ? controller.memberIdToBlock[0].id
                         : (userChatModel.user?.id ?? userChatModel.userId ?? 0);
-                    await controller.blockOrUnBlock(friendID: friendId, status: 0);
-                    userChatModel.isBlocked = "None";
-                    controller.update();
+                    final success = await controller.blockOrUnBlock(friendID: friendId, status: 0);
+                    if (success) {
+                      userChatModel.isBlocked = "None";
+                      userChatModel.status = "Not Friend";
+                      controller.update();
+                      if (context.mounted) {
+                        showUnblockFriendDialog(
+                          context: context,
+                          friendId: friendId,
+                          onSendRequest: () async {
+                            final reqSuccess = await controller.sendFriendRequest(friendID: friendId);
+                            if (reqSuccess) {
+                              Get.snackbar(
+                                S.of(context).success,
+                                S.of(context).youSendRequest,
+                                backgroundColor: const Color(0xFF2E7D32),
+                                colorText: Colors.white,
+                                snackPosition: SnackPosition.BOTTOM,
+                                margin: const EdgeInsets.all(16),
+                                borderRadius: 12,
+                                icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                                duration: const Duration(seconds: 3),
+                              );
+                            }
+                          },
+                        );
+                      }
+                    }
                   },
                   child: Center(
                     child: textNormal(

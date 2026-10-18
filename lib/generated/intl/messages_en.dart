@@ -518,5 +518,11 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Your private chats"),
         "mayolivechat": MessageLookupByLibrary.simpleMessage(
             "Mayo Live Chat\nExperience it Live"),
+        "unblockFriendRemovedTitle":
+            MessageLookupByLibrary.simpleMessage("Unblocked"),
+        "unblockFriendRemovedDesc": MessageLookupByLibrary.simpleMessage(
+            "This person has been removed from your friends. Would you like to send a friend request again?"),
+        "sendFriendRequest":
+            MessageLookupByLibrary.simpleMessage("Send Request"),
       };
 }
