@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+﻿// ignore_for_file: avoid_print
 
 import 'dart:convert';
 import 'dart:developer';
@@ -232,13 +232,6 @@ class PageStartController extends GetxController {
       {required UserChatModel chatModel,
       required bool isGust,
       required id}) async {
-    if (chatModel.status == "Public" || chatModel.status == "Private") {
-      bool canEnter = await joinToChat(
-        chatId: id,
-      );
-
-      if (!canEnter) return;
-    }
 
     if (pinChatModel != null && (pinChatModel!.conversationId == id || pinChatModel!.conversation?.id == id)) {
       chatModel.adTitle = pinChatModel!.adTitle ?? chatModel.adTitle;
@@ -264,13 +257,6 @@ class PageStartController extends GetxController {
       {required UserChatModel chatModel,
       required bool isGust,
       required id}) async {
-    if (chatModel.status == "Public" || chatModel.status == "Private") {
-      bool canEnter = await joinToChat(
-        chatId: id,
-      );
-
-      if (!canEnter) return;
-    }
 
     Get.to(
       () => ChatView(

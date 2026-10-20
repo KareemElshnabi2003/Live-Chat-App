@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
@@ -180,7 +180,60 @@ class ChatAppBarWidget extends StatelessWidget {
     }
   }
 
+  Widget _buildJoinButton(BuildContext context) {
+    return InkWell(
+      onTap: () async {
+        final success = await controller.joinCurrentChat();
+        if (success) {
+          Get.snackbar(
+            S.of(context).success,
+            S.of(context).joinChatBody,
+            backgroundColor: const Color(0xFF2E7D32),
+            colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
+            margin: const EdgeInsets.all(12),
+            borderRadius: 12,
+            icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+            duration: const Duration(seconds: 2),
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 1.2.w),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: pref! ? AppColors.secondaryColor : AppColors.primaryColor,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.group_add_outlined,
+              size: 4.5.w,
+              color: pref! ? AppColors.blackColor : AppColors.whiteColor,
+            ),
+            SizedBox(width: 1.5.w),
+            Text(
+              S.of(context).joinNow,
+              style: TextStyle(
+                color: pref! ? AppColors.blackColor : AppColors.whiteColor,
+                fontSize: 3.2.w,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAppBarActions(BuildContext context, bool isGroup) {
+    if (isGroup && !controller.isJoined) {
+      return _buildJoinButton(context);
+    }
+
     final currentUserId = sharedPreferences?.getString("id")?.trim() ?? "";
     final isOwner = (userChatModel.user != null &&
             userChatModel.user!.id.toString() == currentUserId) ||

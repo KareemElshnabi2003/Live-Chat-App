@@ -27,6 +27,8 @@ Widget chatCardWidget({
   required bool needsAcceptance,
   Color? bodyColor,
   Widget? prefixIcon,
+  Widget? titleBadge,
+  Color? actionColor,
 }) {
   final isRtl = Directionality.of(Get.context!) == TextDirection.rtl;
 
@@ -111,6 +113,10 @@ Widget chatCardWidget({
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          if (titleBadge != null) ...[
+                            SizedBox(width: 1.5.w),
+                            titleBadge,
+                          ],
                           if (needsAcceptance) ...[
                             SizedBox(width: 1.5.w),
                             Icon(
@@ -160,11 +166,12 @@ Widget chatCardWidget({
                         action,
                         false,
                         onPressJoin,
-                        !isFriend
-                            ? AppColors.redColor
-                            : pref!
-                            ? AppColors.secondaryColor
-                            : AppColors.primaryColor,
+                        actionColor ??
+                            (!isFriend
+                                ? AppColors.redColor
+                                : pref!
+                                ? AppColors.secondaryColor
+                                : AppColors.primaryColor),
                         3.w,
                       ),
                     ],

@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+﻿import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:live_chat/Core/Class/api.dart';
 import 'package:live_chat/Core/Class/error_handler.dart';
@@ -40,22 +40,15 @@ class RequestsController extends GetxController {
     statuesRequest = StatuesRequest.loading;
     update();
 
-    if (!isSentRequest) {
-      // 1. بما إن ده طلب مبعوتلي (request_received)، فـ لازم أقبله الأول صامت في الخلفية قبل ما افتح الشات
-      var acceptResponse = await _chatsRemoteData.acceptOrRejectRequestFriend(status: 1, friendId: friendID);
-
-      // 2. بعد ما يتوافق عليه، بنمسحه من لستة "طلبات الصداقة" اللي في الشاشة
-      if (handlingData(acceptResponse) == StatuesRequest.success) {
-        friends.removeWhere((friend) => friend.id == friendID);
-      }
-    }
-
-    // 3. بننادي على دالة فتح الشات وبنحول اليوزر لشاشة الشات
+    // بننادي على دالة فتح الشات وبنحول اليوزر لشاشة الشات
     var response = await _chatsRemoteData.createChatFriend(friendId: friendID);
     statuesRequest = handlingData(response);
 
     if (statuesRequest == StatuesRequest.success) {
-      navigateToChats(userchat: UserChatModel.fromJson(response['data']));
+      final userChat = UserChatModel.fromJson(response['data']);
+      userChat.otherUserId = friendID;
+      userChat.user ??= User(id: friendID);
+      navigateToChats(userchat: userChat);
     } else {
       showUserFriendlyError(statuesRequest);
     }

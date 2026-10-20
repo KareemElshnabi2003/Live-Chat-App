@@ -154,6 +154,13 @@ class FriendsChatContoller extends GetxController {
 
     if (statuesRequest == StatuesRequest.success) {
       final userChat = UserChatModel.fromJson(response['data']);
+      userChat.otherUserId = friendID;
+      userChat.user ??= User(
+        id: friend?.id ?? friendID,
+        name: friend?.name,
+        username: friend?.username,
+        image: friend?.image,
+      );
       if ((userChat.isBlocked == null || userChat.isBlocked == "None") &&
           friend?.isBlocked != null) {
         userChat.isBlocked = friend!.isBlocked;

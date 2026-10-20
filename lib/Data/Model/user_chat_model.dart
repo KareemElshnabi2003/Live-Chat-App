@@ -25,10 +25,12 @@ class UserChatModel {
   LastMessage? lastMessage;
   int? unreadCount;
   String? isBlocked;
+  int? otherUserId;
 
   UserChatModel({
     this.id,
     this.isBlocked,
+    this.otherUserId,
     this.name,
     this.image,
     this.lastMessage,
@@ -53,6 +55,8 @@ class UserChatModel {
   UserChatModel.fromJson(Map<String, dynamic> json) {
     id = json['id'];
     isBlocked = json['is_blocked'];
+    final dynamic rawOtherId = json['other_user_id'] ?? json['member_id'] ?? json['friend_id'] ?? json['other_user']?['id'];
+    otherUserId = rawOtherId != null ? int.tryParse(rawOtherId.toString()) : null;
     adLink = json['ad_link'];
     adTitle = json['ad_title'];
     adImage = json['ad_image']; // Parse ad_image from JSON
@@ -97,6 +101,7 @@ class UserChatModel {
     data['status'] = status;
     data['accept'] = accept;
     data['is_blocked'] = isBlocked;
+    if (otherUserId != null) data['other_user_id'] = otherUserId;
     data['chat_link'] = chatLink;
     if (lastMessage != null) {
       data['last_message'] = lastMessage!.toJson();

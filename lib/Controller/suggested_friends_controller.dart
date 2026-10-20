@@ -1,4 +1,4 @@
-import 'dart:developer';
+﻿import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -13,7 +13,6 @@ import 'package:live_chat/Data/Model/user_chat_model.dart';
 import 'package:live_chat/View/Screens/create%20chat/chat_view.dart';
 import 'package:live_chat/View/Widget/PublicWidget/unblock_friend_dialog.dart';
 import 'package:live_chat/generated/l10n.dart';
-import 'package:live_chat/main.dart';
 
 class SuggessionChatController extends GetxController {
   StatuesRequest statuesRequest = StatuesRequest.none;
@@ -100,87 +99,21 @@ class SuggessionChatController extends GetxController {
     statuesRequest = StatuesRequest.loading;
     update();
 
-    if (requestStatus == "none") {
-      var requestResponse =
-          await _chatsRemoteData.sendFriendRequest(friendId: friendID);
-
-      print('''
-me  :: ${sharedPreferences!.getString("id")}
-messsage :: ${requestResponse is Map ? requestResponse['message'] : Api.serverMessage}
-idfriend >>> $friendID
-''');
-
-      bool isForbidden = false;
-      String msg = "";
-
-      if (requestResponse == StatuesRequest.forbiddenException) {
-        isForbidden = true;
-        msg = Api.serverMessage?.toLowerCase() ?? "";
-      } else if (requestResponse is Map &&
-          (requestResponse['code'] == 403 ||
-              requestResponse['code'] == "403")) {
-        isForbidden = true;
-        msg = requestResponse['message']?.toString().toLowerCase() ?? "";
-      }
-
-      if (isForbidden) {
-        if (msg.contains("blocked by") ||
-            msg.contains("have been blocked") ||
-            msg.contains("حظرت بواسطه") ||
-            msg.contains("بحظرك")) {
-          Get.defaultDialog(
-            title: S.of(Get.context!).warning,
-            middleText: S.of(Get.context!).msgIBlocked,
-            titleStyle: const TextStyle(
-                fontWeight: FontWeight.bold, color: AppColors.redColor),
-            textConfirm: S.of(Get.context!).cancelBloc,
-            textCancel: S.of(Get.context!).back,
-            confirmTextColor: Colors.white,
-            cancelTextColor: AppColors.primaryColor,
-            buttonColor: AppColors.primaryColor,
-            onConfirm: () {
-              unblockUser(friendID, index, requestStatus);
-            },
-          );
-          statuesRequest = StatuesRequest.none;
-          update();
-          return;
-        } else if (msg.contains("you blocked") ||
-            msg.contains("blocked by you") ||
-            msg.contains("محظور") ||
-            msg.contains("blocked")) {
-          Get.snackbar(
-            S.of(Get.context!).warning,
-            msg,
-            backgroundColor: Colors.orange.shade700,
-            colorText: Colors.white,
-            snackPosition: SnackPosition.BOTTOM,
-            margin: const EdgeInsets.all(12),
-            icon: const Icon(Icons.warning_amber_rounded, color: Colors.white),
-          );
-          statuesRequest = StatuesRequest.none;
-          update();
-          return;
-        }
-      }
-
-      if (handlingData(requestResponse) == StatuesRequest.success) {
-        friendsSuggestion[index].requestStatus = "request_sent";
-      }
-    } else if (requestStatus == "request_received") {
-      var acceptResponse = await _chatsRemoteData.acceptOrRejectRequestFriend(
-          status: 1, friendId: friendID);
-      if (handlingData(acceptResponse) == StatuesRequest.success) {
-        friendsSuggestion[index].requestStatus = "friends";
-      }
-    }
-
     var response = await _chatsRemoteData.createChatFriend(friendId: friendID);
     statuesRequest = handlingData(response);
 
     if (statuesRequest == StatuesRequest.success) {
       final responseBody = response['data'];
-      navigateToChats(userchat: UserChatModel.fromJson(responseBody));
+      final userChat = UserChatModel.fromJson(responseBody);
+      userChat.otherUserId = friendID;
+      final friend = (index >= 0 && index < friendsSuggestion.length) ? friendsSuggestion[index] : null;
+      userChat.user ??= User(
+        id: friendID,
+        name: friend?.name,
+        username: friend?.username,
+        image: friend?.image,
+      );
+      navigateToChats(userchat: userChat);
     } else {
       bool isForbidden = false;
       String msg = "";

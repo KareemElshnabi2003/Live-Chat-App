@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously, avoid_print, deprecated_member_use
+﻿// ignore_for_file: use_build_context_synchronously, avoid_print, deprecated_member_use
 
 import 'dart:async';
 import 'dart:io';
@@ -692,7 +692,7 @@ class _ChatViewState extends State<ChatViewFriend> {
   Widget _buildInputArea(
       ChatController controller, bool isRtl, BuildContext context) {
     final isBlocked = widget.userChatModel!.isBlocked;
-    final isNotFriend = widget.userChatModel!.status == "Not Friend";
+    final isNotFriend = widget.userChatModel!.status?.toLowerCase() == "not friend" || widget.userChatModel!.status?.toLowerCase() == "none";
     final hasLastMessage = widget.userChatModel!.lastMessage != null;
     bool answer = controller.answer;
     print("==================================");
@@ -759,11 +759,12 @@ class _ChatViewState extends State<ChatViewFriend> {
         );
       }
     } else if (isNotFriend &&
-        hasLastMessage &&
+        (controller.messages.any((m) => !m.isFromSender) ||
+            (widget.userChatModel?.lastMessage != null &&
+                widget.userChatModel!.lastMessage!.senderId?.toString() !=
+                    sharedPreferences!.getString('id'))) &&
         isBlocked == "None" &&
-        answer == false &&
-        widget.userChatModel!.user!.id.toString() !=
-            sharedPreferences!.getString('id')) {
+        answer == false) {
       return _buildAcceptOrCancelArea(controller, context);
     } else {
       return _buildMessageInput(controller, isRtl);
@@ -885,8 +886,17 @@ class _ChatViewState extends State<ChatViewFriend> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 InkWell(
-                  onTap: () {
+                  onTap: () async {
+                    final otherId = widget.userChatModel?.user?.id ??
+                        widget.userChatModel?.userId ??
+                        (controller.memberIdToBlock.isNotEmpty
+                            ? controller.memberIdToBlock[0].id
+                            : null);
+                    if (otherId != null) {
+                      await controller.acceptFriendRequest(friendID: otherId);
+                    }
                     controller.answer = true;
+                    widget.userChatModel!.status = "Friends";
                     controller.update();
                   },
                   child: Container(
@@ -906,13 +916,16 @@ class _ChatViewState extends State<ChatViewFriend> {
                   ),
                 ),
                 InkWell(
-                  onTap: () {
-                    controller.blockOrUnBlock(
-                      friendID: controller.memberIdToBlock[0].id,
-                      status: 1,
-                    );
-                    widget.userChatModel!.isBlocked = "You blocked them";
-                    controller.update();
+                  onTap: () async {
+                    final otherId = widget.userChatModel?.user?.id ??
+                        widget.userChatModel?.userId ??
+                        (controller.memberIdToBlock.isNotEmpty
+                            ? controller.memberIdToBlock[0].id
+                            : null);
+                    if (otherId != null) {
+                      await controller.rejectOrCancelFriendRequest(friendID: otherId);
+                    }
+                    Get.back();
                   },
                   child: Container(
                     padding: const EdgeInsets.all(10),
@@ -920,8 +933,14 @@ class _ChatViewState extends State<ChatViewFriend> {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: AppColors.redColor),
                     ),
-                    child: textNormal("X ${S.of(context).cancel}",
-                        AppColors.redColor, 4.w, FontWeight.w400),
+                    child: Row(
+                      children: [
+                        Icon(Icons.close,
+                            color: AppColors.redColor, size: 5.w),
+                        textNormal("  ${S.of(context).cancel}",
+                            AppColors.redColor, 4.w, FontWeight.w400),
+                      ],
+                    ),
                   ),
                 ),
               ],

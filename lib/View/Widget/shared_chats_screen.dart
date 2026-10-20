@@ -112,6 +112,109 @@ class SharedChatsScreen<T extends BaseChatsController> extends StatelessWidget {
           if (index < ctrl.chatsList.length) {
             final chat = ctrl.chatsList[index];
             final hasValidImg = _isValidImage(chat.image); // 🌟 الفحص الآمن
+            final currentUserId = sharedPreferences?.getString("id")?.trim() ?? "";
+
+            final bool isOwner = (chat.user != null && chat.user!.id.toString() == currentUserId) ||
+                (chat.userId != null && chat.userId.toString() == currentUserId) ||
+                homeController.myChats.any((myChat) => myChat.id == chat.id &&
+                    ((myChat.user != null && myChat.user!.id.toString() == currentUserId) ||
+                     (myChat.userId != null && myChat.userId.toString() == currentUserId)));
+
+            final bool isAdmin = (chat.chatAdmins?.any((admin) => admin.chatAdminId?.toString() == currentUserId) ?? false) ||
+                homeController.myChats.any((myChat) => myChat.id == chat.id &&
+                    (myChat.chatAdmins?.any((admin) => admin.chatAdminId?.toString() == currentUserId) ?? false));
+
+            final bool isJoined = isOwner || isAdmin ||
+                (chat.id != null && homeController.joinedChatIds.contains(chat.id)) ||
+                homeController.myChats.any((myChat) => myChat.id == chat.id);
+
+            Widget? titleBadge;
+            String actionText;
+            Color actionColor;
+
+            if (isOwner) {
+              actionText = isRtl ? "دخول الغرفة 💬" : "Enter Room 💬";
+              actionColor = Colors.amber.shade700;
+              titleBadge = Container(
+                padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.3.h),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.amber.shade700, width: 0.8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.workspace_premium, color: Colors.amber.shade700, size: 3.5.w),
+                    SizedBox(width: 1.w),
+                    Text(
+                      isRtl ? "أنت المالك" : "Owner",
+                      style: TextStyle(
+                        color: Colors.amber.shade800,
+                        fontSize: 2.7.w,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            } else if (isAdmin) {
+              actionText = isRtl ? "دخول الغرفة 💬" : "Enter Room 💬";
+              actionColor = Colors.blue.shade700;
+              titleBadge = Container(
+                padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.3.h),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.blue.shade700, width: 0.8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.shield, color: Colors.blue.shade700, size: 3.5.w),
+                    SizedBox(width: 1.w),
+                    Text(
+                      isRtl ? "مشرف" : "Admin",
+                      style: TextStyle(
+                        color: Colors.blue.shade700,
+                        fontSize: 2.7.w,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            } else if (isJoined) {
+              actionText = isRtl ? "دخول الدردشة 💬" : "Open Chat 💬";
+              actionColor = const Color(0xFF2E7D32);
+              titleBadge = Container(
+                padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.3.h),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2E7D32).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF2E7D32), width: 0.8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle, color: const Color(0xFF2E7D32), size: 3.5.w),
+                    SizedBox(width: 1.w),
+                    Text(
+                      isRtl ? "عضو منضم" : "Joined",
+                      style: TextStyle(
+                        color: const Color(0xFF2E7D32),
+                        fontSize: 2.7.w,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            } else {
+              actionText = S.of(context).joinNow;
+              actionColor = pref! ? AppColors.secondaryColor : AppColors.primaryColor;
+              titleBadge = null;
+            }
 
             return chatCardWidget(
               needsAcceptance: chat.accept == "1" ? true : false,
@@ -137,7 +240,9 @@ class SharedChatsScreen<T extends BaseChatsController> extends StatelessWidget {
                   : const AssetImage(AppImages.noChatImg),
               body: formatLastMessage(context, chat),
               ttitle: chat.name!,
-              action: S.of(context).joinNow,
+              titleBadge: titleBadge,
+              actionColor: actionColor,
+              action: actionText,
               onPressJoin: () => homeController.onPressGroubChat(
                   chatModel: chat,
                   isGust: sharedPreferences?.getString("id") == null,

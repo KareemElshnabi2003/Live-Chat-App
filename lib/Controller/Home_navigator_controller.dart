@@ -1,4 +1,4 @@
-// ignore_for_file: file_names, avoid_print
+﻿// ignore_for_file: file_names, avoid_print
 
 import 'dart:convert';
 import 'dart:developer';
@@ -54,6 +54,8 @@ class HomeNavigationController extends GetxController {
   List<SuggestFreindModel> friendsSuggestion = [];
   List<UserChatModel> systemChats = [];
   Future<List<UserChatModel>>? systemChatsFuture;
+  List<UserChatModel> myChats = [];
+  Set<int> joinedChatIds = {};
 
   // 🌟 متغيرات العدادات
   int totalFriendsCount = 0;
@@ -86,6 +88,12 @@ class HomeNavigationController extends GetxController {
       log("response join to chhat  :: $response");
 
       if (status == StatuesRequest.success) {
+        final int? idInt = int.tryParse(chatId.toString());
+        if (idInt != null) {
+          joinedChatIds.add(idInt);
+        }
+        getMyChat();
+        update();
         return true;
       } else if (status == StatuesRequest.forbiddenException) {
         Get.snackbar(
@@ -118,11 +126,6 @@ class HomeNavigationController extends GetxController {
       {required UserChatModel chatModel,
       required bool isGust,
       required id}) async {
-    if (chatModel.status == "Public" || chatModel.status == "Private") {
-      bool canEnter = await joinToChat(chatId: id);
-
-      if (!canEnter) return;
-    }
 
     // 🌟 استكمال بيانات المالك والإعلان لو ناقصة لضمان ظهور الإعدادات والإعلان بشكل صحيح
     _enrichChatModelOwner(chatModel);
@@ -155,13 +158,6 @@ class HomeNavigationController extends GetxController {
       {required UserChatModel chatModel,
       required bool isGust,
       required id}) async {
-    if (chatModel.status == "Public" || chatModel.status == "Private") {
-      bool canEnter = await joinToChat(
-        chatId: id,
-      );
-
-      if (!canEnter) return;
-    }
 
     // 🌟 استكمال بيانات المالك لو ناقصة لضمان ظهور الإعدادات بشكل صحيح
     _enrichChatModelOwner(chatModel);
@@ -190,19 +186,21 @@ class HomeNavigationController extends GetxController {
     final currentUserId = sharedPreferences?.getString("id")?.trim();
     if (currentUserId == null || currentUserId.isEmpty) return;
 
-    // لو بيانات المالك مش موجودة، حطها من المستخدم الحالي
-    if ((chatModel.user == null || chatModel.user?.id == null) &&
-        chatModel.userId == null) {
-      chatModel.userId = int.tryParse(currentUserId);
-      chatModel.user = User(id: chatModel.userId);
-    }
+    final isGroup = chatModel.status == "Public" || chatModel.status == "Private";
+    if (isGroup) {
+      // لو بيانات المالك مش موجودة، حطها من المستخدم الحالي للغرف العامة والخاصة فقط
+      if ((chatModel.user == null || chatModel.user?.id == null) &&
+          chatModel.userId == null) {
+        chatModel.userId = int.tryParse(currentUserId);
+        chatModel.user = User(id: chatModel.userId);
+      }
 
-    // لو accept فاضية، اعملها 1 كـ default للغرف الخاصة والعامة
-    if ((chatModel.accept == null ||
-            chatModel.accept == "null" ||
-            chatModel.accept!.isEmpty) &&
-        (chatModel.status == "Public" || chatModel.status == "Private")) {
-      chatModel.accept = "1";
+      // لو accept فاضية، اعملها 1 كـ default للغرف الخاصة والعامة
+      if ((chatModel.accept == null ||
+              chatModel.accept == "null" ||
+              chatModel.accept!.isEmpty)) {
+        chatModel.accept = "1";
+      }
     }
   }
 
@@ -362,6 +360,8 @@ class HomeNavigationController extends GetxController {
         });
 
         totalPrivateChatsCount = newChats.length;
+        myChats = newChats;
+        joinedChatIds = newChats.where((c) => c.id != null).map((c) => c.id!).toSet();
 
         if (newChats.isNotEmpty) {
           userMyChatModel = newChats[0];
@@ -578,81 +578,19 @@ class HomeNavigationController extends GetxController {
       return;
     }
 
-    if (requestStatus == "none") {
-      var requestResponse =
-          await _chatsRemoteData.sendFriendRequest(friendId: friendID);
-
-      bool isForbidden = false;
-      String msg = "";
-
-      if (requestResponse == StatuesRequest.forbiddenException) {
-        isForbidden = true;
-        msg = Api.serverMessage?.toLowerCase() ?? "";
-      } else if (requestResponse is Map &&
-          (requestResponse['code'] == 403 ||
-              requestResponse['code'] == "403")) {
-        isForbidden = true;
-        msg = requestResponse['message']?.toString().toLowerCase() ?? "";
-      }
-
-      if (isForbidden) {
-        if (msg.contains("blocked by") ||
-            msg.contains("have been blocked") ||
-            msg.contains("حظرت بواسطه") ||
-            msg.contains("بحظرك")) {
-          Get.defaultDialog(
-            title: S.of(Get.context!).warning,
-            middleText: S.of(Get.context!).msgIBlocked,
-            titleStyle: const TextStyle(
-                fontWeight: FontWeight.bold, color: AppColors.redColor),
-            textConfirm: S.of(Get.context!).cancelBloc,
-            textCancel: S.of(Get.context!).back,
-            confirmTextColor: Colors.white,
-            cancelTextColor: AppColors.primaryColor,
-            buttonColor: AppColors.primaryColor,
-            onConfirm: () {
-              unblockUser(friendID, index, requestStatus);
-            },
-          );
-          statuesRequest = StatuesRequest.none;
-          update();
-          return;
-        } else if (msg.contains("you blocked") ||
-            msg.contains("blocked by you") ||
-            msg.contains("محظور") ||
-            msg.contains("blocked")) {
-          Get.snackbar(
-            S.of(Get.context!).warning,
-            msg,
-            backgroundColor: Colors.orange.shade700,
-            colorText: Colors.white,
-            snackPosition: SnackPosition.BOTTOM,
-            margin: const EdgeInsets.all(12),
-            icon: const Icon(Icons.warning_amber_rounded, color: Colors.white),
-          );
-          statuesRequest = StatuesRequest.none;
-          update();
-          return;
-        }
-      }
-
-      if (handlingData(requestResponse) == StatuesRequest.success) {
-        friendsSuggestion[index].requestStatus = "request_sent";
-      }
-    } else if (requestStatus == "request_received") {
-      var acceptResponse = await _chatsRemoteData.acceptOrRejectRequestFriend(
-          status: 1, friendId: friendID);
-      if (handlingData(acceptResponse) == StatuesRequest.success) {
-        friendsSuggestion[index].requestStatus = "friends";
-      }
-    }
-
     var response = await _chatsRemoteData.createChatFriend(friendId: friendID);
     final status = handlingData(response);
 
     if (status == StatuesRequest.success) {
       final responseBody = response['data'];
       final userChat = UserChatModel.fromJson(responseBody);
+      userChat.otherUserId = friendID;
+      userChat.user ??= User(
+        id: friendID,
+        name: friend?.name,
+        username: friend?.username,
+        image: friend?.image,
+      );
       if ((userChat.isBlocked == null || userChat.isBlocked == "None") &&
           friend?.isBlocked != null) {
         userChat.isBlocked = friend!.isBlocked;

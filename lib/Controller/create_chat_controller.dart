@@ -1,3 +1,4 @@
+import 'package:live_chat/Controller/Home_navigator_controller.dart';
 // ignore_for_file: deprecated_member_use
 
 import 'dart:developer';
@@ -301,6 +302,11 @@ class CreateChatController extends GetxController {
     if (statuesRequest == StatuesRequest.success) {
       final responseBody = response['data'];
       userChatModel = UserChatModel.fromJson(responseBody);
+      if (userChatModel?.id != null && Get.isRegistered<HomeNavigationController>()) {
+        final homeCtrl = Get.find<HomeNavigationController>();
+        homeCtrl.joinedChatIds.add(userChatModel!.id!);
+        homeCtrl.getMyChat();
+      }
       Get.snackbar(
         S.of(Get.context!).success,
         S.of(Get.context!).creating_chat,

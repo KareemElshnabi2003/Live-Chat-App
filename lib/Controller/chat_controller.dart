@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:live_chat/Controller/create_chat_controller.dart';
+import 'package:live_chat/Controller/Home_navigator_controller.dart';
 import 'package:live_chat/Controller/video_call_controller.dart';
 import 'package:live_chat/Controller/audio_call_controller.dart';
 import 'package:live_chat/Core/Class/api.dart';
@@ -123,9 +124,106 @@ class ChatController extends GetxController {
     update();
   }
 
+  bool isJoined = true;
+  bool _hasSentFriendRequest = false;
+
+  int? getOtherUserId() {
+    final myId = sharedPreferences?.getString("id")?.trim() ?? "";
+    if (userChatModel?.otherUserId != null &&
+        userChatModel!.otherUserId.toString() != myId) {
+      return userChatModel!.otherUserId;
+    }
+    if (userChatModel?.user?.id != null &&
+        userChatModel!.user!.id.toString() != myId) {
+      return userChatModel!.user!.id;
+    }
+    if (userChatModel?.userId != null &&
+        userChatModel!.userId.toString() != myId) {
+      return userChatModel!.userId;
+    }
+    if (userChatModel?.lastMessage?.senderId != null &&
+        userChatModel!.lastMessage!.senderId.toString() != myId) {
+      return userChatModel!.lastMessage!.senderId;
+    }
+    if (memberIdToBlock.isNotEmpty) {
+      for (var e in memberIdToBlock) {
+        if (e.id != null && e.id.toString() != myId) {
+          return e.id;
+        }
+      }
+    }
+    if (members.isNotEmpty) {
+      for (var m in members) {
+        if (m.id != null && m.id.toString() != myId) {
+          return m.id;
+        }
+      }
+    }
+    final fallback = userChatModel?.user?.id ?? userChatModel?.userId;
+    if (fallback != null && fallback.toString() != myId) {
+      return fallback;
+    }
+    return null;
+  }
+
+  void checkJoinedStatus() {
+    if (!isGroupChat) {
+      isJoined = true;
+      return;
+    }
+    final currentUserId = sharedPreferences?.getString("id")?.trim() ?? "";
+    final isOwner = (userChatModel?.user != null &&
+            userChatModel!.user!.id.toString() == currentUserId) ||
+        (userChatModel?.userId != null &&
+            userChatModel!.userId.toString() == currentUserId);
+
+    final isAdmin = userChatModel?.chatAdmins?.any(
+            (admin) => admin.chatAdminId?.toString() == currentUserId) ??
+        false;
+
+    if (isOwner || isAdmin) {
+      isJoined = true;
+      return;
+    }
+
+    if (Get.isRegistered<HomeNavigationController>()) {
+      final homeCtrl = Get.find<HomeNavigationController>();
+      final int? cId = int.tryParse(chatId) ?? userChatModel?.id;
+      if (cId != null && homeCtrl.joinedChatIds.contains(cId)) {
+        isJoined = true;
+        return;
+      }
+    }
+
+    isJoined = false;
+  }
+
+  Future<bool> joinCurrentChat() async {
+    final int? cId = int.tryParse(chatId) ?? userChatModel?.id;
+    if (cId == null) return false;
+
+    try {
+      var response = await _chatsRemoteData.joinToCgat(chatId: cId);
+      final status = handlingData(response);
+      if (status == StatuesRequest.success) {
+        isJoined = true;
+        if (Get.isRegistered<HomeNavigationController>()) {
+          Get.find<HomeNavigationController>().joinedChatIds.add(cId);
+          Get.find<HomeNavigationController>().getMyChat();
+        }
+        update();
+        return true;
+      }
+    } catch (e) {
+      log("Error joining current chat: $e");
+    }
+    return false;
+  }
+
   void seedInitialData(UserChatModel? model) {
     if (model == null) return;
     userChatModel = model;
+    checkJoinedStatus();
     final effectiveId = (chatId.isNotEmpty ? chatId : model.id?.toString()) ?? '';
     if (chatId.isEmpty && effectiveId.isNotEmpty) {
       chatId = effectiveId;
@@ -901,6 +999,43 @@ class ChatController extends GetxController {
       File? audioFile,
       required String messageType,
       String? tempId}) async {
+    // 🌟 1. انضمام تلقائي لو كان جروب والمستخدم مش منضم
+    if (isGroupChat && !isJoined) {
+      await joinCurrentChat();
+    }
+
+    // 🌟 2. في المحادثات الفردية لغير الأصدقاء:
+    final isNotFriend = !isGroupChat && userChatModel?.status?.toLowerCase() != "friends";
+
+    if (isNotFriend) {
+      final otherUserId = getOtherUserId();
+      final myId = sharedPreferences?.getString("id")?.trim() ?? "";
+      final bool hasIncomingMessage = messages.any((m) => !m.isFromSender) ||
+          (userChatModel?.lastMessage != null &&
+              userChatModel!.lastMessage!.senderId?.toString() != myId);
+
+      if (otherUserId != null) {
+        if (hasIncomingMessage && !answer) {
+          // إذا كنت أنا المستقبل وبجاوب على رسالة استلمتها -> قبول طلب الصداقة تلقائياً
+          await _chatsRemoteData.acceptOrRejectRequestFriend(
+            status: 1,
+            friendId: otherUserId,
+          );
+          answer = true;
+          userChatModel?.status = "Friends";
+        } else if (!_hasSentFriendRequest) {
+          // أنا المرسل/المبادر: إرسال طلب الصداقة أولاً قبل الرسالة
+          // حتى يقبل السيرفر الرسالة ويصل إشعار وطلب للشخص الآخر ليظهر أنني أراسله
+          _hasSentFriendRequest = true;
+          try {
+            await _chatsRemoteData.sendFriendRequest(friendId: otherUserId);
+          } catch (e) {
+            log("Error sending friend request: $e");
+          }
+        }
+      }
+    }
+
     dynamic response;
     if (imgFile != null || audioFile != null) {
       response = await _chatsRemoteData.sendMessagesWithFile(
@@ -1195,6 +1330,9 @@ class ChatController extends GetxController {
   }
 
   reactMessage({required String messageId, required String react}) async {
+    if (isGroupChat && !isJoined) {
+      joinCurrentChat();
+    }
     var response = await _chatsRemoteData.sendReactMessages(
       messageId: int.parse(messageId),
       react: react,
@@ -1443,7 +1581,10 @@ class ChatController extends GetxController {
     statuesRequest = handlingData(response);
 
     if (statuesRequest == StatuesRequest.success) {
-      navigateToChats(userchat: UserChatModel.fromJson(response['data']));
+      final userChat = UserChatModel.fromJson(response['data']);
+      userChat.otherUserId = friendID is int ? friendID : int.tryParse(friendID.toString());
+      userChat.user ??= User(id: userChat.otherUserId);
+      navigateToChats(userchat: userChat);
     } else {
       showUserFriendlyError(statuesRequest);
     }

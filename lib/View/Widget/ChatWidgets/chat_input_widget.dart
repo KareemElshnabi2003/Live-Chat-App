@@ -29,17 +29,20 @@ class ChatInputWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isBlocked = userChatModel.isBlocked;
-    final isNotFriend = userChatModel.status == "Not Friend";
-    final hasLastMessage = userChatModel.lastMessage != null;
+    final bool isNotFriend = !controller.isGroupChat &&
+        (userChatModel.status?.toLowerCase() != "friends");
     bool answer = controller.answer;
 
     final bool isBlockedByMe = isBlocked == "You blocked them";
     final bool isBlockedByThem = isBlocked == "They blocked you";
     final bool isGeneralBlocked = isBlockedByMe || isBlockedByThem || isBlocked == "blocked";
 
-    if (isNotFriend && !hasLastMessage && (isBlocked == "None" || isBlocked == null)) {
-      return _buildMessageInput(context, isRequestArea: true);
-    } else if (isGeneralBlocked) {
+    final myId = sharedPreferences?.getString("id")?.trim() ?? "";
+    final bool hasIncomingMessage = controller.messages.any((m) => !m.isFromSender) ||
+        (userChatModel.lastMessage != null &&
+            userChatModel.lastMessage!.senderId?.toString() != myId);
+
+    if (isGeneralBlocked) {
       if (isBlockedByMe || isBlocked == "blocked") {
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
@@ -141,14 +144,14 @@ class ChatInputWidget extends StatelessWidget {
           ),
         );
       }
-    } else if (isNotFriend && hasLastMessage && isBlocked == "None" && answer == false && userChatModel.user!.id.toString() != sharedPreferences!.getString('id')) {
+    } else if (isNotFriend && hasIncomingMessage && answer == false) {
       return _buildAcceptOrCancelArea(context);
     } else {
       return _buildMessageInput(context);
     }
   }
 
-  Widget _buildMessageInput(BuildContext context, {bool isRequestArea = false}) {
+  Widget _buildMessageInput(BuildContext context) {
     return Container(
       width: double.infinity,
       decoration: ShapeDecoration(
@@ -380,39 +383,82 @@ class ChatInputWidget extends StatelessWidget {
   Widget _buildAcceptOrCancelArea(BuildContext context) {
     return Container(
       width: 80.w,
-      padding: const EdgeInsets.all(30),
-      decoration: BoxDecoration(border: Border.all(color: AppColors.primaryColor), borderRadius: BorderRadius.circular(20)),
+      padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
+      decoration: BoxDecoration(
+        color: pref! ? AppColors.darkcolor : AppColors.whiteColor,
+        border: Border.all(color: AppColors.primaryColor, width: 1.2),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          textNormal(S.of(context).wantToSendMsg, AppColors.blackTextColor, 3.5.w, FontWeight.w500),
-          const SizedBox(height: 20),
+          textNormal(
+            S.of(context).wantToSendMsg,
+            pref! ? AppColors.whiteColor : AppColors.blackTextColor,
+            3.5.w,
+            FontWeight.w500,
+          ),
+          SizedBox(height: 1.8.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               InkWell(
-                onTap: () {
+                onTap: () async {
+                  final otherId = controller.getOtherUserId() ??
+                      (controller.memberIdToBlock.isNotEmpty
+                          ? controller.memberIdToBlock[0].id
+                          : (userChatModel.user?.id ?? userChatModel.userId));
+                  if (otherId != null) {
+                    await controller.acceptFriendRequest(friendID: otherId);
+                  }
                   controller.answer = true;
+                  userChatModel.status = "Friends";
                   controller.update();
                 },
                 child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.primaryColor)),
-                  child: Row(children: [Icon(Icons.check, color: AppColors.primaryColor, size: 5.w), textNormal("  ${S.of(context).accept}", AppColors.primaryColor, 4.w, FontWeight.w400)]),
+                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.primaryColor),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check, color: AppColors.primaryColor, size: 5.w),
+                      textNormal("  ${S.of(context).accept}", AppColors.primaryColor, 3.8.w, FontWeight.w500),
+                    ],
+                  ),
                 ),
               ),
               InkWell(
-                onTap: () {
-                  final friendId = controller.memberIdToBlock.isNotEmpty
-                      ? controller.memberIdToBlock[0].id
-                      : (userChatModel.user?.id ?? 0);
-                  controller.blockOrUnBlock(friendID: friendId, status: 1);
-                  userChatModel.isBlocked = "You blocked them";
-                  controller.update();
+                onTap: () async {
+                  final otherId = controller.getOtherUserId() ??
+                      (controller.memberIdToBlock.isNotEmpty
+                          ? controller.memberIdToBlock[0].id
+                          : (userChatModel.user?.id ?? userChatModel.userId));
+                  if (otherId != null) {
+                    await controller.rejectOrCancelFriendRequest(friendID: otherId);
+                  }
+                  Get.back();
                 },
                 child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.redColor)),
-                  child: textNormal("X ${S.of(context).cancel}", AppColors.redColor, 4.w, FontWeight.w400),
+                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.redColor),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.close, color: AppColors.redColor, size: 5.w),
+                      textNormal("  ${S.of(context).cancel}", AppColors.redColor, 3.8.w, FontWeight.w500),
+                    ],
+                  ),
                 ),
               ),
             ],
