@@ -73,7 +73,7 @@ class DynamicLinkService {
 
           // Provide a dummy UserChatModel to prevent UI crashes.
           // ChatController will fetch messages and handle everything else based on chatId.
-          final dummyModel = UserChatModel(
+          UserChatModel chatModel = UserChatModel(
             id: int.parse(id),
             name: "Loading...",
             image: "null",
@@ -85,9 +85,27 @@ class DynamicLinkService {
             chatLink: "",
           );
 
+          // 🆕 جيب بيانات المحادثة الحقيقية (الاسم/الصورة) بدل ما تفضل "Loading..."
+          try {
+            final chatsData = Get.isRegistered<Api>()
+                ? ChatsRemoteData(api: Get.find<Api>())
+                : ChatsRemoteData(api: Api());
+            final response =
+                await chatsData.getConversationById(chatId: int.parse(id));
+            log('📥 [DEEP LINK] getConversationById response: $response');
+
+            if (response is Map && response['data'] != null) {
+              chatModel = UserChatModel.fromJson(response['data']);
+            } else {
+              log('⚠️ [DEEP LINK] شكل الرد غير متوقع، هيفضل الاسم المؤقت');
+            }
+          } catch (e) {
+            log('⚠️ [DEEP LINK] فشل جلب بيانات المحادثة: $e — هيفضل الاسم المؤقت');
+          }
+
           Get.to(
               () => ChatView(
-                    userChatModel: dummyModel,
+                    userChatModel: chatModel,
                     isPin: false,
                     isGust: false,
                   ),

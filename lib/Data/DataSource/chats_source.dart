@@ -13,7 +13,13 @@ class ChatsRemoteData {
         await api.getData("${AppApi.baseUrl}/get-conversation-users/$chatId?device_id=$deviceId");
     return response.fold((l) => l, (r) => r);
   }
-
+  
+// مستخدمة في فتح الشات عن طريق لينك المشاركة (Deep Link)
+  getConversationById({required int chatId}) async {
+    var response = await api.getData(
+        "${AppApi.baseUrl}/get-conversation-by-id/$chatId?device_id=$deviceId");
+    return response.fold((l) => l, (r) => r);
+  }
   getPinChatGust() async {
     var response = await api.getData(
       "${AppApi.getPinedChat}?device_id=$deviceId",

@@ -19,6 +19,11 @@ adb shell pm get-app-links com.liveChat.app
 بعد كده ابعتلك نفسك اللينك على واتساب/تليجرام/Notes ودوس عليه — المفروض يفتح التطبيق على طول على نفس الشات، من غير ما تمر بالمتصفح خالص.
 
  */
+ 
 
 
-
+// done test link >>> when publish  app on google play edit sha250
+//  apple not upload on server and not make it 
+/* 
+api/v1/get-conversation-by-id/{conversation}
+*/

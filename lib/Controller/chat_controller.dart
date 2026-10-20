@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+﻿// ignore_for_file: avoid_print
 
 import 'dart:convert';
 import 'dart:developer';
@@ -1376,8 +1376,52 @@ class ChatController extends GetxController {
       friendId: friendID,
     );
     statuesRequestMembers = handlingData(response);
+    if (statuesRequestMembers == StatuesRequest.success) {
+      final index = members.indexWhere((m) => m.id == friendID);
+      if (index != -1) {
+        members[index].requestStatus = "request_sent";
+      }
+    }
     update();
     return statuesRequestMembers == StatuesRequest.success;
+  }
+
+  Future<bool> acceptFriendRequest({required friendID}) async {
+    var response = await _chatsRemoteData.acceptOrRejectRequestFriend(
+      status: 1,
+      friendId: friendID,
+    );
+    final status = handlingData(response);
+    if (status == StatuesRequest.success) {
+      final index = members.indexWhere((m) => m.id == friendID);
+      if (index != -1) {
+        members[index].requestStatus = "friends";
+      }
+      update();
+      return true;
+    } else {
+      showUserFriendlyError(status);
+      return false;
+    }
+  }
+
+  Future<bool> rejectOrCancelFriendRequest({required friendID}) async {
+    var response = await _chatsRemoteData.acceptOrRejectRequestFriend(
+      status: 0,
+      friendId: friendID,
+    );
+    final status = handlingData(response);
+    if (status == StatuesRequest.success) {
+      final index = members.indexWhere((m) => m.id == friendID);
+      if (index != -1) {
+        members[index].requestStatus = "none";
+      }
+      update();
+      return true;
+    } else {
+      showUserFriendlyError(status);
+      return false;
+    }
   }
 
   Future<bool> blockOrUnBlock({required friendID, required int status}) async {

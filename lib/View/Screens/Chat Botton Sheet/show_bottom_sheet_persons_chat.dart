@@ -1,4 +1,4 @@
-// ignore_for_file: camel_case_types
+﻿// ignore_for_file: camel_case_types
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -436,17 +436,20 @@ Widget _buildPaginatedMemberList({
       return _cardPerson(
         power: member.power,
         idPerson: member.id.toString(),
-        isGust: member.isGuest!,
-        isFriend: member.requestStatus!,
+        isGust: member.isGuest ?? false,
+        isFriend: member.requestStatus ?? "none",
         isAdmin: idAdmins
             .any((element) => element.chatAdminId == member.id.toString()),
         isOwner: member.id.toString() == idOwner,
         isNeedAccept: isNeedAccept,
-        ttitle: member.username!,
+        ttitle: member.username ?? "",
         onPressChat: () => controller.createChatFriend(friendID: member.id),
         onPressAdd: () => controller.sendFriendRequest(friendID: member.id),
         onPressRemove: () => controller.sendFriendRequest(friendID: member.id),
         onPressAccept: () => controller.acceptNeedTochat(membeerId: member.id!),
+        onPressAcceptFriend: () => controller.acceptFriendRequest(friendID: member.id),
+        onPressRejectFriend: () => controller.rejectOrCancelFriendRequest(friendID: member.id),
+        onPressCancelRequest: () => controller.rejectOrCancelFriendRequest(friendID: member.id),
       );
     },
   );
@@ -458,6 +461,9 @@ class _cardPerson extends StatefulWidget {
   final VoidCallback onPressAdd;
   final VoidCallback onPressRemove;
   final VoidCallback onPressAccept;
+  final VoidCallback? onPressAcceptFriend;
+  final VoidCallback? onPressRejectFriend;
+  final VoidCallback? onPressCancelRequest;
   final bool isNeedAccept;
   final bool isAdmin;
   final bool isOwner;
@@ -476,6 +482,9 @@ class _cardPerson extends StatefulWidget {
     required this.isOwner,
     required this.isFriend,
     required this.onPressAccept,
+    this.onPressAcceptFriend,
+    this.onPressRejectFriend,
+    this.onPressCancelRequest,
     required this.isGust,
     required this.idPerson,
     required this.power,
@@ -509,6 +518,10 @@ class _cardPersonState extends State<_cardPerson>
     super.dispose();
   }
 
+  bool get _isMe {
+    final myId = sharedPreferences!.getString("id");
+    return myId != null && myId == widget.idPerson;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -519,9 +532,10 @@ class _cardPersonState extends State<_cardPerson>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          _buildUserInfo(isRtl),
+          Expanded(child: _buildUserInfo(isRtl)),
           if (widget.isNeedAccept) _buildAcceptButton(isRtl),
           if (_shouldShowActionButtons) _buildActionButtons(isRtl),
+          if (_isMe && !widget.isNeedAccept) _buildMeBadge(isRtl),
         ],
       ),
     );
@@ -532,26 +546,27 @@ class _cardPersonState extends State<_cardPerson>
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 65.w),
-          child: widget.power.toString() != "null"
-              ? PowerTextWidget(
-                  powerModel: widget.power!, displyText: widget.ttitle)
-              : textNormal(
-                  widget.ttitle,
-                  pref! ? AppColors.inActiveColor : AppColors.blackTextColor,
-                  3.5.w,
-                  FontWeight.w400,
-                ),
-        ),
+        widget.power.toString() != "null"
+            ? PowerTextWidget(
+                powerModel: widget.power!, displyText: widget.ttitle)
+            : textNormal(
+                widget.ttitle,
+                _isMe
+                    ? (pref! ? AppColors.whiteColor : AppColors.blackTextColor)
+                    : (pref! ? AppColors.inActiveColor : AppColors.blackTextColor),
+                3.5.w,
+                _isMe ? FontWeight.bold : FontWeight.w400,
+              ),
         if (!widget.isNeedAccept)
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 1.w),
             child: textNormal(
               _getUserRoleText(),
-              AppColors.inActiveColor,
+              _isMe
+                  ? (pref! ? AppColors.secondaryColor : AppColors.primaryColor)
+                  : AppColors.inActiveColor,
               3.w,
-              FontWeight.w400,
+              _isMe ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
       ],
@@ -559,9 +574,18 @@ class _cardPersonState extends State<_cardPerson>
   }
 
   String _getUserRoleText() {
-    if (widget.isAdmin) return S.of(context).admin;
-    if (widget.isOwner) return S.of(context).owner;
-    return S.of(context).member;
+    String role;
+    if (widget.isAdmin) {
+      role = S.of(context).admin;
+    } else if (widget.isOwner) {
+      role = S.of(context).owner;
+    } else {
+      role = S.of(context).member;
+    }
+    if (_isMe) {
+      return "$role (${S.of(context).you})";
+    }
+    return role;
   }
 
   Widget _buildAcceptButton(bool isRtl) {
@@ -588,11 +612,14 @@ class _cardPersonState extends State<_cardPerson>
   Widget _buildFriendStatusActions(bool isRtl) {
     switch (widget.isFriend) {
       case "none":
-      case "request_sent":
         return _buildAddAndChatActions(isRtl);
+      case "request_sent":
+        return _buildSentRequestAndChatActions(isRtl);
+      case "request_received":
       case "request_recived":
-        return _buildPendingAction();
+        return _buildReceivedRequestAndChatActions(isRtl);
       default:
+        // friends
         return _buildChatAction();
     }
   }
@@ -600,7 +627,59 @@ class _cardPersonState extends State<_cardPerson>
   Widget _buildAddAndChatActions(bool isRtl) {
     return Row(
       textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+      mainAxisSize: MainAxisSize.min,
       children: [
+        InkWell(
+          onTap: widget.onPressAdd,
+          child: _buildIconButton(
+            icon: Icons.person_add_alt_1_outlined,
+          ),
+        ),
+        SizedBox(width: 2.w),
+        _buildChatButton(),
+      ],
+    );
+  }
+
+  Widget _buildSentRequestAndChatActions(bool isRtl) {
+    return Row(
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: widget.onPressCancelRequest,
+          child: _buildIconButton(
+            icon: Icons.person_remove_outlined,
+            iconColor: AppColors.redColor,
+          ),
+        ),
+        SizedBox(width: 2.w),
+        _buildChatButton(),
+      ],
+    );
+  }
+
+  Widget _buildReceivedRequestAndChatActions(bool isRtl) {
+    return Row(
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: widget.onPressAcceptFriend,
+          child: _buildIconButton(
+            icon: Icons.check,
+            iconColor: Colors.green,
+          ),
+        ),
+        SizedBox(width: 2.w),
+        InkWell(
+          onTap: widget.onPressRejectFriend,
+          child: _buildIconButton(
+            icon: Icons.close,
+            iconColor: AppColors.redColor,
+          ),
+        ),
+        SizedBox(width: 2.w),
         _buildChatButton(),
       ],
     );
@@ -612,20 +691,6 @@ class _cardPersonState extends State<_cardPerson>
       child: _buildIconButton(
         icon: LucideIcons.messageCircle300,
       ),
-    );
-  }
-
-  Widget _buildPendingAction() {
-    return Row(
-      children: [
-        GestureDetector(
-          onTap: widget.onPressChat,
-          child: _buildIconButton(
-            icon: Icons.watch_later_outlined,
-            size: 6.w,
-          ),
-        ),
-      ],
     );
   }
 
@@ -649,8 +714,8 @@ class _cardPersonState extends State<_cardPerson>
   }) {
     return Container(
       padding: EdgeInsets.only(
-        right: isRtl ? 1.3.w : 6.w,
-        left: isRtl ? 6.w : 1.3.w,
+        right: isRtl ? 1.3.w : 4.w,
+        left: isRtl ? 4.w : 1.3.w,
       ),
       height: 14.w,
       alignment: Alignment.center,
@@ -674,6 +739,7 @@ class _cardPersonState extends State<_cardPerson>
   Widget _buildIconButton({
     required IconData icon,
     double size = 16,
+    Color? iconColor,
   }) {
     return Container(
       height: 12.w,
@@ -688,16 +754,54 @@ class _cardPersonState extends State<_cardPerson>
         child: Icon(
           icon,
           size: size,
-          color: pref! ? AppColors.secondaryColor : AppColors.blackColor,
+          color: iconColor ??
+              (pref! ? AppColors.secondaryColor : AppColors.blackColor),
         ),
       ),
     );
   }
 
+  Widget _buildMeBadge(bool isRtl) {
+    final color = pref! ? AppColors.secondaryColor : AppColors.primaryColor;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 1.2.w),
+      margin: EdgeInsets.only(
+        right: isRtl ? 1.3.w : 4.w,
+        left: isRtl ? 4.w : 1.3.w,
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: color.withOpacity(0.35),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.person_rounded,
+            size: 4.w,
+            color: color,
+          ),
+          SizedBox(width: 1.w),
+          Text(
+            S.of(context).you,
+            style: TextStyle(
+              color: color,
+              fontSize: 3.w,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   bool get _shouldShowActionButtons {
-    return widget.isOwner == false &&
-        widget.isNeedAccept == false &&
+    return widget.isNeedAccept == false &&
         !widget.isGust &&
-        sharedPreferences!.getString("id") != widget.idPerson;
+        !_isMe;
   }
 }

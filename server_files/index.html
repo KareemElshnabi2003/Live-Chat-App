@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>فتح المحادثة - Mayo Live Chat</title>
+<style>
+  :root {
+    --bg: #faf9f7;
+    --text: #1a1f1c;
+    --muted: #6b7280;
+    --accent: #1f6b3a;
+    --accent-soft: rgba(31, 107, 58, 0.15);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121712;
+      --text: #f2f5f2;
+      --muted: #9ca3af;
+      --accent: #3fae6b;
+      --accent-soft: rgba(63, 174, 107, 0.2);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121712;
+    --text: #f2f5f2;
+    --muted: #9ca3af;
+    --accent: #3fae6b;
+    --accent-soft: rgba(63, 174, 107, 0.2);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
+  }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; min-height: 100dvh;
+    padding: 24px;
+    padding-top: calc(24px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    text-align: center;
+  }
+  .card { max-width: 340px; width: 100%; }
+  .spinner {
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 4px solid var(--accent-soft);
+    border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 22px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  p { margin: 0 0 8px; line-height: 1.6; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .btn {
+    display: inline-block; margin-top: 18px; padding: 13px 30px;
+    background: var(--accent); color: #fff; border-radius: 12px;
+    text-decoration: none; font-weight: 600; font-size: 15px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="spinner" id="spinner"></div>
+    <p id="msg">جاري فتح المحادثة في التطبيق...</p>
+    <a id="actionBtn" class="btn" href="#" style="display:none;"></a>
+    <p class="muted" id="hint" style="display:none;"></p>
+  </div>
+
+<script>
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var chatId = params.get('id') || '';
+
+  // ⚙️ عدّل القيم دي
+  var PACKAGE_NAME = 'com.liveChat.app';
+  var PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=' + PACKAGE_NAME;
+  var APP_STORE_URL = 'https://apps.apple.com/app/idXXXXXXXXX'; // حطها لما يجهز
+
+  var ua = navigator.userAgent || '';
+  var isAndroid = /Android/i.test(ua);
+  var isIOS = /iPhone|iPad|iPod/i.test(ua);
+
+  var msg = document.getElementById('msg');
+  var hint = document.getElementById('hint');
+  var btn = document.getElementById('actionBtn');
+  var spinner = document.getElementById('spinner');
+
+  function showManual(label, url, hintText) {
+    spinner.style.display = 'none';
+    btn.textContent = label;
+    btn.href = url;
+    btn.style.display = 'inline-block';
+    if (hintText) {
+      hint.textContent = hintText;
+      hint.style.display = 'block';
+    }
+  }
+
+  if (isAndroid) {
+    // intent:// بيوصل لنظام أندرويد مباشرة حتى من جوه متصفح فيسبوك/واتساب الداخلي،
+    // وبيحدد الـ package بالاسم فمفيش حوار اختيار تطبيق هيظهر.
+    // لو التطبيق مش متثبت، browser_fallback_url بيودي لجوجل بلاي تلقائي.
+    var intentUrl =
+      'intent://mayo.live/chat?id=' + encodeURIComponent(chatId) +
+      '#Intent;scheme=https;package=' + PACKAGE_NAME +
+      ';S.browser_fallback_url=' + encodeURIComponent(PLAY_STORE_URL) + ';end';
+
+    msg.textContent = 'جاري فتح المحادثة في التطبيق...';
+    showManual('فتح في التطبيق', '#', 'لو التطبيق متثبتش، هيوديك لجوجل بلاي.');
+    btn.onclick = function (e) { e.preventDefault(); window.location.href = intentUrl; };
+
+    // محاولة فتح تلقائية فورية
+    window.location.href = intentUrl;
+  } else if (isIOS) {
+    msg.textContent = 'افتح الرابط ده من Safari عشان يفتح التطبيق مباشرة';
+    showManual('فتح في App Store', APP_STORE_URL, null);
+  } else {
+    spinner.style.display = 'none';
+    msg.textContent = 'افتح الرابط ده من موبايلك عشان يفتح المحادثة في التطبيق';
+  }
+})();
+</script>
+</body>
+</html>
