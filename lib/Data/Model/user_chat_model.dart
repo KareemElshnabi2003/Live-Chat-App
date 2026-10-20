@@ -26,11 +26,13 @@ class UserChatModel {
   int? unreadCount;
   String? isBlocked;
   int? otherUserId;
+  bool isFakeRequest = false;
 
   UserChatModel({
     this.id,
     this.isBlocked,
     this.otherUserId,
+    this.isFakeRequest = false,
     this.name,
     this.image,
     this.lastMessage,

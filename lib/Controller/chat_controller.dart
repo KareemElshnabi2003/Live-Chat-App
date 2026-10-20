@@ -1,4 +1,4 @@
-﻿// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print
 
 import 'dart:convert';
 import 'dart:developer';
@@ -111,6 +111,7 @@ class ChatController extends GetxController {
   static final Map<String, List<ChatMessage>> _messagesCache = {};
   final RxBool isLoadingInitial = true.obs;
   bool answer = true;
+  bool isFakeRequest = false;
 
   ChatMessage? replyingToMessage;
 
@@ -1017,6 +1018,10 @@ class ChatController extends GetxController {
       if (otherUserId != null) {
         if (hasIncomingMessage && !answer) {
           // إذا كنت أنا المستقبل وبجاوب على رسالة استلمتها -> قبول طلب الصداقة تلقائياً
+          if (isFakeRequest) {
+            await cancelFakeFriendRequest(friendID: otherUserId);
+            isFakeRequest = false;
+          }
           await _chatsRemoteData.acceptOrRejectRequestFriend(
             status: 1,
             friendId: otherUserId,
@@ -1539,6 +1544,16 @@ class ChatController extends GetxController {
       return true;
     } else {
       showUserFriendlyError(status);
+      return false;
+    }
+  }
+
+  Future<bool> cancelFakeFriendRequest({required friendID}) async {
+    try {
+      var response = await _chatsRemoteData.sendFriendRequest(friendId: friendID);
+      final status = handlingData(response);
+      return status == StatuesRequest.success;
+    } catch (_) {
       return false;
     }
   }

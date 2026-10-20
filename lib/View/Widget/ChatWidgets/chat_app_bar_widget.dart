@@ -50,6 +50,15 @@ class ChatAppBarWidget extends StatelessWidget {
             children: [
               GestureDetector(
                 onTap: () {
+                  if (controller.isFakeRequest && !controller.answer && userChatModel.status?.toLowerCase() != 'friends') {
+                    final otherId = controller.getOtherUserId() ??
+                        userChatModel.otherUserId ??
+                        userChatModel.user?.id;
+                    if (otherId != null) {
+                      controller.cancelFakeFriendRequest(friendID: otherId);
+                      controller.isFakeRequest = false;
+                    }
+                  }
                   if (Navigator.of(context).canPop()) {
                     Get.back();
                   } else {

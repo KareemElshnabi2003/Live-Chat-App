@@ -416,6 +416,10 @@ class ChatInputWidget extends StatelessWidget {
                           ? controller.memberIdToBlock[0].id
                           : (userChatModel.user?.id ?? userChatModel.userId));
                   if (otherId != null) {
+                    if (controller.isFakeRequest) {
+                      await controller.cancelFakeFriendRequest(friendID: otherId);
+                      controller.isFakeRequest = false;
+                    }
                     await controller.acceptFriendRequest(friendID: otherId);
                   }
                   controller.answer = true;
@@ -443,6 +447,10 @@ class ChatInputWidget extends StatelessWidget {
                           ? controller.memberIdToBlock[0].id
                           : (userChatModel.user?.id ?? userChatModel.userId));
                   if (otherId != null) {
+                    if (controller.isFakeRequest) {
+                      await controller.cancelFakeFriendRequest(friendID: otherId);
+                      controller.isFakeRequest = false;
+                    }
                     await controller.rejectOrCancelFriendRequest(friendID: otherId);
                   }
                   Get.back();

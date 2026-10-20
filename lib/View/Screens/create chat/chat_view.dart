@@ -62,6 +62,7 @@ class _ChatViewState extends State<ChatView> {
     // 🌟 تحديد نوع الشات: غرف الدردشة العامة فقط هي الـ Public
     controller.isPublicChat = widget.userChatModel?.status?.toLowerCase() == 'public';
     controller.userChatModel = widget.userChatModel;
+    controller.isFakeRequest = widget.userChatModel?.isFakeRequest ?? false;
     controller.seedInitialData(widget.userChatModel);
 
     _scrollController.addListener(() {
@@ -79,6 +80,18 @@ class _ChatViewState extends State<ChatView> {
   @override
   void dispose() {
     _scrollController.dispose();
+    if (Get.isRegistered<ChatController>()) {
+      final controller = Get.find<ChatController>();
+      if (controller.isFakeRequest && !controller.answer && widget.userChatModel?.status?.toLowerCase() != 'friends') {
+        final otherId = controller.getOtherUserId() ??
+            widget.userChatModel?.otherUserId ??
+            widget.userChatModel?.user?.id;
+        if (otherId != null) {
+          controller.cancelFakeFriendRequest(friendID: otherId);
+          controller.isFakeRequest = false;
+        }
+      }
+    }
     super.dispose();
   }
 
@@ -90,6 +103,18 @@ class _ChatViewState extends State<ChatView> {
       canPop: false,
       onPopInvoked: (didPop) { 
         if (didPop) return;
+        if (Get.isRegistered<ChatController>()) {
+          final controller = Get.find<ChatController>();
+          if (controller.isFakeRequest && !controller.answer && widget.userChatModel?.status?.toLowerCase() != 'friends') {
+            final otherId = controller.getOtherUserId() ??
+                widget.userChatModel?.otherUserId ??
+                widget.userChatModel?.user?.id;
+            if (otherId != null) {
+              controller.cancelFakeFriendRequest(friendID: otherId);
+              controller.isFakeRequest = false;
+            }
+          }
+        }
         Future.microtask(() {
           if (Navigator.of(context).canPop()) {
             Get.back();
@@ -117,6 +142,11 @@ class _ChatViewState extends State<ChatView> {
 
                         if (widget.isPin && ChatHelpers.hasAd(widget.userChatModel!))
                           PinnedAdWidget(pref: pref!, adTitle: widget.userChatModel!.adTitle, adLink: widget.userChatModel!.adLink, adImage: widget.userChatModel!.adImage),
+
+                        if (controller.isFakeRequest && !controller.answer && widget.userChatModel?.status?.toLowerCase() != 'friends') ...[
+                          SizedBox(height: 1.h),
+                          _buildPendingRequestBanner(context, controller, isRtl),
+                        ],
 
                         SizedBox(height: 2.h),
                         ChatHelpers.buildMusicBar(controller, isRtl, context),
@@ -213,6 +243,169 @@ class _ChatViewState extends State<ChatView> {
         ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPendingRequestBanner(
+    BuildContext context,
+    ChatController controller,
+    bool isRtl,
+  ) {
+    final otherName = widget.userChatModel?.name ?? S.of(context).User;
+    final otherId = controller.getOtherUserId() ??
+        widget.userChatModel?.otherUserId ??
+        widget.userChatModel?.user?.id;
+
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 1.w),
+      padding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 1.2.h),
+      decoration: BoxDecoration(
+        color: pref! ? const Color(0xFF232533) : const Color(0xFFEFF5FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primaryColor.withOpacity(0.35),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(pref! ? 0.25 : 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.person_add_alt_1_rounded,
+                  color: AppColors.primaryColor,
+                  size: 4.8.w,
+                ),
+              ),
+              SizedBox(width: 2.5.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      otherName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 3.5.w,
+                        fontWeight: FontWeight.bold,
+                        color: pref! ? Colors.white : AppColors.blackTextColor,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isRtl
+                          ? 'أرسل لك طلب صداقة، هل تريد القبول للمراسلة؟'
+                          : 'Sent you a friend request. Accept to chat?',
+                      style: TextStyle(
+                        fontSize: 2.9.w,
+                        color: pref! ? Colors.white70 : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 1.h),
+          Row(
+            textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () async {
+                    if (otherId != null) {
+                      if (controller.isFakeRequest) {
+                        await controller.cancelFakeFriendRequest(friendID: otherId);
+                        controller.isFakeRequest = false;
+                      }
+                      await controller.acceptFriendRequest(friendID: otherId);
+                    }
+                    controller.answer = true;
+                    widget.userChatModel?.status = "Friends";
+                    controller.update();
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(vertical: 0.9.h),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_rounded, color: Colors.white, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          S.of(context).accept,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 3.1.w,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 2.w),
+              Expanded(
+                child: InkWell(
+                  onTap: () async {
+                    if (otherId != null) {
+                      if (controller.isFakeRequest) {
+                        await controller.cancelFakeFriendRequest(friendID: otherId);
+                        controller.isFakeRequest = false;
+                      }
+                      await controller.rejectOrCancelFriendRequest(friendID: otherId);
+                    }
+                    Get.back();
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(vertical: 0.9.h),
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.redColor, width: 1.2),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.close_rounded, color: AppColors.redColor, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          S.of(context).cancel,
+                          style: TextStyle(
+                            color: AppColors.redColor,
+                            fontSize: 3.1.w,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

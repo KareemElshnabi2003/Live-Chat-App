@@ -1,4 +1,4 @@
-﻿import 'package:flutter/cupertino.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:live_chat/Core/Class/api.dart';
 import 'package:live_chat/Core/Class/error_handler.dart';
@@ -35,10 +35,18 @@ class RequestsController extends GetxController {
     );
   }
 
-  // 🌟 دالة إنشاء الشات (بعد قبول الطلب لو لسه متقبلش)
+  // 🌟 دالة إنشاء الشات (مع حيلة الريكوست الوهمي لو الطلب وارد من شخص آخر لفتح الشات)
   createChatFriend({required int friendID, bool isSentRequest = false}) async {
     statuesRequest = StatuesRequest.loading;
     update();
+
+    bool didSendFakeRequest = false;
+    // 🌟 لو الطلب مستلم من شخص آخر (مش مرسل مني)، السيرفر مش هيوافق على فتح الشات إلا لو بعت ريكوست أو قبلت الطلب
+    // فبنعمل الحيلة: نبعت طلب صداقة وهمي عشان السيرفر يفتح المحادثة
+    if (!isSentRequest) {
+      await _chatsRemoteData.sendFriendRequest(friendId: friendID);
+      didSendFakeRequest = true;
+    }
 
     // بننادي على دالة فتح الشات وبنحول اليوزر لشاشة الشات
     var response = await _chatsRemoteData.createChatFriend(friendId: friendID);
@@ -48,8 +56,12 @@ class RequestsController extends GetxController {
       final userChat = UserChatModel.fromJson(response['data']);
       userChat.otherUserId = friendID;
       userChat.user ??= User(id: friendID);
+      userChat.isFakeRequest = didSendFakeRequest;
       navigateToChats(userchat: userChat);
     } else {
+      if (didSendFakeRequest) {
+        await _chatsRemoteData.sendFriendRequest(friendId: friendID);
+      }
       showUserFriendlyError(statuesRequest);
     }
     update();
