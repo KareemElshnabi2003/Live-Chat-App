@@ -202,7 +202,10 @@ class FriendsChatContoller extends GetxController {
   Future<void> navigateToChats({UserChatModel? userchat}) async {
     await Get.to(
       () => ChatView(isGust: false, isPin: false, userChatModel: userchat),
-      arguments: {"chatId": userchat!.id.toString()},
+      arguments: {
+        "chatId": userchat?.id?.toString() ?? '',
+        "userChatModel": userchat,
+      },
       transition: Transition.leftToRight,
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeInOut,

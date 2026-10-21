@@ -280,6 +280,11 @@ class ChatsRemoteData {
   joinToCgat({ required chatId}) async {
     var response = await api.postData(
         "${AppApi.baseUrl}/join-to-conversation/$chatId?device_id=$deviceId",{});
+
+
     return response.fold((l) => l, (r) => r);
   }
 }
+
+
+

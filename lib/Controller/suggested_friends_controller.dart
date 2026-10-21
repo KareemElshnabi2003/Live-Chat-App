@@ -1,4 +1,5 @@
-﻿import 'dart:developer';
+import 'package:live_chat/View/Widget/ChatWidgets/chat_helpers.dart';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -36,7 +37,10 @@ class SuggessionChatController extends GetxController {
         isPin: false,
         userChatModel: userchat,
       ),
-      arguments: {"chatId": userchat!.id.toString()},
+      arguments: {
+        "chatId": userchat?.id?.toString() ?? '',
+        "userChatModel": userchat,
+      },
       transition: Transition.leftToRight,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,
@@ -100,7 +104,31 @@ class SuggessionChatController extends GetxController {
     update();
 
     var response = await _chatsRemoteData.createChatFriend(friendId: friendID);
-    statuesRequest = handlingData(response);
+    var status = handlingData(response);
+
+    if (status != StatuesRequest.success) {
+      final rawMsg = Api.serverMessage?.toLowerCase() ??
+          (response is Map ? response['message']?.toString().toLowerCase() ?? '' : '');
+      final isRequestNeeded = rawMsg.contains("اقبل طلب") ||
+          rawMsg.contains("طلب صداقة") ||
+          rawMsg.contains("accept friend request");
+
+      if (isRequestNeeded) {
+        Api.serverMessage = null;
+        final userChat = await ChatHelpers.openChatWithFriendRequestTrick(
+          chatsRemoteData: _chatsRemoteData,
+          friendId: friendID,
+          friend: (index >= 0 && index < friendsSuggestion.length) ? friendsSuggestion[index] : null,
+          navigateToChats: (u) => navigateToChats(userchat: u),
+        );
+        if (userChat != null) {
+          statuesRequest = StatuesRequest.none;
+          update();
+          return;
+        }
+      }
+    }
+    statuesRequest = status;
 
     if (statuesRequest == StatuesRequest.success) {
       final responseBody = response['data'];
@@ -113,6 +141,7 @@ class SuggessionChatController extends GetxController {
         username: friend?.username,
         image: friend?.image,
       );
+      userChat.status = 'not friend';
       navigateToChats(userchat: userChat);
     } else {
       bool isForbidden = false;

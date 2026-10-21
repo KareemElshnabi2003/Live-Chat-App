@@ -1,4 +1,5 @@
-﻿// ignore_for_file: file_names, avoid_print
+import 'package:live_chat/View/Widget/ChatWidgets/chat_helpers.dart';
+// ignore_for_file: file_names, avoid_print
 
 import 'dart:convert';
 import 'dart:developer';
@@ -56,6 +57,10 @@ class HomeNavigationController extends GetxController {
   Future<List<UserChatModel>>? systemChatsFuture;
   List<UserChatModel> myChats = [];
   Set<int> joinedChatIds = {};
+  int myChatsCurrentPage = 1;
+  int myChatsPerPage = 15;
+  bool isLoadingMoreMyChats = false;
+  bool hasMoreMyChats = true;
 
   // 🌟 متغيرات العدادات
   int totalFriendsCount = 0;
@@ -311,12 +316,19 @@ class HomeNavigationController extends GetxController {
     update();
   }
 
-  getMyChat() async {
+  getMyChat({bool isRefresh = false}) async {
+    if (isRefresh) {
+      myChatsCurrentPage = 1;
+      hasMoreMyChats = true;
+    } else {
+      myChatsCurrentPage = 1;
+      hasMoreMyChats = true;
+    }
     statuesRequest = StatuesRequest.loading;
     update();
     var response = await _chatsRemoteData.getuserChats(
-      page: 1,
-      perPage: 15,
+      page: myChatsCurrentPage,
+      perPage: myChatsPerPage,
     );
     statuesRequest = handlingData(response);
 
@@ -359,21 +371,146 @@ class HomeNavigationController extends GetxController {
           }
         });
 
-        totalPrivateChatsCount = newChats.length;
+        if (response['pagination'] != null) {
+          int currentPageMeta = response['pagination']['current_page'] ?? 1;
+          int lastPageMeta = response['pagination']['last_page'] ?? 1;
+          int? total = response['pagination']['total'];
+          totalPrivateChatsCount = total ?? newChats.length;
+          if (currentPageMeta >= lastPageMeta) {
+            hasMoreMyChats = false;
+          }
+        } else {
+          totalPrivateChatsCount = newChats.length;
+          if (newChats.length < myChatsPerPage) {
+            hasMoreMyChats = false;
+          }
+        }
+
         myChats = newChats;
         joinedChatIds = newChats.where((c) => c.id != null).map((c) => c.id!).toSet();
 
         if (newChats.isNotEmpty) {
           userMyChatModel = newChats[0];
         }
+
+        // 🌟 تحميل باقي الجروبات في الخلفية لتجميع كافة الـ joinedChatIds بدقة بدون حظر الـ UI
+        _prefetchRemainingJoinedChats(response['pagination']);
       } else {
         log("No chats found in response['data']");
         totalPrivateChatsCount = 0;
         userMyChatModel = null;
+        myChats.clear();
+        hasMoreMyChats = false;
       }
     } else {
       showUserFriendlyError(statuesRequest);
     }
+    update();
+  }
+
+  /// 🌟 جلب بقية الصفحات لتحديث joinedChatIds و totalPrivateChatsCount إذا كان المستخدم في أكثر من صفحة
+  void _prefetchRemainingJoinedChats(dynamic pagination) async {
+    if (pagination == null || pagination is! Map) return;
+    int currentPage = pagination['current_page'] ?? 1;
+    int lastPage = pagination['last_page'] ?? 1;
+    if (currentPage >= lastPage) return;
+
+    for (int p = currentPage + 1; p <= lastPage; p++) {
+      try {
+        var resp = await _chatsRemoteData.getuserChats(page: p, perPage: myChatsPerPage);
+        if (resp is Map && resp['data'] is List) {
+          List moreData = resp['data'];
+          List<UserChatModel> moreChats = moreData
+              .map((e) => UserChatModel.fromJson(e))
+              .where((element) =>
+                  ((element.status == "Public" || element.status == "Private") ||
+                      (element.lastMessage != null &&
+                          element.status != "Public" &&
+                          element.status != "Private")))
+              .toList();
+
+          joinedChatIds.addAll(moreChats.where((c) => c.id != null).map((c) => c.id!));
+          for (var mc in moreChats) {
+            if (!myChats.any((existing) => existing.id == mc.id)) {
+              myChats.add(mc);
+            }
+          }
+        }
+      } catch (e) {
+        log("Error prefetching remaining joined chats page $p: $e");
+        break;
+      }
+    }
+    update();
+  }
+
+  loadMoreMyChats() async {
+    if (isLoadingMoreMyChats || !hasMoreMyChats) return;
+
+    isLoadingMoreMyChats = true;
+    myChatsCurrentPage++;
+    update();
+
+    var response = await _chatsRemoteData.getuserChats(
+      page: myChatsCurrentPage,
+      perPage: myChatsPerPage,
+    );
+
+    StatuesRequest loadMoreStatus = handlingData(response);
+
+    if (loadMoreStatus == StatuesRequest.success) {
+      final responseBody = response['data'];
+      if (responseBody != null && responseBody is List && responseBody.isNotEmpty) {
+        List<UserChatModel> newChats = responseBody
+            .map((e) => UserChatModel.fromJson(e))
+            .where(
+              (element) => ((element.status == "Public" ||
+                      element.status == "Private") ||
+                  (element.lastMessage != null &&
+                      element.status != "Public" &&
+                      element.status != "Private")),
+            )
+            .toList();
+
+        for (var chat in newChats) {
+          if (!myChats.any((c) => c.id == chat.id)) {
+            myChats.add(chat);
+          }
+        }
+        joinedChatIds.addAll(newChats.where((c) => c.id != null).map((c) => c.id!));
+
+        if (response['pagination'] != null) {
+          int currentPageMeta = response['pagination']['current_page'] ?? 1;
+          int lastPageMeta = response['pagination']['last_page'] ?? 1;
+          int? total = response['pagination']['total'];
+          if (total != null) totalPrivateChatsCount = total;
+          if (currentPageMeta >= lastPageMeta) {
+            hasMoreMyChats = false;
+          }
+        } else if (newChats.length < myChatsPerPage) {
+          hasMoreMyChats = false;
+        }
+
+        myChats.sort((a, b) {
+          String? dateAStr = a.lastMessage?.createdAt ?? a.updatedAt ?? a.createdAt;
+          String? dateBStr = b.lastMessage?.createdAt ?? b.updatedAt ?? b.createdAt;
+          if (dateAStr == null && dateBStr == null) return 0;
+          if (dateAStr == null) return 1;
+          if (dateBStr == null) return -1;
+          try {
+            return DateTime.parse(dateBStr).compareTo(DateTime.parse(dateAStr));
+          } catch (_) {
+            return 0;
+          }
+        });
+      } else {
+        hasMoreMyChats = false;
+      }
+    } else {
+      myChatsCurrentPage--;
+    }
+
+    isLoadingMoreMyChats = false;
     update();
   }
 
@@ -579,7 +716,30 @@ class HomeNavigationController extends GetxController {
     }
 
     var response = await _chatsRemoteData.createChatFriend(friendId: friendID);
-    final status = handlingData(response);
+    var status = handlingData(response);
+
+    if (status != StatuesRequest.success) {
+      final rawMsg = Api.serverMessage?.toLowerCase() ??
+          (response is Map ? response['message']?.toString().toLowerCase() ?? '' : '');
+      final isRequestNeeded = rawMsg.contains("اقبل طلب") ||
+          rawMsg.contains("طلب صداقة") ||
+          rawMsg.contains("accept friend request");
+
+      if (isRequestNeeded) {
+        Api.serverMessage = null;
+        final userChat = await ChatHelpers.openChatWithFriendRequestTrick(
+          chatsRemoteData: _chatsRemoteData,
+          friendId: friendID,
+          friend: friend,
+          navigateToChats: (u) => navigateToChats(userchat: u),
+        );
+        if (userChat != null) {
+          statuesRequest = StatuesRequest.none;
+          update();
+          return;
+        }
+      }
+    }
 
     if (status == StatuesRequest.success) {
       final responseBody = response['data'];
@@ -597,6 +757,13 @@ class HomeNavigationController extends GetxController {
       }
       if (userChat.lastMessage == null && friend?.lastMessage != null) {
         userChat.lastMessage = friend!.lastMessage;
+      }
+      if (friend?.requestStatus != null) {
+        if (friend!.requestStatus == 'friends') {
+          userChat.status = 'friends';
+        } else {
+          userChat.status = 'not friend';
+        }
       }
       statuesRequest = StatuesRequest.none;
       update();
@@ -808,7 +975,10 @@ class HomeNavigationController extends GetxController {
         isPin: false,
         userChatModel: userchat,
       ),
-      arguments: {"chatId": userchat?.id.toString()},
+      arguments: {
+        "chatId": userchat?.id?.toString() ?? '',
+        "userChatModel": userchat,
+      },
       transition: Transition.leftToRight,
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeInOut,

@@ -1,3 +1,13 @@
+import 'dart:developer';
+import 'package:intl/intl.dart' hide TextDirection;
+import 'package:live_chat/Controller/chat_mixins/chat_base_controller.dart';
+import 'package:live_chat/Core/class/status_request.dart';
+import 'package:live_chat/Core/function/handling_data.dart';
+import 'package:live_chat/Core/function/html_decoder.dart';
+import 'package:live_chat/Data/DataSource/chats_source.dart';
+import 'package:live_chat/Data/Model/chat_message_model.dart';
+import 'package:live_chat/Data/Model/friend_suggest_model.dart';
+import 'package:live_chat/Data/Model/message_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_plus/iconsax_plus.dart';
@@ -9,6 +19,94 @@ import 'package:live_chat/generated/l10n.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
 
 class ChatHelpers {
+  // 🌟 حيلة فتح شات طلب الصداقة:
+  // ارسال طلب -> جلب الماسدج -> الغاء الطلب الي بعته
+  static Future<UserChatModel?> openChatWithFriendRequestTrick({
+    required ChatsRemoteData chatsRemoteData,
+    required dynamic friendId,
+    required Function(UserChatModel userChat) navigateToChats,
+    SuggestFreindModel? friend,
+  }) async {
+    final int? idInt = friendId is int ? friendId : int.tryParse(friendId.toString());
+    if (idInt == null) return null;
+
+    try {
+      // 1. إرسال طلب صداقة لفتح الصلاحية في السيرفر
+      await chatsRemoteData.sendFriendRequest(friendId: idInt);
+
+      // 2. إنشاء / جلب المحادثة
+      final chatResponse = await chatsRemoteData.createChatFriend(friendId: idInt);
+      final status = handlingData(chatResponse);
+
+      if (status == StatuesRequest.success && chatResponse['data'] != null) {
+        final userChat = UserChatModel.fromJson(chatResponse['data']);
+        userChat.otherUserId = idInt;
+        userChat.user ??= User(
+          id: idInt,
+          name: friend?.name,
+          username: friend?.username,
+          image: friend?.image,
+        );
+        userChat.status = 'not friend';
+
+        // 3. جلب الرسائل ووضعها في الكاش أثناء فتح المحادثة
+        try {
+          final msgResponse = await chatsRemoteData.getMessages(
+            idChat: userChat.id.toString(),
+            page: 1,
+          );
+          if (handlingData(msgResponse) == StatuesRequest.success && msgResponse['data'] is List) {
+            final List rawMsgs = msgResponse['data'];
+            final List<MessageModel> newMessages = rawMsgs.map((e) => MessageModel.fromJson(e)).toList();
+            final myIdStr = sharedPreferences?.getString("id");
+
+            final cachedList = newMessages.map((e) {
+              String messageType = e.messageType ?? 'text';
+              bool isMe = myIdStr == "null"
+                  ? "${e.senderId}" == sharedPreferences?.getString("idGust").toString()
+                  : "${e.senderId}" == myIdStr.toString();
+
+              return ChatMessage(
+                senderName: e.senderName ?? 'Unknown',
+                imageUrl: e.senderImage,
+                reaction: e.messageReactions ?? [],
+                message: decodeHtmlEntities(e.message ?? ''),
+                messageType: messageType,
+                messageId: e.id.toString(),
+                isPending: false,
+                isFromSender: isMe,
+                isRead: e.isRead ?? false,
+                timestamp: e.createdAt != null
+                    ? DateFormat('h:mm a').format(DateTime.tryParse(e.createdAt!) ?? DateTime.now())
+                    : '',
+              );
+            }).toList();
+
+            ChatBaseController.messagesCache[userChat.id.toString()] = cachedList;
+          }
+        } catch (e) {
+          log("Error pre-fetching messages: $e");
+        }
+
+        // 4. إلغاء الطلب فوراً
+        await chatsRemoteData.sendFriendRequest(friendId: idInt);
+
+        // 5. فتح الشات
+        navigateToChats(userChat);
+        return userChat;
+      } else {
+        await chatsRemoteData.sendFriendRequest(friendId: idInt);
+        return null;
+      }
+    } catch (e) {
+      log("Error in openChatWithFriendRequestTrick: $e");
+      try {
+        await chatsRemoteData.sendFriendRequest(friendId: idInt);
+      } catch (_) {}
+      return null;
+    }
+  }
+
   // 🌟 استخراج الخلفية
   static DecorationImage? getBackgroundImage(UserChatModel model) {
     if (model.userTheme != null && model.userTheme.toString().trim() != "null" && model.userTheme.toString().trim().isNotEmpty) {

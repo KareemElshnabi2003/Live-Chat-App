@@ -50,7 +50,7 @@ class NotificationsController extends GetxController {
         isPin: false,
         isGust: isGust,
       ),
-      arguments: {"chatId": id},
+      arguments: {"chatId": id, "userChatModel": chatModel},
       transition: Transition.leftToRight,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,

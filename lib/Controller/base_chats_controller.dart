@@ -105,6 +105,7 @@ abstract class BaseChatsController extends GetxController {
       } else if (newChats.length < perPage) {
         hasMoreData = false;
       }
+      onChatsLoaded(newChats);
       isInitialLoad = false;
     } else {
       showUserFriendlyError(statuesRequest);
@@ -142,6 +143,7 @@ abstract class BaseChatsController extends GetxController {
       } else if (newChats.length < perPage) {
         hasMoreData = false;
       }
+      onChatsLoaded(newChats);
     } else {
       currentPage--;
     }
@@ -149,6 +151,9 @@ abstract class BaseChatsController extends GetxController {
     isLoadingMore = false;
     update();
   }
+
+  /// Callback to be overridden by subclasses when new chats are loaded/paginated
+  void onChatsLoaded(List<UserChatModel> newChats) {}
 
   refreshChats() async {
     await getChatsData(isRefresh: true);

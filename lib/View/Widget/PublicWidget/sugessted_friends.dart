@@ -113,7 +113,7 @@ Widget SuggestedFriends({
                         ? S.of(Get.context!).cancel
                         : S.of(Get.context!).send,
                     false,
-                    sendRequest,
+                    requestSend ? removeRequest : sendRequest,
                     requestSend
                         ? AppColors.redColor
                         : pref!
@@ -148,7 +148,7 @@ Widget SuggestedFriends({
             textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
             children: [
               GestureDetector(
-                onTap: requestSend ? sendRequest : removeRequest,
+                onTap: requestSend ? removeRequest : sendRequest,
                 child: Container(
                   height: 12.w,
                   width: 12.w,
