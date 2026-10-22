@@ -1,3 +1,4 @@
+import 'package:google_sign_in/google_sign_in.dart';
 // ignore_for_file: avoid_print
 
 import 'dart:convert';
@@ -386,6 +387,160 @@ class PageStartController extends GetxController {
   }
 
   StatuesRequest statuesRequest = StatuesRequest.none;
+  bool isGoogleLoading = false;
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
+
+  void _saveUserDataAndNavigate(Map<String, dynamic> responseBody) {
+    try {
+      sharedPreferences!.remove("deviceId");
+      String? deviceId = sharedPreferences!.getString("deviceId");
+
+      if (deviceId == null || deviceId.isEmpty) {
+        const uuid = Uuid();
+        deviceId = uuid.v4();
+        sharedPreferences!.setString("deviceId", deviceId);
+        log("✅ تم إنشاء وحفظ UUID جديد: ${sharedPreferences!.getString("deviceId")}");
+      } else {
+        log("⚡ الـ UUID موجود بالفعل: $deviceId");
+      }
+    } catch (e) {
+      log("❌ Error generating/saving UUID: $e");
+    }
+
+    sharedPreferences!.setString("name", responseBody['data']['name'] ?? "");
+    sharedPreferences!.setString("bio", responseBody['data']['bio'] ?? "");
+    sharedPreferences!.setString("id", responseBody['data']['id'].toString());
+    sharedPreferences!.setString("img", responseBody['data']['image'] ?? "");
+    sharedPreferences!.setString("username", responseBody['data']['username'] ?? "");
+    sharedPreferences!.setString("email", responseBody['data']['email'] ?? "");
+    sharedPreferences!.setString(
+        "stars", (responseBody['data']['number_of_stars'] ?? 0).toString());
+    sharedPreferences!.setString("token", responseBody['data']['token'] ?? "");
+    if (responseBody['data']['user_power'] != null) {
+      String power = jsonEncode(responseBody['data']['user_power']);
+      sharedPreferences!.setString("powermodel", power);
+    }
+    sharedPreferences!.setString("page", "Home");
+
+    // Clear Guest Session Data upon successful login
+    sharedPreferences!.remove("idGust");
+    sharedPreferences!.remove("usernameGust");
+
+    sheetName = "Login";
+
+    Get.offAll(
+      () => const HomeView(),
+      transition: Transition.downToUp,
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeOut,
+    );
+  }
+
+  Future<void> signInWithGoogle() async {
+    try {
+      isGoogleLoading = true;
+      update();
+
+      // Sign out first to ensure the Google account chooser appears
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
+
+      final GoogleSignInAccount? googleAccount = await _googleSignIn.signIn();
+
+      if (googleAccount == null) {
+        // User closed or cancelled the Google prompt
+        log("Google Sign-In cancelled by user");
+        isGoogleLoading = false;
+        update();
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuthData =
+          await googleAccount.authentication;
+
+      final String idToken = googleAuthData.idToken ?? "";
+      final String? accessToken = googleAuthData.accessToken;
+      final String email = googleAccount.email;
+      final String name = googleAccount.displayName ?? "";
+      final String? photoUrl = googleAccount.photoUrl;
+
+      log("Google user retrieved: email=$email, name=$name, hasIdToken=${idToken.isNotEmpty}");
+
+      // Ensure device token exists
+      String fcmToken = sharedPreferences?.getString("deviceToken") ?? "";
+      if (fcmToken.isEmpty) {
+        try {
+          fcmToken = (await FirebaseMessaging.instance.getToken()) ?? "";
+          if (fcmToken.isNotEmpty) {
+            sharedPreferences?.setString("deviceToken", fcmToken);
+          }
+        } catch (e) {
+          log("Error fetching FCM token: $e");
+        }
+      }
+
+      var response = await _authRemoteData.googleAuth(
+        idToken: idToken,
+        accessToken: accessToken,
+        email: email,
+        name: name,
+        avatar: photoUrl,
+        fcmToken: fcmToken,
+      );
+
+      statuesRequest = handlingData(response);
+
+      if (statuesRequest == StatuesRequest.success) {
+        if (response['code'] == 404 ||
+            response['code'] == "404" ||
+            response['status'] == 'error') {
+          showUserFriendlyError(
+            StatuesRequest.badRequestException,
+            customMessage: response['message']?.toString() ??
+                (Get.locale?.languageCode == 'ar'
+                    ? "فشل تسجيل الدخول باستخدام حساب Google"
+                    : "Google authentication failed"),
+          );
+        } else {
+          log("Google Login/Register Successful: $response");
+          _saveUserDataAndNavigate(response);
+        }
+      } else if (statuesRequest == StatuesRequest.unprocessableException) {
+        showUserFriendlyError(
+          statuesRequest,
+          customMessage: Api.serverMessage ??
+              (Get.locale?.languageCode == 'ar'
+                  ? "البيانات المدخلة غير صالحة"
+                  : "Unprocessable entity"),
+        );
+      } else {
+        showUserFriendlyError(
+          statuesRequest,
+          customMessage: Api.serverMessage ??
+              (Get.locale?.languageCode == 'ar'
+                  ? "فشل الاتصال بالخادم، يرجى المحاولة لاحقاً"
+                  : "Server connection failed"),
+        );
+      }
+    } catch (e, stack) {
+      log("Exception in signInWithGoogle: $e\n$stack");
+      Get.snackbar(
+        Get.locale?.languageCode == 'ar' ? "تنبيه" : "Notice",
+        Get.locale?.languageCode == 'ar'
+            ? "تعذر إتمام تسجيل الدخول باستخدام Google، يرجى المحاولة مرة أخرى."
+            : "Could not complete Google Sign-In, please try again.",
+        backgroundColor: AppColors.redColor,
+        colorText: AppColors.blackTextColor,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isGoogleLoading = false;
+      update();
+    }
+  }
   final AuthRemoteData _authRemoteData = AuthRemoteData(api: Get.find<Api>());
 
   login() async {

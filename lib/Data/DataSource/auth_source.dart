@@ -18,6 +18,34 @@ class AuthRemoteData {
         : "light";
   }
 
+  googleAuth({
+    required String idToken,
+    String? accessToken,
+    required String email,
+    required String name,
+    String? avatar,
+    required String fcmToken,
+  }) async {
+    Map<String, dynamic> data = {
+      "id_token": idToken,
+      "email": email,
+      "name": name,
+      "fcm_token": fcmToken,
+      "mobile_theme": _getMobileTheme(),
+    };
+    if (accessToken != null && accessToken.isNotEmpty) {
+      data["access_token"] = accessToken;
+    }
+    if (avatar != null && avatar.isNotEmpty) {
+      data["avatar"] = avatar;
+    }
+    var response = await api.postData(
+      "${AppApi.googleAuthUrl}?device_id=$deviceId",
+      data,
+    );
+    return response.fold((l) => l, (r) => r);
+  }
+
   login({required email}) async {
     var response = await api.postData("${AppApi.loginUrl}?device_id=$deviceId", {
       "email": email,

@@ -16,6 +16,7 @@ class AppApi {
   static const String sendStars = "$baseUrl/send-stars";
 
   //AUth
+  static const String googleAuthUrl = "$baseUrl/auth/google";
   static const String loginUrl = "$baseUrl/auth/login";
   static const String registerUrl = "$baseUrl/auth/register";
   static const String checkOTPUrl = "$baseUrl/auth/check-otp";

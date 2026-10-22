@@ -12,7 +12,12 @@
           "package_name": "com.liveChat.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "273991677038-u7opovl31m7lph9uqs3blrg3namnen5a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDh9ayCGep3CzL9euNCGnHzaRx3cS_UUDg"
@@ -20,7 +25,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "273991677038-u7opovl31m7lph9uqs3blrg3namnen5a.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

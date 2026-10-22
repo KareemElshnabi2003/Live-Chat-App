@@ -1,3 +1,4 @@
+import 'package:live_chat/View/Widget/PublicWidget/google_logo.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -40,17 +41,17 @@ void showBottomSheetWidget(
             duration: const Duration(milliseconds: 300),
             height: MediaQuery.of(context).viewInsets.bottom > 0
                 ? c.sheetName == "register2"
-                ? 70.h
+                ? 74.h
                 : c.sheetName == 'verifyLogin' ||
                 c.sheetName == 'verifyRegister'
                 ? 55.h
-                : 60.h
+                : 66.h
                 : c.sheetName == 'verifyLogin' ||
                 c.sheetName == 'verifyRegister'
                 ? 55.h
                 : c.sheetName == "register2"
-                ? 65.h
-                : 60.h,
+                ? 72.h
+                : 66.h,
             child: SingleChildScrollView(
               child: Column(
                 children: [
@@ -410,6 +411,116 @@ void showBottomSheetWidget(
                                   : AppColors.blackColor,
                               3.7.w,
                             ),
+                          // OR Divider & Google Sign-In Button (Only on Login & register2)
+                          if (c.sheetName == 'Login' ||
+                              c.sheetName == 'register2') ...[
+                            SizedBox(height: 1.8.h),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    height: 1,
+                                    color: pref!
+                                        ? Colors.white.withOpacity(0.12)
+                                        : Colors.black.withOpacity(0.10),
+                                  ),
+                                ),
+                                Padding(
+                                  padding:
+                                      EdgeInsets.symmetric(horizontal: 3.5.w),
+                                  child: Text(
+                                    isRtl ? "أو" : "OR",
+                                    style: GoogleFonts.ibmPlexSansArabic(
+                                      color: pref!
+                                          ? AppColors.inActiveColor
+                                          : AppColors.black2TextColor,
+                                      fontSize: 3.2.w,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    height: 1,
+                                    color: pref!
+                                        ? Colors.white.withOpacity(0.12)
+                                        : Colors.black.withOpacity(0.10),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 1.8.h),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(30),
+                              onTap: () {
+                                c.signInWithGoogle();
+                              },
+                              child: Container(
+                                width: 92.w,
+                                height: 5.6.h,
+                                decoration: BoxDecoration(
+                                  color: pref!
+                                      ? const Color(0xFF1E1E1E)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(
+                                    color: pref!
+                                        ? Colors.white.withOpacity(0.18)
+                                        : Colors.black.withOpacity(0.12),
+                                    width: 1.2,
+                                  ),
+                                  boxShadow: pref!
+                                      ? null
+                                      : [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.04),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                ),
+                                child: c.isGoogleLoading
+                                    ? Center(
+                                        child: SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: pref!
+                                                ? AppColors.whiteColor
+                                                : AppColors.blackColor,
+                                          ),
+                                        ),
+                                      )
+                                    : Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const GoogleLogo(size: 20),
+                                          SizedBox(width: 2.5.w),
+                                          Text(
+                                            c.sheetName == 'Login'
+                                                ? (isRtl
+                                                    ? "المتابعة باستخدام Google"
+                                                    : "Continue with Google")
+                                                : (isRtl
+                                                    ? "التسجيل باستخدام Google"
+                                                    : "Sign up with Google"),
+                                            style:
+                                                GoogleFonts.ibmPlexSansArabic(
+                                              color: pref!
+                                                  ? AppColors.whiteColor
+                                                  : const Color(0xFF1F1F1F),
+                                              fontSize: 3.5.w,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                            ),
+                          ],
                           const SizedBox(
                             height: 15,
                           ),
