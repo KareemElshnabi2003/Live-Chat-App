@@ -58,9 +58,16 @@ const AndroidNotificationChannel highImportanceChannel =
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // 🛡️ فحص ما إذا كان المستخدم قد أوقف الإشعارات من إعدادات التطبيق
+  // 🛡️ فحص ما إذا كان المستخدم مسجل الدخول وما إذا كان الحساب نشطاً
   try {
     final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+    final myId = prefs.getString("id") ?? prefs.getString("idGust");
+    if (token == null || token.isEmpty || myId == null || myId.isEmpty) {
+      print("🔇 [BACKGROUND] No logged-in user account found (logged out or deleted account). Ignoring FCM completely.");
+      return;
+    }
+
     final bool isEnabled = prefs.getBool('notificationsEnabled') ?? true;
     if (!isEnabled) {
       print(
@@ -82,11 +89,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final data = message.data;
   final status = data['status'] ?? '';
   final type = data['type'] ?? '';
+  final rawMsg = (data['message'] ?? data['body'] ?? message.notification?.body ?? '').toString();
 
   bool isCall = status == "started_call" ||
       status == "start_call" ||
       type == "call" ||
-      data['call_type'] != null;
+      data['call_type'] != null ||
+      rawMsg.startsWith('|||GROUP_CALL_START|||') ||
+      rawMsg.startsWith('|||PRIVATE_CALL_START|||') ||
+      rawMsg.contains('CALL_START');
 
   if (isCall) {
     final callInfo =
@@ -477,6 +488,14 @@ class FirebaseNotification {
   // handle foreground messages
   Future<void> handleForGround() async {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // 🛡️ إذا لم يكن المستخدم مسجل الدخول، يتم تجاهل الرسالة بالكامل فوراً
+      final token = sharedPreferences?.getString("token");
+      final myUserId = sharedPreferences?.getString("id") ?? sharedPreferences?.getString("idGust");
+      if (token == null || token.isEmpty || myUserId == null || myUserId.isEmpty) {
+        log("🔇 [FOREGROUND] No logged-in user account found (logged out or deleted account). Ignoring FCM completely.");
+        return;
+      }
+
       // 🛡️ إذا كانت الإشعارات ملغاة من الإعدادات، يتم تجاهل الرسالة بالكامل فوراً
       final bool isNotificationsGloballyEnabled =
           sharedPreferences?.getBool('notificationsEnabled') ?? true;
@@ -498,12 +517,16 @@ class FirebaseNotification {
 
       final type = data['type'] ?? '';
       final status = data['status'] ?? '';
+      final rawMsg = (data['message'] ?? data['body'] ?? notification?.body ?? '').toString();
 
       // 🔔 Handle call notification
       bool isCallNotification = status == "started_call" ||
           status == "start_call" ||
           type == "call" ||
-          data['call_type'] != null;
+          data['call_type'] != null ||
+          rawMsg.startsWith('|||GROUP_CALL_START|||') ||
+          rawMsg.startsWith('|||PRIVATE_CALL_START|||') ||
+          rawMsg.contains('CALL_START');
 
       if (isCallNotification) {
         final callInfo =
@@ -568,9 +591,10 @@ class FirebaseNotification {
 
         Map<int, String> groubUsersNames = {};
         if (callInfo.isGroup) {
+          final myCurrentId = int.tryParse(sharedPreferences?.getString("id") ?? "0") ?? 0;
           groubUsersNames = {
-            int.parse(sharedPreferences!.getString("id")!):
-                sharedPreferences!.getString("username") ?? 'You'
+            myCurrentId:
+                sharedPreferences?.getString("username") ?? 'You'
           };
           if (callInfo.callerId.isNotEmpty) {
             final cId = int.tryParse(callInfo.callerId) ?? 0;
@@ -1059,12 +1083,16 @@ class FirebaseNotification {
 
     final type = data['type'] ?? '';
     final status = data['status'] ?? '';
+    final rawMsg = (data['message'] ?? data['body'] ?? remotemess.notification?.body ?? '').toString();
 
     // 🔔 Handle call notification (when app was closed/background)
     bool isCallNotification = status == "started_call" ||
         status == "start_call" ||
         type == "call" ||
-        data['call_type'] != null;
+        data['call_type'] != null ||
+        rawMsg.startsWith('|||GROUP_CALL_START|||') ||
+        rawMsg.startsWith('|||PRIVATE_CALL_START|||') ||
+        rawMsg.contains('CALL_START');
 
     if (isCallNotification) {
       final callInfo = CallDataHelper.normalizeCallData(data, source: "ON_TAP");
@@ -1129,9 +1157,10 @@ class FirebaseNotification {
       // For group calls, prepare user names map
       Map<int, String> groubUsersNames = {};
       if (callInfo.isGroup) {
+        final currentMyId = int.tryParse(sharedPreferences?.getString("id") ?? "0") ?? 0;
         groubUsersNames = {
-          int.parse(sharedPreferences!.getString("id")!):
-              sharedPreferences!.getString("username") ?? 'You'
+          currentMyId:
+              sharedPreferences?.getString("username") ?? 'You'
         };
 
         if (callInfo.callerId.isNotEmpty) {

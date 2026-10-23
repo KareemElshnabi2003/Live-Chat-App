@@ -221,28 +221,33 @@ class VideoCallController extends GetxController {
   }
 
   Future<void> _configureMediaSettings() async {
-    // 🌟 إعدادات متكيفة حسب نوع المكالمة (فردي vs جماعي) لتقليل استهلاك البطارية والإنترنت ومنع التعليق
+    // 🌟 إعدادات عالية الجودة (HD 720p) للمكالمات الفردية و (540p) للمكالمات الجماعية
     final videoConfig = isGroubCall
         ? const VideoEncoderConfiguration(
-            dimensions: VideoDimensions(width: 480, height: 360),
-            frameRate: 15,
-            bitrate: 400,
+            dimensions: VideoDimensions(width: 960, height: 540),
+            frameRate: 24,
+            bitrate: 1100,
             orientationMode: OrientationMode.orientationModeAdaptive,
-            degradationPreference: DegradationPreference.maintainFramerate,
+            degradationPreference: DegradationPreference.maintainBalanced,
           )
         : const VideoEncoderConfiguration(
-            dimensions: VideoDimensions(width: 848, height: 480),
-            frameRate: 24,
-            bitrate: 800,
+            dimensions: VideoDimensions(width: 1280, height: 720),
+            frameRate: 30,
+            bitrate: 1800,
             orientationMode: OrientationMode.orientationModeAdaptive,
-            degradationPreference: DegradationPreference.maintainFramerate,
+            degradationPreference: DegradationPreference.maintainBalanced,
           );
 
     await Future.wait([
       _engine!.setVideoEncoderConfiguration(videoConfig),
+      _engine!.setCameraCapturerConfiguration(
+        const CameraCapturerConfiguration(
+          cameraDirection: CameraDirection.cameraFront,
+        ),
+      ),
       _engine!.setAudioProfile(
-        profile: AudioProfileType.audioProfileSpeechStandard,
-        scenario: AudioScenarioType.audioScenarioChatroom,
+        profile: AudioProfileType.audioProfileDefault,
+        scenario: AudioScenarioType.audioScenarioGameStreaming,
       ),
       _engine!.enableAudioVolumeIndication(
         interval: 250,

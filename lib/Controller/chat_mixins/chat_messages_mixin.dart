@@ -146,13 +146,12 @@ mixin ChatMessagesMixin on ChatBaseController {
 
     if (isNotFriend) {
       final otherUserId = getOtherUserId();
-      final myId = sharedPreferences?.getString("id")?.trim() ?? "";
-      final bool hasIncomingMessage = messages.any((m) => !m.isFromSender) ||
-          (userChatModel?.lastMessage != null &&
-              userChatModel!.lastMessage!.senderId?.toString() != myId);
+      final bool isIncomingRequest = (userChatModel?.accept == "1" ||
+          isFakeRequest ||
+          userChatModel?.status?.toLowerCase() == "request_received");
 
       if (otherUserId != null) {
-        if (hasIncomingMessage && !answer) {
+        if (isIncomingRequest && !answer) {
           answer = true;
           try {
             await chatsRemoteData.acceptOrRejectRequestFriend(

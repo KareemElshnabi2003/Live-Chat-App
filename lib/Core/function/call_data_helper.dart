@@ -35,9 +35,15 @@ class CallDataHelper {
     final rawIsGroup = data['is_group'] ?? data['isGroup'] ?? data['is_groub'] ?? data['isGroub'];
     final rawCallType = data['call_type'] ?? data['callType'] ?? data['type'];
 
+    final rawMsg = (data['message'] ?? data['body'] ?? '').toString();
+
     // 1. تفسير isGroup بكل الصيغ الممكنة (boolean, number, string)
     bool isGroup = false;
-    if (rawIsGroup != null) {
+    if (rawMsg.contains('|||GROUP_CALL_START|||')) {
+      isGroup = true;
+    } else if (rawMsg.contains('|||PRIVATE_CALL_START|||')) {
+      isGroup = false;
+    } else if (rawIsGroup != null) {
       if (rawIsGroup is bool) {
         isGroup = rawIsGroup;
       } else if (rawIsGroup is num) {
@@ -56,7 +62,15 @@ class CallDataHelper {
     // 2. تفسير callType و isAudio
     String callType = 'audio';
     bool isAudio = true;
-    if (rawCallType != null) {
+    if (rawMsg.contains('|||GROUP_CALL_START|||') || rawMsg.contains('|||PRIVATE_CALL_START|||')) {
+      if (rawMsg.endsWith('video') || rawMsg.contains('video')) {
+        callType = 'video';
+        isAudio = false;
+      } else {
+        callType = 'audio';
+        isAudio = true;
+      }
+    } else if (rawCallType != null) {
       final str = rawCallType.toString().trim().toLowerCase();
       if (str.contains('video')) {
         callType = 'video';

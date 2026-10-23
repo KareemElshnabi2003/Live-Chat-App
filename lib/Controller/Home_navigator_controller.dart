@@ -37,6 +37,8 @@ import 'package:live_chat/View/Widget/shared_chats_screen.dart';
 import 'package:live_chat/Controller/handel_notification.dart';
 import 'package:live_chat/generated/l10n.dart';
 import 'package:live_chat/main.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:uuid/uuid.dart';
 
 class HomeNavigationController extends GetxController {
@@ -287,6 +289,12 @@ class HomeNavigationController extends GetxController {
     statuesRequest = handlingData(response);
 
     if (statuesRequest == StatuesRequest.success) {
+      try {
+        await FirebaseMessaging.instance.deleteToken();
+        await FlutterCallkitIncoming.endAllCalls();
+      } catch (e) {
+        log("❌ Error deleting FCM token or ending calls on logout: $e");
+      }
       sharedPreferences!.clear();
       try {
         String? deviceId = sharedPreferences!.getString("deviceId");
@@ -562,6 +570,12 @@ class HomeNavigationController extends GetxController {
     statuesRequest = handlingData(response);
 
     if (statuesRequest == StatuesRequest.success) {
+      try {
+        await FirebaseMessaging.instance.deleteToken();
+        await FlutterCallkitIncoming.endAllCalls();
+      } catch (e) {
+        log("❌ Error deleting FCM token or ending calls on delete account: $e");
+      }
       sharedPreferences!.clear();
       try {
         String? deviceId = sharedPreferences!.getString("deviceId");

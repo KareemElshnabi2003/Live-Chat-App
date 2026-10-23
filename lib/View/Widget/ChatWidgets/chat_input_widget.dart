@@ -37,10 +37,11 @@ class ChatInputWidget extends StatelessWidget {
     final bool isBlockedByThem = isBlocked == "They blocked you";
     final bool isGeneralBlocked = isBlockedByMe || isBlockedByThem || isBlocked == "blocked";
 
-    final myId = sharedPreferences?.getString("id")?.trim() ?? "";
-    final bool hasIncomingMessage = controller.messages.any((m) => !m.isFromSender) ||
-        (userChatModel.lastMessage != null &&
-            userChatModel.lastMessage!.senderId?.toString() != myId);
+    final bool isFriendRequestPendingForMe = isNotFriend &&
+        answer == false &&
+        (userChatModel.accept == "1" ||
+            controller.isFakeRequest == true ||
+            userChatModel.status?.toLowerCase() == "request_received");
 
     if (isGeneralBlocked) {
       if (isBlockedByMe || isBlocked == "blocked") {
@@ -144,7 +145,7 @@ class ChatInputWidget extends StatelessWidget {
           ),
         );
       }
-    } else if (isNotFriend && hasIncomingMessage && answer == false) {
+    } else if (isFriendRequestPendingForMe) {
       return _buildAcceptOrCancelArea(context);
     } else {
       return _buildMessageInput(context);

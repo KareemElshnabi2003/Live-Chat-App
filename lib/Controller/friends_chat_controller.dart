@@ -8,6 +8,7 @@ import 'package:live_chat/Data/DataSource/chats_source.dart';
 import 'package:live_chat/Data/Model/friend_suggest_model.dart';
 import 'package:live_chat/Data/Model/user_chat_model.dart';
 import 'package:live_chat/View/Screens/create%20chat/chat_view.dart';
+import 'package:live_chat/View/Widget/ChatWidgets/chat_helpers.dart';
 
 class FriendsChatContoller extends GetxController {
   final ChatsRemoteData _chatsRemoteData = ChatsRemoteData(api: Get.put(Api()));
@@ -151,6 +152,29 @@ class FriendsChatContoller extends GetxController {
     );
 
     statuesRequest = handlingData(response);
+
+    if (statuesRequest != StatuesRequest.success) {
+      final rawMsg = Api.serverMessage?.toLowerCase() ??
+          (response is Map ? response['message']?.toString().toLowerCase() ?? '' : '');
+      final isRequestNeeded = rawMsg.contains("اقبل طلب") ||
+          rawMsg.contains("طلب صداقة") ||
+          rawMsg.contains("accept friend request");
+
+      if (isRequestNeeded) {
+        Api.serverMessage = null;
+        final userChat = await ChatHelpers.openChatWithFriendRequestTrick(
+          chatsRemoteData: _chatsRemoteData,
+          friendId: friendID,
+          friend: friend,
+          navigateToChats: (u) => navigateToChats(userchat: u),
+        );
+        if (userChat != null) {
+          statuesRequest = StatuesRequest.none;
+          update();
+          return;
+        }
+      }
+    }
 
     if (statuesRequest == StatuesRequest.success) {
       final userChat = UserChatModel.fromJson(response['data']);

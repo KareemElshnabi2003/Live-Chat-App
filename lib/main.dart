@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:get/get.dart';
 import 'package:live_chat/Controller/handel_notification.dart';
 import 'package:live_chat/Controller/langauge_controller.dart';
@@ -77,6 +78,13 @@ void main() async {
   print("device id>>>>> ${sharedPreferences!.getString("deviceId")}");
   print("token>>>>> ${sharedPreferences!.getString("token")}");
   print("✅ Firebase initialized successfully");
+
+  final String? savedToken = sharedPreferences!.getString("token");
+  if (savedToken == null || savedToken.isEmpty) {
+    try {
+      FlutterCallkitIncoming.endAllCalls();
+    } catch (_) {}
+  }
 
   sharedPreferences!.getBool("isDarkMode") ??
       await sharedPreferences!.setBool("isDarkMode", false);
