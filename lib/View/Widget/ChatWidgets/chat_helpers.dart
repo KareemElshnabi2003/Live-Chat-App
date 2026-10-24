@@ -19,8 +19,14 @@ import 'package:live_chat/generated/l10n.dart';
 import 'package:screen_go/extensions/responsive_nums.dart';
 
 class ChatHelpers {
-  // 🌟 حيلة فتح شات طلب الصداقة:
-  // ارسال طلب -> جلب الماسدج -> الغاء الطلب الي بعته
+  // 🌟 حيلة فتح شات طلب صداقة وارد ليك (أنت المُستقبِل) عشان تقدر تشوف الرسايل قبل
+  // ما تقرر: تبعت طلب متبادل مؤقت (ده اللي بيفك قفل getMessages عند السيرفر) -> تجيب
+  // الرسايل -> تلغي الطلب المؤقت ده فورًا (مش تبعته تاني - ده كان الباج). بعد كده المستخدم
+  // بيشوف بانر "فلان بيحاول يتواصل معاك" مبني على الطلب الأصلي (مش المؤقت) ويقرر قبول/رفض.
+  //
+  // ⚠️ استخدم الدالة دي بس لو فعلاً فيه طلب صداقة وارد حقيقي (status == request_received).
+  // لو الشخص مش صديق أصلاً وملوش طلب معلّق (زي الأصدقاء المقترحين، أو حد اتعمله Unfriend)،
+  // متستخدمهاش خالص - سيب الشات يتفتح عادي من غير أي API call (shouldSkipInitialGetMessages).
   static Future<UserChatModel?> openChatWithFriendRequestTrick({
     required ChatsRemoteData chatsRemoteData,
     required dynamic friendId,
@@ -31,7 +37,7 @@ class ChatHelpers {
     if (idInt == null) return null;
 
     try {
-      // 1. إرسال طلب صداقة لفتح الصلاحية في السيرفر
+      // 1. طلب متبادل مؤقت عشان يفك قفل getMessages عند السيرفر
       await chatsRemoteData.sendFriendRequest(friendId: idInt);
 
       // 2. إنشاء / جلب المحادثة
@@ -88,20 +94,26 @@ class ChatHelpers {
           log("Error pre-fetching messages: $e");
         }
 
-        // 4. إلغاء الطلب فوراً
-        await chatsRemoteData.sendFriendRequest(friendId: idInt);
+        // 4. إلغاء الطلب المؤقت فعليًا (status: 0 = رفض/إلغاء - مش إرسال تاني)
+        try {
+          await chatsRemoteData.acceptOrRejectRequestFriend(status: 0, friendId: idInt);
+        } catch (e) {
+          log("Error cancelling temporary request: $e");
+        }
 
         // 5. فتح الشات
         navigateToChats(userChat);
         return userChat;
       } else {
-        await chatsRemoteData.sendFriendRequest(friendId: idInt);
+        try {
+          await chatsRemoteData.acceptOrRejectRequestFriend(status: 0, friendId: idInt);
+        } catch (_) {}
         return null;
       }
     } catch (e) {
       log("Error in openChatWithFriendRequestTrick: $e");
       try {
-        await chatsRemoteData.sendFriendRequest(friendId: idInt);
+        await chatsRemoteData.acceptOrRejectRequestFriend(status: 0, friendId: idInt);
       } catch (_) {}
       return null;
     }

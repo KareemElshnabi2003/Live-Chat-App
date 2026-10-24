@@ -739,7 +739,12 @@ class HomeNavigationController extends GetxController {
           rawMsg.contains("طلب صداقة") ||
           rawMsg.contains("accept friend request");
 
-      if (isRequestNeeded) {
+      final statusToCheck = friend?.requestStatus?.toLowerCase() ?? requestStatus.toLowerCase();
+      final hasRealIncomingRequest =
+          statusToCheck == "request_received" ||
+          statusToCheck == "request_recived";
+
+      if (isRequestNeeded && hasRealIncomingRequest) {
         Api.serverMessage = null;
         final userChat = await ChatHelpers.openChatWithFriendRequestTrick(
           chatsRemoteData: _chatsRemoteData,
@@ -752,6 +757,26 @@ class HomeNavigationController extends GetxController {
           update();
           return;
         }
+      } else if (isRequestNeeded) {
+        // مش طلب وارد حقيقي - افتح الشات عادي من غير أي API call، زي أي مش-صديق تاني
+        final userChat = UserChatModel(
+          id: friend?.conversationId,
+          name: friend?.name ?? friend?.username ?? '',
+          image: friend?.image,
+          status: "not friend",
+          lastMessage: friend?.lastMessage,
+          user: User(
+            id: friend?.id ?? friendID,
+            name: friend?.name,
+            username: friend?.username,
+            image: friend?.image,
+          ),
+        );
+        userChat.otherUserId = friendID;
+        statuesRequest = StatuesRequest.none;
+        update();
+        navigateToChats(userchat: userChat);
+        return;
       }
     }
 

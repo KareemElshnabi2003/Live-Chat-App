@@ -56,6 +56,9 @@ const AndroidNotificationChannel highImportanceChannel =
 // ⚠️ IMPORTANT: Top-level function for background notifications
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // 🆕 لازم تتنادى الأول في أي background isolate - من غيرها SharedPreferences
+  // وأي plugin تاني ممكن يرجع قيم فاضية/null حتى لو البيانات موجودة فعليًا على الجهاز
+  WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // 🛡️ فحص ما إذا كان المستخدم مسجل الدخول وما إذا كان الحساب نشطاً

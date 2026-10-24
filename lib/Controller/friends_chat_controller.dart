@@ -160,7 +160,13 @@ class FriendsChatContoller extends GetxController {
           rawMsg.contains("طلب صداقة") ||
           rawMsg.contains("accept friend request");
 
-      if (isRequestNeeded) {
+      // 🆕 الحيلة دي بس لو فعلاً فيه طلب صداقة وارد مني من الشخص ده (مش لأي حد تاني
+      // مش صديق - زي الأصدقاء المقترحين، أو حد اتعمله Unfriend وملوش طلب معلّق خالص)
+      final hasRealIncomingRequest =
+          friend?.requestStatus?.toLowerCase() == "request_received" ||
+          friend?.requestStatus?.toLowerCase() == "request_recived";
+
+      if (isRequestNeeded && hasRealIncomingRequest) {
         Api.serverMessage = null;
         final userChat = await ChatHelpers.openChatWithFriendRequestTrick(
           chatsRemoteData: _chatsRemoteData,
@@ -173,6 +179,25 @@ class FriendsChatContoller extends GetxController {
           update();
           return;
         }
+      } else if (isRequestNeeded) {
+        // مش طلب وارد حقيقي - افتح الشات عادي من غير أي API call، زي أي مش-صديق تاني
+        final userChat = UserChatModel(
+          id: friend?.conversationId,
+          name: friend?.name ?? friend?.username ?? '',
+          image: friend?.image,
+          status: "not friend",
+          lastMessage: friend?.lastMessage,
+          user: User(
+            id: friend?.id ?? friendID,
+            name: friend?.name,
+            username: friend?.username,
+            image: friend?.image,
+          ),
+        );
+        statuesRequest = StatuesRequest.none;
+        update();
+        navigateToChats(userchat: userChat);
+        return;
       }
     }
 

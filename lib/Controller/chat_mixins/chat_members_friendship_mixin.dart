@@ -156,7 +156,10 @@ mixin ChatMembersFriendshipMixin on ChatBaseController {
 
   Future<bool> cancelFakeFriendRequest({required dynamic friendID}) async {
     try {
-      var response = await chatsRemoteData.sendFriendRequest(friendId: friendID);
+      var response = await chatsRemoteData.acceptOrRejectRequestFriend(
+        status: 0,
+        friendId: friendID,
+      );
       final status = handlingData(response);
       return status == StatuesRequest.success;
     } catch (_) {
@@ -208,7 +211,13 @@ mixin ChatMembersFriendshipMixin on ChatBaseController {
           rawMsg.contains("طلب صداقة") ||
           rawMsg.contains("accept friend request");
 
-      if (isRequestNeeded) {
+      final matchingMember = members.firstWhereOrNull((m) => m.id?.toString() == friendID.toString()) ??
+          memmbersRequests.firstWhereOrNull((m) => m.id?.toString() == friendID.toString());
+      final hasRealIncomingRequest =
+          matchingMember?.requestStatus?.toLowerCase() == "request_received" ||
+          matchingMember?.requestStatus?.toLowerCase() == "request_recived";
+
+      if (isRequestNeeded && hasRealIncomingRequest) {
         Api.serverMessage = null;
         final userChat = await ChatHelpers.openChatWithFriendRequestTrick(
           chatsRemoteData: chatsRemoteData,
@@ -220,6 +229,25 @@ mixin ChatMembersFriendshipMixin on ChatBaseController {
           update();
           return;
         }
+      } else if (isRequestNeeded) {
+        // مش طلب وارد حقيقي - افتح الشات عادي من غير أي API call، زي أي مش-صديق تاني
+        final otherId = friendID is int ? friendID : int.tryParse(friendID.toString());
+        final userChat = UserChatModel(
+          name: matchingMember?.username ?? '',
+          image: matchingMember?.image,
+          status: "not friend",
+          user: User(
+            id: otherId,
+            name: matchingMember?.username,
+            username: matchingMember?.username,
+            image: matchingMember?.image,
+          ),
+        );
+        userChat.otherUserId = otherId;
+        statuesRequest = StatuesRequest.none;
+        update();
+        navigateToChats(userchat: userChat);
+        return;
       }
     }
     statuesRequest = status;
