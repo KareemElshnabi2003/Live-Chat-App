@@ -37,77 +37,88 @@
   ```
 
 ### 3. `lib/Data/DataSource/auth_source.dart`
-- تم إضافة دالة `googleAuth`:
+- تم تحديث دالة `googleAuth`:
   ```dart
   googleAuth({
-    required String idToken,
-    String? accessToken,
-    required String email,
-    required String name,
-    String? avatar,
-    required String fcmToken,
+    required String credential,
+    String? fcmToken,
   })
   ```
-- تقوم بإرسال البيانات مع الـ `device_id` و `mobile_theme` الحالي ("dark" أو "light").
+- تقوم بإرسال الـ `credential` (ID token) مع `mobile_theme` ("dark" أو "light") و `fcm_token` إلى `POST /api/v1/auth/google?device_id=$deviceId`.
 
 ### 4. `lib/Controller/page_start_controller.dart`
 - **`signInWithGoogle()`**:
-  1. استدعاء `_googleSignIn.signIn()`.
-  2. التعامل السلس مع حالات الإلغاء في حال تراجع المستخدم.
-  3. استخراج التوكن الأمني (`idToken`) والبيانات الشخصية (`email`, `name`, `photoUrl`).
-  4. استخراج توكن الإشعارات (`fcmToken`) للجهاز.
-  5. إرسال الطلب إلى الـ Backend ومتابعة حالة الاستجابة.
-- **`_saveUserDataAndNavigate(response)`**:
-  - تخزين بيانات الحساب في `sharedPreferences` (`name`, `bio`, `id`, `img`, `username`, `email`, `stars`, `token`, `powermodel`, `page: Home`).
-  - مسح بيانات جلسة الزائر المؤقتة (`idGust`, `usernameGust`).
-  - الانتقال السلس إلى الواجهة الرئيسية `HomeView()`.
+  1. تهيئة `_googleSignIn` مع `serverClientId` لضمان توليد الـ `idToken`.
+  2. استدعاء `_googleSignIn.signIn()`.
+  3. استخراج الـ `credential` (`idToken`) وتوكن الإشعارات `fcmToken`.
+  4. إرسال الطلب إلى الـ Backend ومتابعة حالة الاستجابة:
+     - **الحالة الأولى (`status: "authenticated"`):** البريد مسجل وموثق، يتم حفظ الـ `token` وبيانات الحساب والانتقال مباشرة إلى `HomeView()`.
+     - **الحالة الثانية (`status: "otp_required"`):** حساب جديد، يتم تحويل الشاشة فوراً إلى إدخال كود التحقق `verifyLogin` مع تعيين البريد وعرض إشعار بنجاح إرسال الكود إلى بريده.
+- **التحقق من الكود (`verifyLogin` / `checkOTP`)**:
+  - يتم استدعاء `POST /api/v1/auth/check-otp` بالبيانات `{ "email": "...", "token": "123456", "fcm_token": "...", "mobile_theme": "..." }`.
+  - عند النجاح، يتم استلام بيانات المستخدم مع الـ `token` وحفظها والانتقال للشاشة الرئيسية.
+  - عند الخطأ (404)، يتم عرض رسالة الخطأ الواضحة من السيرفر.
 
 ---
 
-## 3. الدليل الخاص بمطور الباك إند (Backend Developer Guide)
+## 3. مواصفات الـ API الفعلي (Backend API Specification)
 
-لإتمام عملية التسجيل وتسجيل الدخول عبر Google، يحتاج الباك إند لتجهيز Endpoint واحد موحد:
-
-### أ. بيانات الطلب (Request Specification):
-- **الـ Endpoint:** `POST /api/v1/auth/google?device_id={uuid}`
-- **الـ Headers:** `Content-Type: application/json`, `Accept: application/json`
+### أ. تسجيل الدخول بجوجل (Google Sign-In)
+- **الـ Endpoint:** `POST /api/v1/auth/google`
+- **الـ Headers:**
+  - `Content-Type: application/json`
+  - `Accept: application/json`
+  - `Accept-Language: ar` (أو `en`)
 - **الـ Body المرسل:**
   ```json
   {
-    "id_token": "eyJhbGciOiJSUzI1NiIsImtp...",
-    "access_token": "ya29.a0AfH6...",
-    "email": "user@gmail.com",
-    "name": "اسم المستخدم",
-    "avatar": "https://lh3.googleusercontent.com/...",
-    "fcm_token": "fcm_device_token_here",
-    "mobile_theme": "dark"
+    "credential": "<Google ID Token>",
+    "fcm_token": "...",
+    "mobile_theme": "light"
   }
   ```
-
-### ب. منطق العمل المطلوب في السيرفر (Server Logic):
-1. **التحقق من التوكن:** فحص صحة `id_token` للتأكد من هوية المستخدم الحقيقية من Google.
-2. **فحص وجود البريد:**
-   - **إذا كان البريد مسجلاً مسبقاً (Login):** يتم تسجيل دخوله مباشرة وتحديث توكن الإشعارات.
-   - **إذا كان البريد جديداً (Sign Up):** يتم إنشاء حساب جديد مباشرة، وتوليد اسم مستخدم تلقائي فريد (Unique Username) مثل `user_1234`، وتفعيل الحساب فوراً دون طلب OTP.
-3. **الاستجابة المطلوبة (Expected Response):**
-   ```json
-   {
-     "status": "success",
-     "code": 200,
-     "message": "تم تسجيل الدخول بنجاح",
-     "data": {
-       "id": 123,
-       "name": "اسم المستخدم",
-       "username": "user_1234",
-       "email": "user@gmail.com",
-       "image": "https://...",
-       "bio": "",
-       "number_of_stars": 0,
-       "token": "BEARER_AUTH_TOKEN_HERE",
-       "user_power": {}
+- **حالات الاستجابة:**
+  1. **إيميل مسجل وموثق:**
+     ```json
+     {
+       "data": {
+         "status": "authenticated",
+         "id": 1,
+         "name": "...",
+         "username": "...",
+         "image": "...",
+         "email": "...",
+         "bio": "...",
+         "token": "xxxxx",
+         "number_of_stars": 0,
+         "user_power": 0
+       }
      }
-   }
-   ```
+     ```
+  2. **إيميل جديد (أول مرة):**
+     ```json
+     {
+       "data": {
+         "status": "otp_required",
+         "email": "user@gmail.com"
+       }
+     }
+     ```
+
+### ب. التحقق من كود الـ OTP (Check OTP)
+- **الـ Endpoint:** `POST /api/v1/auth/check-otp`
+- **الـ Body المرسل:**
+  ```json
+  {
+    "email": "user@gmail.com",
+    "token": "123456",
+    "fcm_token": "...",
+    "mobile_theme": "light"
+  }
+  ```
+- **الاستجابة:**
+  - **نجاح (200):** يرجع بيانات المستخدم كـ LoginResource متضمناً الـ `token` دون وجود مفتاح `status`.
+  - **فشل (404):** رسالة خطأ بعدم صحة الكود أو انتهاء صلاحيته.
 
 ---
 

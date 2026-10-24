@@ -389,6 +389,8 @@ class PageStartController extends GetxController {
   StatuesRequest statuesRequest = StatuesRequest.none;
   bool isGoogleLoading = false;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId:
+        "273991677038-u7opovl31m7lph9uqs3blrg3namnen5a.apps.googleusercontent.com",
     scopes: ['email', 'profile'],
   );
 
@@ -409,17 +411,21 @@ class PageStartController extends GetxController {
       log("❌ Error generating/saving UUID: $e");
     }
 
-    sharedPreferences!.setString("name", responseBody['data']['name'] ?? "");
-    sharedPreferences!.setString("bio", responseBody['data']['bio'] ?? "");
-    sharedPreferences!.setString("id", responseBody['data']['id'].toString());
-    sharedPreferences!.setString("img", responseBody['data']['image'] ?? "");
-    sharedPreferences!.setString("username", responseBody['data']['username'] ?? "");
-    sharedPreferences!.setString("email", responseBody['data']['email'] ?? "");
+    final data = (responseBody['data'] is Map)
+        ? responseBody['data']
+        : responseBody;
+
+    sharedPreferences!.setString("name", data['name']?.toString() ?? "");
+    sharedPreferences!.setString("bio", data['bio']?.toString() ?? "");
+    sharedPreferences!.setString("id", data['id']?.toString() ?? "");
+    sharedPreferences!.setString("img", data['image']?.toString() ?? "");
+    sharedPreferences!.setString("username", data['username']?.toString() ?? "");
+    sharedPreferences!.setString("email", data['email']?.toString() ?? "");
     sharedPreferences!.setString(
-        "stars", (responseBody['data']['number_of_stars'] ?? 0).toString());
-    sharedPreferences!.setString("token", responseBody['data']['token'] ?? "");
-    if (responseBody['data']['user_power'] != null) {
-      String power = jsonEncode(responseBody['data']['user_power']);
+        "stars", (data['number_of_stars'] ?? 0).toString());
+    sharedPreferences!.setString("token", data['token']?.toString() ?? "");
+    if (data['user_power'] != null) {
+      String power = jsonEncode(data['user_power']);
       sharedPreferences!.setString("powermodel", power);
     }
     sharedPreferences!.setString("page", "Home");
@@ -461,13 +467,19 @@ class PageStartController extends GetxController {
       final GoogleSignInAuthentication googleAuthData =
           await googleAccount.authentication;
 
-      final String idToken = googleAuthData.idToken ?? "";
-      final String? accessToken = googleAuthData.accessToken;
-      final String email = googleAccount.email;
-      final String name = googleAccount.displayName ?? "";
-      final String? photoUrl = googleAccount.photoUrl;
+      final String? idToken = googleAuthData.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        log("Google Sign-In failed: idToken is null or empty");
+        showUserFriendlyError(
+          StatuesRequest.badRequestException,
+          customMessage: Get.locale?.languageCode == 'ar'
+              ? "تعذر الحصول على رمز التحقق من Google، يرجى المحاولة مرة أخرى."
+              : "Could not retrieve Google ID token, please try again.",
+        );
+        return;
+      }
 
-      log("Google user retrieved: email=$email, name=$name, hasIdToken=${idToken.isNotEmpty}");
+      log("Google user retrieved: email=${googleAccount.email}, hasIdToken=true");
 
       // Ensure device token exists
       String fcmToken = sharedPreferences?.getString("deviceToken") ?? "";
@@ -483,11 +495,7 @@ class PageStartController extends GetxController {
       }
 
       var response = await _authRemoteData.googleAuth(
-        idToken: idToken,
-        accessToken: accessToken,
-        email: email,
-        name: name,
-        avatar: photoUrl,
+        credential: idToken,
         fcmToken: fcmToken,
       );
 
@@ -505,8 +513,48 @@ class PageStartController extends GetxController {
                     : "Google authentication failed"),
           );
         } else {
-          log("Google Login/Register Successful: $response");
-          _saveUserDataAndNavigate(response);
+          final data = response['data'] is Map ? response['data'] : response;
+          final String status = data['status']?.toString().toLowerCase() ?? '';
+
+          if (status == 'authenticated') {
+            log("Google Login Successful (authenticated): $response");
+            _saveUserDataAndNavigate(response);
+          } else if (status == 'otp_required') {
+            log("Google Sign-Up OTP Required: $response");
+            final email = data['email']?.toString() ?? googleAccount.email;
+            emailController.text = email;
+            verifyCode = '';
+            updateSheet('verifyLogin');
+            Get.snackbar(
+              Get.locale?.languageCode == 'ar'
+                  ? "تم إرسال كود التحقق"
+                  : "Verification Code Sent",
+              Get.locale?.languageCode == 'ar'
+                  ? "تم إرسال رمز التحقق إلى بريدك الإلكتروني ($email)"
+                  : "A verification code has been sent to $email",
+              backgroundColor: AppColors.secondaryColor,
+              colorText: Colors.white,
+              borderRadius: 16,
+              margin: const EdgeInsets.all(12),
+              duration: const Duration(seconds: 4),
+              snackPosition: SnackPosition.TOP,
+              icon: const Icon(Icons.mark_email_read_rounded,
+                  color: Colors.white),
+            );
+          } else if (data['token'] != null &&
+              data['token'].toString().isNotEmpty) {
+            // Direct token fallback
+            log("Google Login Successful (direct token): $response");
+            _saveUserDataAndNavigate(response);
+          } else {
+            showUserFriendlyError(
+              StatuesRequest.badRequestException,
+              customMessage: response['message']?.toString() ??
+                  (Get.locale?.languageCode == 'ar'
+                      ? "استجابة غير متوقعة من الخادم"
+                      : "Unexpected response from server"),
+            );
+          }
         }
       } else if (statuesRequest == StatuesRequest.unprocessableException) {
         showUserFriendlyError(
@@ -678,57 +726,7 @@ class PageStartController extends GetxController {
             customMessage: response['message']?.toString() ?? S.of(Get.context!).otpError,
           );
         } else {
-          sharedPreferences!.remove("deviceId");
-           try {
-      String? deviceId = sharedPreferences!.getString("deviceId");
-
-      if (deviceId == null || deviceId.isEmpty) {
-        const uuid = Uuid();
-        deviceId = uuid.v4();
-
-        await sharedPreferences!.setString("deviceId", deviceId);
-
-        log("✅ تم إنشاء وحفظ UUID جديد: ${sharedPreferences!.getString("deviceId")}");
-      } else {
-        log("⚡ الـ UUID موجود بالفعل: $deviceId");
-      }
-    } catch (e) {
-      log("❌ Error generating/saving UUID: $e");
-    }
-          Map<String, dynamic> responseBody = response;
-          log("loginnn >> $responseBody");
-
-          sharedPreferences!.setString("name", responseBody['data']['name']);
-          sharedPreferences!
-              .setString("bio", responseBody['data']['bio'] ?? "");
-          sharedPreferences!
-              .setString("id", responseBody['data']['id'].toString());
-          sharedPreferences!
-              .setString("img", responseBody['data']['image'] ?? "");
-          sharedPreferences!
-              .setString("username", responseBody['data']['username']);
-          sharedPreferences!.setString("email", responseBody['data']['email']);
-          sharedPreferences!.setString(
-              "stars", responseBody['data']['number_of_stars'].toString());
-          sharedPreferences!.setString("token", responseBody['data']['token']);
-          String power = jsonEncode(responseBody['data']['user_power']);
-          sharedPreferences!.setString("powermodel", power);
-          log("power?>>>>>>>>> ${responseBody['data']['user_power']}");
-          log("power?>>>>>>>>> ${sharedPreferences!.getString("powermodel")!}");
-          sharedPreferences!.setString("page", "Home");
-          
-          // Clear Guest Session Data upon successful login
-          sharedPreferences!.remove("idGust");
-          sharedPreferences!.remove("usernameGust");
-          
-          sheetName = "Login";
-
-          Get.offAll(
-            () => const HomeView(),
-            transition: Transition.downToUp,
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.easeOut,
-          );
+          _saveUserDataAndNavigate(response);
         }
       } else if (statuesRequest == StatuesRequest.unprocessableException) {
         showUserFriendlyError(
@@ -763,32 +761,7 @@ class PageStartController extends GetxController {
             customMessage: response['message']?.toString() ?? S.of(Get.context!).otpError,
           );
         } else {
-          Map<String, dynamic> responseBody = response;
-          sharedPreferences!
-              .setString("bio", responseBody['data']['bio'] ?? "");
-          sharedPreferences!
-              .setString("id", responseBody['data']['id'].toString());
-          sharedPreferences!.setString("name", responseBody['data']['name']);
-          sharedPreferences!
-              .setString("img", responseBody['data']['image'] ?? "");
-          sharedPreferences!
-              .setString("username", responseBody['data']['username']);
-          sharedPreferences!.setString("email", responseBody['data']['email']);
-          sharedPreferences!.setString("token", responseBody['data']['token']);
-          sharedPreferences!.setString(
-              "stars", responseBody['data']['number_of_stars'].toString());
-          String power = jsonEncode(responseBody['data']['user_power']);
-          sharedPreferences!.setString("powermodel", power);
-          sharedPreferences!.setString("page", "Home");
-          sheetName = "Login";
-          log("power?>>>>>>>>> ${responseBody['data']['user_power']}");
-          log("power?>>>>>>>>> ${sharedPreferences!.getString("powermodel")!}");
-          Get.offAll(
-            () => const HomeView(),
-            transition: Transition.downToUp,
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.easeOut,
-          );
+          _saveUserDataAndNavigate(response);
         }
       } else if (statuesRequest == StatuesRequest.unprocessableException) {
         showUserFriendlyError(

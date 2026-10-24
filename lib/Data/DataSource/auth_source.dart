@@ -19,25 +19,15 @@ class AuthRemoteData {
   }
 
   googleAuth({
-    required String idToken,
-    String? accessToken,
-    required String email,
-    required String name,
-    String? avatar,
-    required String fcmToken,
+    required String credential,
+    String? fcmToken,
   }) async {
     Map<String, dynamic> data = {
-      "id_token": idToken,
-      "email": email,
-      "name": name,
-      "fcm_token": fcmToken,
+      "credential": credential,
       "mobile_theme": _getMobileTheme(),
     };
-    if (accessToken != null && accessToken.isNotEmpty) {
-      data["access_token"] = accessToken;
-    }
-    if (avatar != null && avatar.isNotEmpty) {
-      data["avatar"] = avatar;
+    if (fcmToken != null && fcmToken.isNotEmpty) {
+      data["fcm_token"] = fcmToken;
     }
     var response = await api.postData(
       "${AppApi.googleAuthUrl}?device_id=$deviceId",
