@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.liveChat.app"
-    compileSdk = 37
+    compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
